@@ -1,12 +1,13 @@
+import json
 from decimal import Decimal
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase
+from django.test import RequestFactory, SimpleTestCase
 
 from finance.models import InvoiceTossPayments
-from finance.views import _build_confirm_error_message, _confirmation_window_expired
+from finance.views import _build_confirm_error_message, _confirmation_window_expired, confirm_payment
 
 
 class InvoiceTossPaymentsPayloadTests(SimpleTestCase):
@@ -84,3 +85,123 @@ class ConfirmPaymentHelpersTests(SimpleTestCase):
             message = _build_confirm_error_message("Base error", payment_data)
 
         self.assertIn("Повторите подтверждение через несколько секунд", message)
+
+
+class ConfirmPaymentViewTests(SimpleTestCase):
+    def setUp(self):
+        self.factory = RequestFactory()
+
+    def _build_response(self, ok, status_code, payload):
+        response = Mock()
+        response.ok = ok
+        response.status_code = status_code
+        response.json.return_value = payload
+        response.text = json.dumps(payload, ensure_ascii=False)
+        return response
+
+    @patch("finance.views.render", side_effect=lambda request, template, context: context)
+    @patch("finance.views.InvoiceTossPayments")
+    def test_unpaid_invoice_requires_callback_params(self, invoice_model, _render_mock):
+        invoice = Mock(
+            amount=Decimal("10.00"),
+            is_paid=False,
+            order_id="inv-1",
+            payment_id="ready-payment-key",
+            status="READY",
+        )
+        invoice_model.objects.filter.return_value.first.return_value = invoice
+
+        request = self.factory.get("/api/invoice/confirm/inv-1/")
+
+        response = confirm_payment(request, "inv-1")
+
+        self.assertEqual(response["error_code"], "MISSING_CONFIRM_PARAMS")
+        self.assertIn("successUrl", response["error_message"])
+
+    @patch("finance.views.render", side_effect=lambda request, template, context: context)
+    @patch("finance.views.InvoiceTossPayments")
+    def test_paid_invoice_can_open_success_page_without_callback_params(self, invoice_model, _render_mock):
+        invoice = Mock(
+            amount=Decimal("10.00"),
+            is_paid=True,
+            order_id="inv-1",
+            payment_id="confirmed-payment-key",
+            status="DONE",
+        )
+        invoice_model.objects.filter.return_value.first.return_value = invoice
+
+        request = self.factory.get("/api/invoice/confirm/inv-1/")
+
+        response = confirm_payment(request, "inv-1")
+
+        self.assertEqual(response["payment_key"], "confirmed-payment-key")
+        self.assertEqual(response["amount"], Decimal("10.00"))
+
+    @patch("finance.views.requests.post")
+    @patch("finance.views.render", side_effect=lambda request, template, context: context)
+    @patch("finance.views.InvoiceTossPayments")
+    def test_successful_confirm_response_is_saved(self, invoice_model, _render_mock, post_mock):
+        invoice = Mock(
+            amount=Decimal("10.00"),
+            confirm_response=None,
+            is_paid=False,
+            order_id="inv-1",
+            payment_id="ready-payment-key",
+            status="READY",
+        )
+        invoice_model.objects.filter.return_value.first.return_value = invoice
+        post_mock.return_value = self._build_response(
+            ok=True,
+            status_code=200,
+            payload={"paymentKey": "confirmed-payment-key", "status": "DONE"},
+        )
+
+        request = self.factory.get(
+            "/api/invoice/confirm/inv-1/",
+            {"paymentKey": "confirmed-payment-key", "amount": "10", "orderId": "inv-1"},
+        )
+
+        response = confirm_payment(request, "inv-1")
+        saved_response = json.loads(invoice.confirm_response)
+
+        self.assertEqual(saved_response["status_code"], 200)
+        self.assertTrue(saved_response["ok"])
+        self.assertEqual(saved_response["body"]["status"], "DONE")
+        invoice.save.assert_called_once_with(
+            update_fields=["payment_id", "status", "is_paid", "confirm_response", "updated_at"]
+        )
+        self.assertEqual(response["payment_key"], "confirmed-payment-key")
+
+    @patch("finance.views._fetch_payment", return_value=(None, ("PAYMENT_LOOKUP_ERROR", "lookup failed")))
+    @patch("finance.views.requests.post")
+    @patch("finance.views.render", side_effect=lambda request, template, context: context)
+    @patch("finance.views.InvoiceTossPayments")
+    def test_failed_confirm_response_is_saved(self, invoice_model, _render_mock, post_mock, _fetch_payment_mock):
+        invoice = Mock(
+            amount=Decimal("10.00"),
+            confirm_response=None,
+            is_paid=False,
+            order_id="inv-1",
+            payment_id="ready-payment-key",
+            status="READY",
+        )
+        invoice_model.objects.filter.return_value.first.return_value = invoice
+        post_mock.return_value = self._build_response(
+            ok=False,
+            status_code=401,
+            payload={"code": "INVALID_API_KEY", "message": "Incorrect secret key."},
+        )
+
+        request = self.factory.get(
+            "/api/invoice/confirm/inv-1/",
+            {"paymentKey": "ready-payment-key", "amount": "10", "orderId": "inv-1"},
+        )
+
+        response = confirm_payment(request, "inv-1")
+        saved_response = json.loads(invoice.confirm_response)
+
+        self.assertEqual(saved_response["status_code"], 401)
+        self.assertFalse(saved_response["ok"])
+        self.assertEqual(saved_response["body"]["code"], "INVALID_API_KEY")
+        invoice.save.assert_called_once_with(update_fields=["status", "is_paid", "confirm_response", "updated_at"])
+        self.assertEqual(response["error_code"], "INVALID_API_KEY")

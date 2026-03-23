@@ -12,4 +12,4 @@ from finance.models import InvoiceYookassa, InvoiceTossPayments
 @admin.register(InvoiceTossPayments)
 class InvoiceTossPaymentsModelAdmin(admin.ModelAdmin):
     list_display = ("status", "amount", "created_at", "updated_at", "is_paid", "manager_name", "payment_link")
-    readonly_fields = ("payment_link", "payment_id", "status", "order_id")
+    readonly_fields = ("payment_link", "payment_id", "status", "order_id", "confirm_response")

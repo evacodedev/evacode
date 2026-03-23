@@ -97,6 +97,7 @@ class InvoiceTossPayments(models.Model):
     order_id = models.CharField(max_length=64, verbose_name="Order ID", blank=True)
     manager_link = models.CharField(max_length=128, verbose_name="Ссылка на контакт менеджера", null=True, blank=True)
     payload = models.TextField(verbose_name="Payload field", blank=True, null=True)
+    confirm_response = models.TextField(verbose_name="Confirm response field", blank=True, null=True)
 
     def _build_toss_payload(self, order_id, success_url, fail_url):
         payload = {
