@@ -87,37 +87,29 @@ class InvoiceTossPayments(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     description = models.TextField(blank=True, null=True)
-    customer_name = models.CharField(max_length=128, verbose_name="Имя пользователя/покупателя", default="Имя")
-    customer_phone = models.CharField(max_length=64, verbose_name="Номер телефона пользователя/покупателя", default="Телефон")
-    customer_email = models.CharField(max_length=64, verbose_name="Почта пользоавтеля/покупателя", default="customer_email@example.com")
     is_paid = models.BooleanField(blank=True, null=True, default=False)
     payment_link = models.TextField(verbose_name="Ссылка на оплату")
-    payment_type = models.CharField(max_length=16, choices=PaymentType.choices, default=PaymentType.CARD, db_index=True)
     manager_name = models.CharField(max_length=64, verbose_name="Имя менеджера")
     order_id = models.CharField(max_length=64, verbose_name="Order ID", blank=True)
-    manager_link = models.CharField(max_length=128, verbose_name="Ссылка на контакт менеджера", null=True, blank=True)
     payload = models.TextField(verbose_name="Payload field", blank=True, null=True)
     confirm_response = models.TextField(verbose_name="Confirm response field", blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Счёт на оплату"
+        verbose_name_plural = "Счёта на оплату"
 
     def _build_toss_payload(self, order_id, success_url, fail_url):
         payload = {
-            "method": self.payment_type,
+            "method": "FOREIGN_EASY_PAY",
             "amount": int(self.amount),
             "orderId": order_id,
             "orderName": (self.description or "Invoice")[:100],
             "successUrl": success_url,
             "failUrl": fail_url,
         }
-
-        if self.payment_type == self.PaymentType.CARD:
-            return payload
-
-        if self.payment_type == self.PaymentType.FOREIGN:
-            payload["provider"] = "PAYPAL"
-            payload["currency"] = "USD"
-            return payload
-
-        raise ValueError(f"Unsupported TOSS payment type: {self.payment_type}")
+        payload["provider"] = "PAYPAL"
+        payload["currency"] = "USD"
+        return payload
 
     def save(self, *args, **kwargs):
         super().save(*args, **kwargs)
