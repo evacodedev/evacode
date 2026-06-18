@@ -66,6 +66,7 @@ services:
     entrypoint: /bin/sh -c 'trap exit TERM; while :; do certbot renew --quiet; sleep 12h & wait $${!}; done'
   frontend:
     build: evacode.org
+    restart: always
     depends_on:
       - nginx
 volumes:
@@ -75,3 +76,8 @@ volumes:
     name: evacode-static
   media:
     name: evacode-media
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.driver.mtu: 1450
