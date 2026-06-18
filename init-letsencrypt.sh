@@ -24,10 +24,10 @@ if [ ! -f "$CONF_PATH/live/$DOMAIN/fullchain.pem" ]; then
     -subj "/CN=localhost" 2>/dev/null
 fi
 
-# --- Step 2: start nginx so it can serve the ACME challenge ---
-echo "### Starting nginx..."
-docker compose up --force-recreate -d nginx
-sleep 3
+# --- Step 2: build and start nginx so it can serve the ACME challenge ---
+echo "### Building and starting nginx..."
+docker compose up --force-recreate --build -d nginx
+sleep 5
 
 # --- Step 3: request the real certificate ---
 echo "### Requesting Let's Encrypt certificate for $DOMAIN..."
