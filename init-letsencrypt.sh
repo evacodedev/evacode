@@ -29,7 +29,15 @@ echo "### Building and starting nginx..."
 docker compose up --force-recreate --build -d nginx
 sleep 5
 
-# --- Step 3: request the real certificate ---
+# --- Step 3: remove dummy cert AFTER nginx loaded it into memory ---
+# nginx keeps the cert cached — deleting it won't crash the running process.
+# certbot needs the live/ directory to be empty to create a fresh certificate.
+echo "### Removing temporary certificate..."
+rm -rf "$CONF_PATH/live/$DOMAIN"
+rm -f  "$CONF_PATH/renewal/$DOMAIN.conf"
+rm -f  "$CONF_PATH/renewal/$DOMAIN-0001.conf"
+
+# --- Step 4: request the real certificate ---
 echo "### Requesting Let's Encrypt certificate for $DOMAIN..."
 STAGING_FLAG=""
 if [ "$STAGING" = "1" ]; then
@@ -40,7 +48,6 @@ fi
 docker compose run --rm --entrypoint certbot certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
-  --force-renewal \
   $STAGING_FLAG \
   --email "$EMAIL" \
   --agree-tos \
@@ -48,7 +55,7 @@ docker compose run --rm --entrypoint certbot certbot certonly \
   -d "$DOMAIN" \
   -d "evacode.org"
 
-# --- Step 4: reload nginx with the real certificate ---
+# --- Step 5: reload nginx with the real certificate ---
 echo "### Reloading nginx..."
 docker compose exec nginx nginx -s reload
 
