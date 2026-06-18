@@ -8,3 +8,6 @@ db.sqlite3
 .env2
 debug.log
 dumpdata.json
+data/certbot/
+dockerfiles/nginx/*.crt
+dockerfiles/nginx/*.key
