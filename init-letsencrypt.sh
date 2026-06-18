@@ -40,6 +40,7 @@ fi
 docker compose run --rm --entrypoint certbot certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
+  --force-renewal \
   $STAGING_FLAG \
   --email "$EMAIL" \
   --agree-tos \
