@@ -287,13 +287,19 @@ docker compose exec server python manage.py shell
 
 ### Синхронизация каталога
 
-Импорт из Business.Ru выполняется командой `updatedata`:
+В production сервис `update_database` запускает команду `updatedata`. Она сразу получает актуальный токен Business.Ru, синхронизирует категории и товары, затем повторяет этот цикл **каждые 5 минут**.
 
 ```bash
-docker compose run --rm update_database python manage.py updatedata
+docker compose logs -f update_database
 ```
 
-Проверьте логи сервиса `update_database`. В текущем compose-файле для него указан `restart: always`; если команда быстро завершается, Docker может запускать ее повторно. Для разового импорта предпочтительнее команда выше.
+Команда работает в бесконечном цикле и сама по себе не завершается. `restart: always` в `docker-compose.yml` восстанавливает сервис после неожиданного завершения или перезапуска Docker, а не задаёт расписание. Не используйте `docker compose run --rm update_database python manage.py updatedata` для разового импорта: этот запуск также будет работать непрерывно.
+
+Чтобы вручную перезапустить синхронизацию после изменения настроек Business.Ru:
+
+```bash
+docker compose restart update_database
+```
 
 ### Данные и место на диске
 
