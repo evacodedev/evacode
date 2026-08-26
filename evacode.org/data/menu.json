@@ -1,0 +1,34 @@
+{
+  "data": [
+    {
+      "title": "Главная",
+      "type": "sub",
+      "active": false,
+      "path": "/"
+    },
+    {
+      "title": "Магазин",
+      "type": "sub",
+      "active": false,
+      "path": "/collection/leftsidebar/0"
+    },
+    {
+      "title": "Доставка",
+      "type": "sub",
+      "active": false,
+      "path": "/page/delivery"
+    },
+    {
+      "title": "Контакты",
+      "type": "sub",
+      "active": false,
+      "path": "/page/account/contact"
+    },
+    {
+      "title": "О нас",
+      "type": "sub",
+      "active": false,
+      "path": "/page/about"
+    }
+  ]
+}
