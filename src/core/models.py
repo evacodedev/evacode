@@ -91,7 +91,7 @@ class Contacts(models.Model):
     telegram = models.CharField(verbose_name="Telegram", max_length=128)
     instagram = models.CharField(verbose_name="Instagram", max_length=128)
     facebook = models.CharField(verbose_name="Facebook", max_length=128)
-    address = models.CharField(verbose_name="Address", max_length=128)
+    address = models.CharField(verbose_name="Address", max_length=256)
     phone = models.CharField(verbose_name="Phone", max_length=128)
     email = models.CharField(verbose_name="Email", max_length=128)
     tiktok = models.CharField(verbose_name="TikTok", max_length=128, null=True)
