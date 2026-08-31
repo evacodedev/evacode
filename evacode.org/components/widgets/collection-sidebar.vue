@@ -8,7 +8,7 @@
               :class="filter ? 'fill-btn' : ''"
               @click="filter = !filter"
           >
-            Категории
+            Фильтры
           </button>
         </div>
       </div>
