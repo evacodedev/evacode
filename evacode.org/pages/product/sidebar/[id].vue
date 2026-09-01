@@ -173,7 +173,7 @@ const markImageLoaded = (index) => {
 };
 
 const {data: productResponse, pending: productPending} = await useAsyncData(
-    () => `product-${route.params.id}`,
+    `product-${route.params.id}`,
     () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
         query: {
             id: route.params.id,
