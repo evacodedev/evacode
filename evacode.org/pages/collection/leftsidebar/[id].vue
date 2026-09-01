@@ -103,7 +103,7 @@ const currentCategory = computed(() => {
 });
 const allowedOrdering = ['retail_price', '-retail_price', 'title'];
 const ordering = computed({
-    get: () => allowedOrdering.includes(route.query.ordering) ? route.query.ordering : 'retail_price',
+    get: () => allowedOrdering.includes(route.query.ordering) ? route.query.ordering : 'title',
     set: async (value) => {
         const query = { ...route.query, ordering: value, page: 1 };
         delete query.in_stock;
@@ -116,7 +116,7 @@ const goodsQuery = computed(() => {
     const query = {
         page: currentPage.value,
         page_size: itemsPerPage.value,
-        ordering: allowedOrdering.includes(route.query.ordering) ? route.query.ordering : 'retail_price',
+        ordering: allowedOrdering.includes(route.query.ordering) ? route.query.ordering : 'title',
     };
     if (currentCategory.value) {
         query.category = currentCategory.value;

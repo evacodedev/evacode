@@ -59,3 +59,7 @@ class GoodsFilterApiTests(TestCase):
     def test_ordering_by_price(self):
         response = self.client.get("/api/market/goods/", {"ordering": "retail_price"})
         self.assertEqual(self._ids(response), [1, 2])
+
+    def test_default_ordering_by_title(self):
+        response = self.client.get("/api/market/goods/")
+        self.assertEqual(self._ids(response), [2, 1])

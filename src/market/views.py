@@ -48,7 +48,7 @@ class GoodsAPIView(ModelViewSet):
     filter_backends = (filters.DjangoFilterBackend, OrderingFilter)
     filterset_class = GoodsFilter
     ordering_fields = ["retail_price", "title"]
-    ordering = ["retail_price", "title"]
+    ordering = ["title"]
 
 
 class GroupListAPIView(generics.ListAPIView):
