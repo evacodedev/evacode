@@ -185,35 +185,33 @@ const runtimeConfig = useRuntimeConfig();
 const slideId = ref(0);
 const counter = ref(1);
 const swiper = ref({});
-const productId = computed(() => String(route.params.id));
+const productId = String(route.params.id);
+const isProductRoute = computed(() => String(route.path).includes('/product/sidebar'));
 
 const { data: productResponse, pending, status, error } = await useAsyncData(
-    `goods-product-${productId.value}`,
+    `goods-product-${productId}`,
     () => $fetch(`${runtimeConfig.public.apiBase}/market/goods`, {
-        query: { id: productId.value },
+        query: { id: productId },
     }),
     {
         lazy: import.meta.client,
-        watch: [productId],
     },
 );
 
 const fetchedProduct = computed(() => productResponse.value?.results?.[0] ?? null);
-const product = computed(() => fetchedProduct.value || previewFor(productId.value));
+const product = computed(() => fetchedProduct.value || previewFor(productId));
 const productImages = computed(() => product.value?.images || []);
 const showNotFound = computed(() =>
-    !pending.value && !fetchedProduct.value && (status.value === 'success' || status.value === 'error' || Boolean(error.value)),
+    isProductRoute.value
+    && !pending.value
+    && !fetchedProduct.value
+    && (status.value === 'success' || status.value === 'error' || Boolean(error.value)),
 );
 
 const loadedImages = ref({});
 const markImageLoaded = (index) => {
     loadedImages.value = { ...loadedImages.value, [index]: true };
 };
-
-watch(productId, () => {
-    loadedImages.value = {};
-    counter.value = 1;
-});
 
 const onSwiper = (_swiper) => swiper.value = _swiper;
 
