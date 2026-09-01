@@ -82,6 +82,20 @@ export default defineNuxtConfig({
     },
     css: ['@/assets/scss/app.scss'],
     ssr: true,
+    image: {
+        provider: 'ipx',
+        quality: 75,
+        format: ['webp'],
+        domains: ['a46291.business.ru'],
+        screens: {
+            xs: 320,
+            sm: 640,
+            md: 768,
+            lg: 1024,
+            xl: 1280,
+            xxl: 1536,
+        },
+    },
     modules: [
         'maz-ui/nuxt',
         'nuxt3-localforage',

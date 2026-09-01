@@ -6,14 +6,20 @@
         <span class="lable4" v-if="product.sale">sale</span>
       </div>
       <nuxt-link :class="'product-detail-link'" :to="{ path: '/product/sidebar/'+product.id}" @click="rememberProduct">
-        <img
-            ref="productImage"
-            :src='imageSrc ? imageSrc : product.images[0].url'
-            :id="product.id"
+        <NuxtImg
+            v-if="cardImageSrc"
+            :src="cardImageSrc"
+            :alt="product.title"
+            :width="800"
+            fit="inside"
+            format="webp"
+            :quality="75"
+            densities="x1"
+            :loading="index < 4 ? 'eager' : 'lazy'"
+            :preload="index === 0"
             class="img-fluid bg-img media"
             :class="{ 'is-loaded': imageLoaded }"
-            :alt="product.title"
-            :key="index"
+            :key="cardImageSrc"
             @load="imageLoaded = true"
         />
       </nuxt-link>
@@ -48,7 +54,10 @@ import {useProductStore} from '~~/store/products'
 import {useCartStore} from '~~/store/cart'
 
 export default {
-  props: ['product', 'index'],
+  props: {
+    product: { type: Object, required: true },
+    index: { type: Number, default: 0 },
+  },
   data() {
     return {
       _imageSrc: '',
@@ -68,7 +77,17 @@ export default {
           this.product.images.length &&
           this.product.images.map((image)=>image.url).indexOf(this._imageSrc) !== -1;
       return isImageFromProduct ? this._imageSrc : '';
-    }
+    },
+    cardImageSrc() {
+      if (this.imageSrc) {
+        return this.imageSrc;
+      }
+      const images = this.product?.images;
+      if (!images?.length) {
+        return '';
+      }
+      return images[0].url || '';
+    },
   },
   methods: {
     rememberProduct() {
@@ -89,14 +108,8 @@ export default {
       return useProductStore().getPrice(price);
     }
   },
-  mounted() {
-    const img = this.$refs.productImage
-    if (img && img.complete && img.naturalWidth) {
-      this.imageLoaded = true
-    }
-  },
   watch: {
-    index() {
+    cardImageSrc() {
       this.imageLoaded = false
     },
   },
