@@ -50,7 +50,7 @@ class GoodsAPIView(ModelViewSet):
 
 
 class GroupListAPIView(generics.ListAPIView):
-    queryset = GroupOfGoods.objects.order_by('id')
+    queryset = GroupOfGoods.objects.filter(deleted=False).order_by('id')
     serializer_class = GroupOfGoodsSerializer
     pagination_class = AllObjectPagination
 
