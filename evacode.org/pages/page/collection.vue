@@ -34,7 +34,7 @@ const {data: categoriesResponse} = await useAsyncData(
     }
 );
 
-const categories = computed(() => categoriesResponse.value?.result.slice(1));
+const categories = computed(() => (categoriesResponse.value?.result || []).filter((c) => c.id !== 1));
 
 useHead({
   titleTemplate: `%s - Категории`,

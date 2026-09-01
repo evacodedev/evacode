@@ -4,6 +4,7 @@ from django.db import models
 class GroupOfGoods(models.Model):
     default_order = models.CharField(max_length=128)
     deleted = models.BooleanField(verbose_name='Крупный опт')
+    isaction = models.BooleanField(default=True, verbose_name='Показывать на сайте')
     description = models.TextField(blank=True, null=True, verbose_name='Описание')
     name = models.CharField(verbose_name="Наименование группы", max_length=128)
     parent_id = models.ForeignKey('self', on_delete=models.CASCADE, related_name='children', blank=True, null=True)

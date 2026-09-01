@@ -22,4 +22,4 @@ class GroupOfGoodsSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = GroupOfGoods
-        fields = ('id', 'default_order', 'deleted', 'description', 'name', 'parent_id', 'updated', 'images')
+        fields = ('id', 'default_order', 'deleted', 'isaction', 'description', 'name', 'parent_id', 'updated', 'images')
