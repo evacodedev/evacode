@@ -11,13 +11,11 @@
     "nuxt": "3.9.0",
     "nuxt-simple-sitemap": "^4.4.1"
   },
-  "overrides": {
-    "sharp": "0.35.4"
-  },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.2.1",
     "@fortawesome/fontawesome-svg-core": "^6.2.1",
     "@fortawesome/free-solid-svg-icons": "^6.2.1",
+    "@nuxt/image": "^0.7.1",
     "@nuxt/image-edge": "1.0.0-27827328.bc9ddc0",
     "@nuxtjs/robots": "^3.0.0",
     "@pinia/nuxt": "^0.4.6",
@@ -29,7 +27,6 @@
     "pinia": "^2.0.27",
     "sass": "^1.56.1",
     "sass-loader": "^13.2.0",
-    "sharp": "^0.35.4",
     "swiper": "^9.3.1",
     "vee-validate": "^4.7.3",
     "vue": "^3.2.45",

@@ -23,18 +23,7 @@
             <div class="collection-block">
               <div>
                 <nuxt-link :to="`/collection/leftsidebar/${category.id}`">
-                  <NuxtImg
-                    v-if="category.images?.[0]?.url"
-                    :src="category.images[0].url"
-                    :alt="category.name"
-                    :width="800"
-                    fit="inside"
-                    format="webp"
-                    :quality="75"
-                    densities="x1"
-                    :loading="index < 4 ? 'eager' : 'lazy'"
-                    class="img-fluid"
-                  />
+                  <img v-if="category.images[0]" :src="category.images[0].url" class="img-fluid" alt="item.title" />
                 </nuxt-link>
               </div>
               <div class="collection-content">
