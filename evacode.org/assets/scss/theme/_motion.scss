@@ -49,14 +49,12 @@
   }
 }
 
-.product-box img.media,
-.product-details-section .swiper-slide img {
+.product-box img.media {
   opacity: 0;
   transition: opacity var(--motion-slow) var(--motion-ease);
 }
 
-.product-box img.media.is-loaded,
-.product-details-section .swiper-slide img.is-loaded {
+.product-box img.media.is-loaded {
   opacity: 1;
 }
 
@@ -170,7 +168,6 @@
   .motion-appear,
   .reveal-block,
   .product-box img.media,
-  .product-details-section .swiper-slide img,
   .soft-fade-enter-active,
   .soft-fade-leave-active,
   .soft-rise-enter-active,

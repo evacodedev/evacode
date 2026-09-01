@@ -1,6 +1,6 @@
 <template>
     <Header/>
-    <div v-if="productPending" class="product-page-shell">
+    <div v-if="!product" class="product-page-shell">
         <section class="section-b-space product-details-section">
             <div class="container">
                 <div class="row">
@@ -26,7 +26,7 @@
             </div>
         </section>
     </div>
-    <div v-else-if="!!product" class="motion-appear">
+    <div v-else>
         <section class="section-b-space product-details-section">
             <div class="collection-wrapper">
                 <div class="container">
@@ -172,8 +172,8 @@ const markImageLoaded = (index) => {
     loadedImages.value = { ...loadedImages.value, [index]: true };
 };
 
-const {data: productResponse, pending: productPending} = await useAsyncData(
-    `product-${route.params.id}`,
+const {data: productResponse} = await useAsyncData(
+    'productResponse',
     () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
         query: {
             id: route.params.id,
@@ -181,7 +181,6 @@ const {data: productResponse, pending: productPending} = await useAsyncData(
     }),
     {
         server: false,
-        lazy: true,
         watch: [() => route.params.id],
     }
 );
