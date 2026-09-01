@@ -1,13 +1,13 @@
-FROM node:18.16.0
+FROM node:20.19-bookworm
 
-ENV APP_ROOT /web
+ENV APP_ROOT=/web
 
 WORKDIR ${APP_ROOT}
-ADD . ${APP_ROOT}
+COPY . ${APP_ROOT}
 
-RUN npm install -g bun
+RUN npm install -g bun@1.4.0
 
 RUN bun install
 
 RUN bun run build
-CMD node .output/server/index.mjs
+CMD ["node", ".output/server/index.mjs"]
