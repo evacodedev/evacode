@@ -141,7 +141,12 @@ const goodsQuery = computed(() => {
 
 const productsResponse = ref(null);
 const productsLoading = ref(true);
+const isCollectionRoute = () => String(route.path).includes('/collection/leftsidebar');
+
 const loadProducts = async () => {
+    if (!isCollectionRoute()) {
+        return;
+    }
     productsLoading.value = true;
     try {
         productsResponse.value = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {

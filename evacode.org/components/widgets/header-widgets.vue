@@ -16,11 +16,11 @@
           <ul class="show-div shopping-cart" v-if="cart.length">
             <li v-for="(item,index) in cart" :key="index">
               <div class="media">
-                <nuxt-link :to="{ path: '/product/sidebar/'+item.id}">
+                <nuxt-link :to="{ path: '/product/sidebar/'+item.id}" @click="rememberProduct(item)">
                   <img alt class="mr-3" :src='item.images[0].url'>
                 </nuxt-link>
                 <div class="media-body">
-                  <nuxt-link :to="{ path: '/product/sidebar/'+item.id}">
+                  <nuxt-link :to="{ path: '/product/sidebar/'+item.id}" @click="rememberProduct(item)">
                     <h4>{{ item.title }}</h4>
                   </nuxt-link>
                   <h4>
@@ -83,6 +83,9 @@ export default {
     },
   },
   methods: {
+    rememberProduct(product) {
+      useProductPreview().setPreview(product)
+    },
     removeCartItem: function (product) {
       useCartStore().removeCartItem(product)
       if (this.cart.length === 0 && this.$route.name === 'page-account-checkout') {

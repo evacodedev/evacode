@@ -5,7 +5,7 @@
         <span class="lable3" v-if="product.new">Новый</span>
         <span class="lable4" v-if="product.sale">sale</span>
       </div>
-      <nuxt-link :class="'product-detail-link'" :to="{ path: '/product/sidebar/'+product.id}">
+      <nuxt-link :class="'product-detail-link'" :to="{ path: '/product/sidebar/'+product.id}" @click="rememberProduct">
         <img
             ref="productImage"
             :src='imageSrc ? imageSrc : product.images[0].url'
@@ -19,7 +19,7 @@
       </nuxt-link>
     </div>
     <div class="product-detail">
-      <nuxt-link :to="{ path: '/product/sidebar/'+product.id}">
+      <nuxt-link :to="{ path: '/product/sidebar/'+product.id}" @click="rememberProduct">
         <h6>{{ product.title }}</h6>
       </nuxt-link>
       <h4>
@@ -71,6 +71,9 @@ export default {
     }
   },
   methods: {
+    rememberProduct() {
+      useProductPreview().setPreview(this.product)
+    },
     addToCart: function (product) {
 
       this.cartval = true
