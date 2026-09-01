@@ -1,9 +1,11 @@
 <template>
   <div></div>
   <div>
+    <Transition name="soft-fade">
+      <div class="modal-backdrop fade show" v-if="openCart"></div>
+    </Transition>
 
-    <div class="modal-backdrop fade show" v-if="openCart"></div>
-
+    <Transition name="soft-rise">
     <div class="modal fade show d-block bd-example-modal-lg theme-modal cart-modal" id="modal-cart"
          aria-hidden="true" tabindex="-1" role="dialog" aria-labelledby="modal-cartLabel" v-if="openCart">
       <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -48,6 +50,7 @@
         </div>
       </div>
     </div>
+    </Transition>
   </div>
 </template>
 

@@ -4,7 +4,22 @@
     <section class="collection section-b-space pt-0 ratio_square">
       <div class="container">
         <div class="row partition-collection">
-          <div class="col-lg-3 col-md-6" v-for="(category, index) in categories" :key="index">
+          <template v-if="categoriesPending && !categories.length">
+            <div class="col-lg-3 col-md-6" v-for="n in 8" :key="n">
+              <div class="collection-block">
+                <div class="skeleton-block" style="aspect-ratio: 1 / 1"></div>
+                <div class="product-skeleton" style="padding: 16px 0">
+                  <div class="skeleton-line"></div>
+                </div>
+              </div>
+            </div>
+          </template>
+          <div
+              class="col-lg-3 col-md-6 motion-appear"
+              v-for="(category, index) in categories"
+              :key="category.id || index"
+              :style="{ '--i': index }"
+          >
             <div class="collection-block">
               <div>
                 <nuxt-link :to="`/collection/leftsidebar/${category.id}`">
@@ -26,11 +41,12 @@
 </template>
 
 <script setup>
-const {data: categoriesResponse} = await useAsyncData(
+const {data: categoriesResponse, pending: categoriesPending} = await useAsyncData(
     'categoriesResponse',
     () => $fetch(`${useRuntimeConfig().public.apiBase}/market/categories/`),
     {
       server: false,
+      lazy: true,
     }
 );
 

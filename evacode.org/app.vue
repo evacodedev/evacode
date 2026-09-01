@@ -1,7 +1,11 @@
 <template>
 <NuxtLayout >
     <Head></Head>
-    <NuxtPage :page-key="(route) => route.fullPath" />
+    <NuxtLoadingIndicator :height="2" :duration="2000" :throttle="200" color="#B89254" />
+    <NuxtPage
+        :page-key="(route) => route.path"
+        :transition="{ name: 'page', mode: 'out-in' }"
+    />
 </NuxtLayout>
 </template>
 

@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-reveal>
     <section class="beauty-leadership">
       <div class="container">
         <h3>Международная Компания «EvaCode» была основана на территории Южной Кореи в 2019 году.<br/>

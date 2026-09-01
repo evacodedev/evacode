@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-reveal>
         <section class="testimonials">
             <div class="container">
                 <swiper

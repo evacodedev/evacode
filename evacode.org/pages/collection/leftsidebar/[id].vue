@@ -21,7 +21,10 @@
                                                     <option value="title">По названию</option>
                                                 </select>
                                             </div>
-                                            <div class="product-wrapper-grid">
+                                            <div
+                                                class="product-wrapper-grid"
+                                                :class="{ 'is-refreshing': productsLoading && products?.length }"
+                                            >
                                                 <div class="row">
                                                     <div class="col-12">
                                                         <div class="text-center section-t-space section-b-space"
@@ -37,8 +40,15 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
-                                                         v-for="(product, index) in products" :key="index">
+                                                    <WidgetsProductSkeletons
+                                                        v-if="productsLoading && !products?.length"
+                                                    />
+                                                    <div
+                                                        class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6 motion-appear"
+                                                        v-for="(product, index) in (products || [])"
+                                                        :key="product.id || index"
+                                                        :style="{ '--i': index }"
+                                                    >
                                                         <div class="product-box">
                                                             <ProductBoxProductBox1
                                                                 @opencartmodel="showCart"
@@ -85,10 +95,6 @@
 </template>
 <script setup>
 import {useRoute, useRouter} from 'vue-router';
-
-definePageMeta({
-    key: (route) => route.fullPath,
-});
 
 const route = useRoute();
 const router = useRouter();
@@ -137,7 +143,6 @@ const productsResponse = ref(null);
 const productsLoading = ref(true);
 const loadProducts = async () => {
     productsLoading.value = true;
-    productsResponse.value = null;
     try {
         productsResponse.value = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
             query: { ...goodsQuery.value },

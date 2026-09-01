@@ -7,11 +7,14 @@
       </div>
       <nuxt-link :class="'product-detail-link'" :to="{ path: '/product/sidebar/'+product.id}">
         <img
+            ref="productImage"
             :src='imageSrc ? imageSrc : product.images[0].url'
             :id="product.id"
-            class="img-fluid bg-img media "
+            class="img-fluid bg-img media"
+            :class="{ 'is-loaded': imageLoaded }"
             :alt="product.title"
             :key="index"
+            @load="imageLoaded = true"
         />
       </nuxt-link>
     </div>
@@ -51,6 +54,7 @@ export default {
       _imageSrc: '',
       cartProduct: {},
       cartval: false,
+      imageLoaded: false,
     }
   },
   emits: ['opencartmodel'],
@@ -81,6 +85,17 @@ export default {
     getPrice: function (price) {
       return useProductStore().getPrice(price);
     }
+  },
+  mounted() {
+    const img = this.$refs.productImage
+    if (img && img.complete && img.naturalWidth) {
+      this.imageLoaded = true
+    }
+  },
+  watch: {
+    index() {
+      this.imageLoaded = false
+    },
   },
 }
 </script>

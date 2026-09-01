@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-reveal>
     <section class="beauty-payment-types">
       <div class="container">
         <h3>Удобные способы оплаты</h3>

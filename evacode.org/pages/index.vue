@@ -8,6 +8,7 @@
                     :products="products"
                     :pagination-props="paginationProps"
                     :totalProductsCount="totalProductsCount"
+                    :loading="productsPending"
                 />
             </div>
         </section>
@@ -27,7 +28,7 @@ import {useRoute} from 'vue-router';
 const route = useRoute();
 const currentPage = ref(parseFloat(route.query.page) || 1);
 const currentCategory = ref(parseFloat(route.params.id) || null);
-const {data: productsResponse} = await useAsyncData(
+const {data: productsResponse, pending: productsPending} = await useAsyncData(
     'productsResponse',
     () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
         query: {
@@ -37,6 +38,7 @@ const {data: productsResponse} = await useAsyncData(
     }),
     {
         server: false,
+        lazy: true,
         watch: [currentPage, currentCategory]
     }
 );

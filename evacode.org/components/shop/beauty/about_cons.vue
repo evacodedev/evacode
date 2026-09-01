@@ -1,5 +1,5 @@
 <template>
-  <div>
+  <div v-reveal>
     <section class="beauty-about first-about">
       <div class="container">
         <div v-if="aboutHome" class="row">

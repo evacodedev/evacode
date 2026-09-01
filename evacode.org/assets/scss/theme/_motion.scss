@@ -1,0 +1,210 @@
+/* Soft motion for a calm, expert cosmetics shop. Layout and colors stay the same. */
+
+:root {
+  --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-fast: 180ms;
+  --motion-base: 320ms;
+  --motion-slow: 480ms;
+  --motion-gold: #b89254;
+}
+
+.page-enter-active {
+  transition: opacity var(--motion-base) var(--motion-ease),
+    transform var(--motion-base) var(--motion-ease);
+}
+
+.page-leave-active {
+  transition: opacity var(--motion-fast) ease;
+}
+
+.page-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-leave-to {
+  opacity: 0;
+}
+
+.nuxt-loading-indicator {
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--motion-gold),
+    transparent
+  ) !important;
+  box-shadow: 0 0 8px rgba(184, 146, 84, 0.35);
+}
+
+.motion-appear {
+  animation: motion-rise var(--motion-slow) var(--motion-ease) both;
+  animation-delay: calc(var(--i, 0) * 40ms);
+}
+
+.reveal-block {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 420ms var(--motion-ease),
+    transform 420ms var(--motion-ease);
+}
+
+.reveal-block.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.product-wrapper-grid.is-refreshing {
+  position: relative;
+  pointer-events: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(1px);
+    animation: motion-veil var(--motion-base) var(--motion-ease) both;
+  }
+}
+
+.product-box img.media,
+.product-details-section .swiper-slide img {
+  opacity: 0;
+  transition: opacity var(--motion-slow) var(--motion-ease);
+}
+
+.product-box img.media.is-loaded,
+.product-details-section .swiper-slide img.is-loaded {
+  opacity: 1;
+}
+
+.product-skeleton {
+  pointer-events: none;
+
+  .img-wrapper,
+  .skeleton-block {
+    background: linear-gradient(
+      90deg,
+      #f3efe8 0%,
+      #faf7f2 45%,
+      #f3efe8 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  }
+
+  .skeleton-line {
+    height: 14px;
+    margin: 12px auto 0;
+    max-width: 80%;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      #f3efe8 0%,
+      #faf7f2 45%,
+      #f3efe8 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.6s ease-in-out infinite;
+
+    &.short {
+      max-width: 40%;
+      height: 18px;
+      margin-top: 20px;
+    }
+  }
+}
+
+.skeleton-block {
+  width: 100%;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    #f3efe8 0%,
+    #faf7f2 45%,
+    #f3efe8 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+}
+
+.product-page-shell {
+  min-height: 60vh;
+  padding: 40px 0 80px;
+}
+
+.soft-fade-enter-active,
+.soft-fade-leave-active {
+  transition: opacity var(--motion-base) var(--motion-ease);
+}
+
+.soft-fade-enter-from,
+.soft-fade-leave-to {
+  opacity: 0;
+}
+
+.soft-rise-enter-active,
+.soft-rise-leave-active {
+  transition: opacity var(--motion-base) var(--motion-ease),
+    transform var(--motion-base) var(--motion-ease);
+}
+
+.soft-rise-enter-from,
+.soft-rise-leave-to {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+@keyframes motion-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes motion-veil {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter-active,
+  .page-leave-active,
+  .motion-appear,
+  .reveal-block,
+  .product-box img.media,
+  .product-details-section .swiper-slide img,
+  .soft-fade-enter-active,
+  .soft-fade-leave-active,
+  .soft-rise-enter-active,
+  .soft-rise-leave-active,
+  .product-skeleton .img-wrapper,
+  .product-skeleton .skeleton-line,
+  .skeleton-block {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
+
+  .product-wrapper-grid.is-refreshing::after {
+    display: none;
+  }
+}

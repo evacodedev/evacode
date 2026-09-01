@@ -1,6 +1,32 @@
 <template>
     <Header/>
-    <div v-if="!!product">
+    <div v-if="productPending" class="product-page-shell">
+        <section class="section-b-space product-details-section">
+            <div class="container">
+                <div class="row">
+                    <div class="col-lg-3 d-none d-lg-block">
+                        <div class="skeleton-block" style="height: 420px"></div>
+                    </div>
+                    <div class="col-lg-9">
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="skeleton-block" style="aspect-ratio: 1 / 1"></div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="product-skeleton">
+                                    <div class="skeleton-line"></div>
+                                    <div class="skeleton-line short"></div>
+                                    <div class="skeleton-line" style="margin-top: 32px; max-width: 55%"></div>
+                                    <div class="skeleton-block" style="height: 50px; margin-top: 28px"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+    <div v-else-if="!!product" class="motion-appear">
         <section class="section-b-space product-details-section">
             <div class="collection-wrapper">
                 <div class="container">
@@ -16,8 +42,11 @@
                                                 class="swiper-wrapper h-auto">
                                             <SwiperSlide class="swiper-slide" v-for="(image, index) in product.images"
                                                          :key="index">
-                                                <img :src="image.url" :id="image.image_id" class="img-fluid bg-img"
-                                                     :alt="image.alt"/>
+                                                <img :src="image.url" :id="image.image_id"
+                                                     class="img-fluid bg-img"
+                                                     :class="{ 'is-loaded': loadedImages[index] }"
+                                                     :alt="image.alt"
+                                                     @load="markImageLoaded(index)"/>
                                             </SwiperSlide>
                                         </Swiper>
                                         <div class="row">
@@ -138,8 +167,13 @@ const swiper = ref({});
 
 const product = computed(() => productResponse.value?.results[0]);
 
-const {data: productResponse} = await useAsyncData(
-    'productResponse',
+const loadedImages = ref({});
+const markImageLoaded = (index) => {
+    loadedImages.value = { ...loadedImages.value, [index]: true };
+};
+
+const {data: productResponse, pending: productPending} = await useAsyncData(
+    () => `product-${route.params.id}`,
     () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
         query: {
             id: route.params.id,
@@ -147,8 +181,15 @@ const {data: productResponse} = await useAsyncData(
     }),
     {
         server: false,
+        lazy: true,
+        watch: [() => route.params.id],
     }
 );
+
+watch(() => route.params.id, () => {
+    loadedImages.value = {};
+    counter.value = 1;
+});
 
 const onSwiper = (_swiper) => swiper.value = _swiper;
 

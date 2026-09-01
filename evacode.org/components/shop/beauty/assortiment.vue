@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-reveal>
         <section class="beauty-assortiment">
             <div class="container">
                 <img class="assortiment-bg" src="/images/new_evacode/assortiment_bg.jpg" alt="assotimeng-bg"/>

@@ -12,7 +12,7 @@
                 <h2>{{ about.title }}</h2>
             </div>
         </section>
-        <section class="about-page section-b-space">
+        <section v-reveal class="about-page section-b-space">
             <div class="container">
                 <div class="row">
                     <div class="col-lg-6 col-12">
@@ -26,7 +26,7 @@
                 </div>
             </div>
         </section>
-        <section class="about-illustration-section first">
+        <section v-reveal class="about-illustration-section first">
             <div class="container">
                 <div class="row gx-5">
                     <div class="col-xl-3 col-12">
@@ -42,7 +42,7 @@
                 </div>
             </div>
         </section>
-        <section class="about-illustration-section second">
+        <section v-reveal class="about-illustration-section second">
             <div class="container">
                 <div class="row gx-5">
                     <div class="col-xl-9 col-12">
@@ -57,7 +57,7 @@
                 </div>
             </div>
         </section>
-        <section class="about-illustration-section third">
+        <section v-reveal class="about-illustration-section third">
             <div class="container">
                 <div class="row gx-5">
                     <div class="col-xl-3 col-12">

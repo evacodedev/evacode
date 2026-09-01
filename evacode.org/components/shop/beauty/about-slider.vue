@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div v-reveal>
         <section class="about-slider">
             <div class="container">
                 <swiper
