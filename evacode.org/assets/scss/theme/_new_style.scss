@@ -9,14 +9,6 @@
 
 .top-header-left,
 .top-sidenav-cur-phone {
-    .currency {
-        width: 26px;
-        height: 18px;
-
-        img {
-            vertical-align: baseline;
-        }
-    }
     .m-dropdown button {
         color: #777 !important;
     }
@@ -48,11 +40,19 @@
 .top-header-center {
     .brand-logo {
         margin: 0 auto;
+        overflow: hidden;
+        max-width: 100%;
+
+        img {
+            max-width: 100%;
+            height: auto;
+        }
     }
 }
 
 .top-header-right {
     justify-content: end;
+    gap: 12px;
 }
 
 .top-header-shopping-cart {

@@ -192,6 +192,22 @@
         > .container > .row {
             height: 100%;
         }
+
+        > .container > .row {
+            flex-wrap: nowrap;
+            align-items: center;
+        }
+    }
+    .top-header-center-column {
+        flex: 1 1 auto;
+        width: auto;
+        max-width: none;
+        min-width: 0;
+    }
+    .top-header-right-column {
+        flex: 0 0 auto;
+        width: auto;
+        max-width: none;
     }
     .beauty-assortiment {
         .container {
