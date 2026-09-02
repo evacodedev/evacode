@@ -22,6 +22,7 @@
     "@vueuse/core": "^9.9.0",
     "@vueuse/nuxt": "^9.9.0",
     "bootstrap": "^5.2.3",
+    "knitwork": "1.2.0",
     "maz-ui": "^3.42.6",
     "nuxt3-localforage": "^0.1.2",
     "pinia": "^2.0.27",
@@ -33,5 +34,8 @@
     "vue-no-ssr": "^1.1.1",
     "vue-router": "^4.1.6",
     "vue-scrollto": "^2.20.0"
+  },
+  "overrides": {
+    "knitwork": "1.2.0"
   }
 }

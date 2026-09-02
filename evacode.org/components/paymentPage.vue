@@ -10,16 +10,25 @@
                   <h3>Ваши данные</h3>
                 </div>
                 <div class="row check-out">
-                  <div class="form-group col-md-5 col-sm-5">
-                    <div class="field-label">Имя</div>
+                  <div class="form-group col-md-6 col-sm-12">
+                    <div class="field-label">ФИО</div>
                     <MazInput
                         v-model="user.firstName.value"
-                        label="Ваше имя"
-                        autocomplete="off"
+                        label="Имя и фамилия"
+                        autocomplete="name"
                     />
                     <span class="validate-error" v-if="user.firstName.errormsg.length > 0">{{ user.firstName.errormsg }}</span>
                   </div>
-                  <div class="form-group col-md-6 col-sm-6">
+                  <div class="form-group col-md-6 col-sm-12">
+                    <div class="field-label">Email</div>
+                    <MazInput
+                        v-model="user.email.value"
+                        label="email@example.com"
+                        autocomplete="email"
+                    />
+                    <span class="validate-error" v-if="user.email.errormsg.length > 0">{{ user.email.errormsg }}</span>
+                  </div>
+                  <div class="form-group col-md-6 col-sm-12">
                     <div class="field-label">Телефон</div>
                     <MazPhoneNumberInput
                         v-model="user.phone.value"
@@ -36,7 +45,49 @@
                           },
                         }"
                     />
-                    <span class="validate-error" v-if="user.phone.value.length === 0">{{ user.phone.errormsg }}</span>
+                    <span class="validate-error" v-if="user.phone.errormsg.length > 0">{{ user.phone.errormsg }}</span>
+                  </div>
+                  <div class="form-group col-md-6 col-sm-12">
+                    <div class="field-label">Страна</div>
+                    <MazInput
+                        v-model="user.country.value"
+                        label="Страна доставки"
+                        autocomplete="country-name"
+                    />
+                    <span class="validate-error" v-if="user.country.errormsg.length > 0">{{ user.country.errormsg }}</span>
+                  </div>
+                  <div class="form-group col-md-6 col-sm-12">
+                    <div class="field-label">Город</div>
+                    <MazInput
+                        v-model="user.city.value"
+                        label="Город"
+                        autocomplete="address-level2"
+                    />
+                    <span class="validate-error" v-if="user.city.errormsg.length > 0">{{ user.city.errormsg }}</span>
+                  </div>
+                  <div class="form-group col-md-6 col-sm-12">
+                    <div class="field-label">Индекс</div>
+                    <MazInput
+                        v-model="user.postalCode.value"
+                        label="Почтовый индекс"
+                        autocomplete="postal-code"
+                    />
+                  </div>
+                  <div class="form-group col-12">
+                    <div class="field-label">Адрес доставки</div>
+                    <MazInput
+                        v-model="user.address.value"
+                        label="Улица, дом, квартира"
+                        autocomplete="street-address"
+                    />
+                    <span class="validate-error" v-if="user.address.errormsg.length > 0">{{ user.address.errormsg }}</span>
+                  </div>
+                  <div class="form-group col-12">
+                    <div class="field-label">Комментарий</div>
+                    <MazInput
+                        v-model="user.comment.value"
+                        label="Необязательно"
+                    />
                   </div>
                 </div>
               </div>
@@ -66,9 +117,14 @@
                     </ul>
                   </div>
                   <div class="payment-box">
+                    <p class="validate-error" v-if="paypalError">{{ paypalError }}</p>
                     <div class="text-end">
                       <span class="btn btn-primary" @click="onSubmit">Купить</span>
-                      <span class="btn btn-primary ms-2" @click="openPaypalInfoModal">Оплатить PayPal</span>
+                      <span
+                        class="btn btn-primary ms-2"
+                        :class="{ disabled: paypalLoading }"
+                        @click="onPaypalSubmit"
+                      >{{ paypalLoading ? 'Переход в PayPal...' : 'Оплатить PayPal' }}</span>
                     </div>
                   </div>
                 </div>
@@ -78,10 +134,6 @@
         </div>
       </div>
     </div>
-    <PaymentPaypalInfoModal
-      :open="showPaypalInfoModal"
-      @close="closePaypalInfoModal"
-    />
   </section>
 </template>
 <script>
@@ -109,9 +161,16 @@ export default {
       user: {
         firstName: {value: '', errormsg: ''},
         phone: {value: '', errormsg: ''},
+        email: {value: '', errormsg: ''},
+        country: {value: '', errormsg: ''},
+        city: {value: '', errormsg: ''},
+        address: {value: '', errormsg: ''},
+        postalCode: {value: '', errormsg: ''},
+        comment: {value: '', errormsg: ''},
       },
       countryCode: 'KR',
-      showPaypalInfoModal: false,
+      paypalLoading: false,
+      paypalError: '',
     }
   },
 
@@ -128,13 +187,14 @@ export default {
 
 
   methods: {
-    openPaypalInfoModal() {
-      this.showPaypalInfoModal = true;
+    userValues() {
+      const userForCheckout = {};
+      Object.keys(this.user).forEach((key) => {
+        userForCheckout[key] = this.user[key].value;
+      })
+      return userForCheckout;
     },
-    closePaypalInfoModal() {
-      this.showPaypalInfoModal = false;
-    },
-    validateFields() {
+    validateFields(requireDelivery) {
       let isValidForm = true;
       const empty_error_msg = 'Обязательное поле'
       if (this.user.firstName.value.length <= 1) {
@@ -154,10 +214,28 @@ export default {
         this.user.phone.errormsg = ''
       }
 
+      if (requireDelivery) {
+        const email = this.user.email.value.trim();
+        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          this.user.email.errormsg = 'Укажите корректный email';
+          isValidForm = false;
+        } else {
+          this.user.email.errormsg = '';
+        }
+        ['country', 'city', 'address'].forEach((field) => {
+          if (!this.user[field].value.trim()) {
+            this.user[field].errormsg = empty_error_msg;
+            isValidForm = false;
+          } else {
+            this.user[field].errormsg = '';
+          }
+        });
+      }
+
       return isValidForm;
     },
     async onSubmit() {
-      if (this.validateFields()) {
+      if (this.validateFields(false)) {
         const cartCheckout = [];
         this.cart.forEach((item) => {
           const checkoutProduct = JSON.parse(JSON.stringify(item));
@@ -171,20 +249,51 @@ export default {
           amt: this.getPrice(this.cartTotal)
         });
 
-        const userForCheckout = {};
-        Object.keys(this.user).forEach((key) => {
-          userForCheckout[key] = this.user[key].value;
-        })
         await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout/`, {
           method: 'POST',
           body: {
             cart: cartCheckout,
-            user: userForCheckout,
+            user: this.userValues(),
             consult: false,
           }
         })
 
         this.$router.push('/page/order-success')
+      }
+    },
+    async onPaypalSubmit() {
+      if (!this.validateFields(true) || this.paypalLoading) {
+        return;
+      }
+      this.paypalLoading = true;
+      this.paypalError = '';
+      try {
+        const cartCheckout = this.cart.map((item) => ({
+          id: item.id,
+          quantity: item.quantity,
+        }));
+        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/orders/`, {
+          method: 'POST',
+          body: {
+            cart: cartCheckout,
+            user: this.userValues(),
+          }
+        });
+        useProductStore().createOrder({
+          product: this.cart,
+          userDetail: this.user,
+          amt: this.getPrice(this.cartTotal),
+          publicId: data.id,
+        });
+        if (data.approve_url) {
+          window.location.href = data.approve_url;
+          return;
+        }
+        this.paypalError = 'PayPal не вернул ссылку на оплату';
+      } catch (error) {
+        this.paypalError = error?.data?.error || 'Не удалось создать оплату. Попробуйте ещё раз.';
+      } finally {
+        this.paypalLoading = false;
       }
     },
     getPrice: function (price) {
@@ -199,6 +308,12 @@ export default {
       this.$router.replace('/page/account/cart')
     }
 
+    const paypalStatus = this.$route.query.paypal;
+    if (paypalStatus === 'cancel') {
+      this.paypalError = 'Оплата в PayPal отменена';
+    } else if (paypalStatus === 'fail') {
+      this.paypalError = 'Не удалось подтвердить оплату. Заказ сохранён, попробуйте ещё раз.';
+    }
   },
 }
 </script>
@@ -206,5 +321,9 @@ export default {
 <style scoped>
 .checkout-page .checkout-form input[type=text] {
   border: 0 !important;
+}
+.payment-box .disabled {
+  pointer-events: none;
+  opacity: 0.7;
 }
 </style>
