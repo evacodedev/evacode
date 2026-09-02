@@ -3,6 +3,7 @@ from django.db import models
 
 class GroupOfGoods(models.Model):
     default_order = models.CharField(max_length=128)
+    site_order = models.IntegerField(blank=True, null=True, verbose_name='Порядок на сайте')
     deleted = models.BooleanField(verbose_name='Крупный опт')
     isaction = models.BooleanField(default=True, verbose_name='Показывать на сайте')
     description = models.TextField(blank=True, null=True, verbose_name='Описание')

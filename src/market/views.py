@@ -24,8 +24,7 @@ from .models import GoodsModel, GroupOfGoods
 from .serializers import GoodsSerializer, GroupOfGoodsSerializer
 from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import F, IntegerField, Value
-from django.db.models.functions import Cast, NullIf
+from django.db.models import F
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
@@ -54,8 +53,7 @@ class GoodsAPIView(ModelViewSet):
 class GroupListAPIView(generics.ListAPIView):
     queryset = (
         GroupOfGoods.objects.filter(isaction=True)
-        .annotate(_sort=Cast(NullIf("default_order", Value("")), IntegerField()))
-        .order_by(F("_sort").asc(nulls_last=True), "id")
+        .order_by(F("site_order").asc(nulls_last=True), "id")
     )
     serializer_class = GroupOfGoodsSerializer
     pagination_class = AllObjectPagination

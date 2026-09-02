@@ -102,7 +102,12 @@ class BusinessRuService:
             obj, created = GroupOfGoods.objects.update_or_create(id=int(group['id']), defaults=defaults,
                                                                  create_defaults=defaults)
             if created:
-                obj.save()
+                raw = str(group.get('default_order') or '').strip()
+                if raw.lstrip('-').isdigit():
+                    obj.site_order = int(raw)
+                    obj.save(update_fields=['site_order'])
+                else:
+                    obj.save()
             # print(group['images'])
             if group['images']:
                 for image in group['images']:

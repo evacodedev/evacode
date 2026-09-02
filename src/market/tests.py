@@ -63,3 +63,35 @@ class GoodsFilterApiTests(TestCase):
     def test_default_ordering_by_title(self):
         response = self.client.get("/api/market/goods/")
         self.assertEqual(self._ids(response), [2, 1])
+
+
+class CategorySiteOrderApiTests(TestCase):
+    def test_categories_sorted_by_site_order(self):
+        GroupOfGoods.objects.create(
+            id=21,
+            default_order="1",
+            site_order=20,
+            deleted=False,
+            name="Вторая",
+            updated="2024-01-01T00:00:00Z",
+        )
+        GroupOfGoods.objects.create(
+            id=20,
+            default_order="9",
+            site_order=10,
+            deleted=False,
+            name="Первая",
+            updated="2024-01-01T00:00:00Z",
+        )
+        GroupOfGoods.objects.create(
+            id=22,
+            default_order="0",
+            site_order=None,
+            deleted=False,
+            name="Без порядка",
+            updated="2024-01-01T00:00:00Z",
+        )
+        response = self.client.get("/api/market/categories/")
+        self.assertEqual(response.status_code, 200)
+        names = [item["name"] for item in response.json()["result"]]
+        self.assertEqual(names, ["Первая", "Вторая", "Без порядка"])
