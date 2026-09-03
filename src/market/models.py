@@ -1,6 +1,13 @@
-import uuid
+import secrets
 
 from django.db import models
+
+
+PUBLIC_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+
+
+def generate_public_id() -> str:
+    return "".join(secrets.choice(PUBLIC_ID_ALPHABET) for _ in range(8))
 
 
 class GroupOfGoods(models.Model):
@@ -34,7 +41,7 @@ class SiteOrder(models.Model):
         FAILED = "failed", "Ошибка оплаты"
         CANCELLED = "cancelled", "Отменён"
 
-    public_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    public_id = models.CharField(max_length=36, unique=True, editable=False, default=generate_public_id)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
     first_name = models.CharField(max_length=128, verbose_name="ФИО")
     phone = models.CharField(max_length=64, verbose_name="Телефон")
@@ -56,8 +63,11 @@ class SiteOrder(models.Model):
     paypal_payload = models.TextField(blank=True)
     business_ru_partner_id = models.CharField(max_length=32, blank=True)
     business_ru_order_id = models.CharField(max_length=32, blank=True)
+    business_ru_order_number = models.CharField(max_length=32, blank=True, verbose_name="№ заказа покупателя")
     business_ru_payment_id = models.CharField(max_length=32, blank=True, verbose_name="ID оплаты Business.Ru")
+    business_ru_payment_number = models.CharField(max_length=32, blank=True, verbose_name="№ входящей оплаты")
     business_ru_reservation_id = models.CharField(max_length=32, blank=True, verbose_name="ID резерва Business.Ru")
+    business_ru_reservation_number = models.CharField(max_length=32, blank=True, verbose_name="№ резерва")
     business_ru_error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

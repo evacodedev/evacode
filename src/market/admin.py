@@ -29,32 +29,48 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "amount_krw",
         "amount_usd",
         "paypal_order_id",
-        "business_ru_order_id",
-        "business_ru_payment_id",
-        "business_ru_reservation_id",
+        "business_ru_order_number",
+        "business_ru_payment_number",
+        "business_ru_reservation_number",
         "created_at",
     )
     list_filter = ("status",)
-    search_fields = ("public_id", "email", "phone", "first_name", "paypal_order_id", "business_ru_order_id")
-    readonly_fields = (
+    search_fields = (
+        "public_id",
+        "email",
+        "phone",
+        "first_name",
+        "paypal_order_id",
+        "business_ru_order_number",
+        "business_ru_payment_number",
+        "business_ru_reservation_number",
+    )
+    fields = (
         "public_id",
         "status",
+        "first_name",
+        "phone",
+        "email",
+        "country",
+        "city",
+        "address",
+        "postal_code",
+        "comment",
         "amount_krw",
         "amount_usd",
         "usd_rate_snapshot",
         "paypal_order_id",
         "paypal_capture_id",
         "paypal_receipt_url",
-        "paypal_payload",
-        "business_ru_partner_id",
-        "business_ru_order_id",
-        "business_ru_payment_id",
-        "business_ru_reservation_id",
+        "business_ru_order_number",
+        "business_ru_payment_number",
+        "business_ru_reservation_number",
         "business_ru_error",
         "created_at",
         "updated_at",
         "paid_at",
     )
+    readonly_fields = fields
     inlines = [SiteOrderItemInline]
     actions = ["export_to_business_ru"]
 
@@ -73,7 +89,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
                 order.refresh_from_db()
                 self.message_user(
                     request,
-                    f"{order.public_id}: заказ Business.Ru {order.business_ru_order_id}",
+                    f"{order.public_id}: заказ № {order.business_ru_order_number or order.business_ru_order_id}",
                     level=messages.SUCCESS,
                 )
             except Exception as exc:

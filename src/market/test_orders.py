@@ -67,6 +67,7 @@ class SiteOrderApiTests(TestCase):
         data = response.json()
         self.assertEqual(data["approve_url"], "https://paypal.test/approve")
         order = SiteOrder.objects.get(public_id=data["id"])
+        self.assertEqual(len(str(order.public_id)), 8)
         self.assertEqual(order.amount_krw, 20000)
         self.assertEqual(order.amount_usd, Decimal("12.50"))
         self.assertEqual(order.items.count(), 1)

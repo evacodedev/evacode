@@ -17,5 +17,5 @@ urlpatterns = [
     path('checkout/', Checkout.as_view()),
     path('orders/', CreateSiteOrderView.as_view()),
     path('orders/paypal/return/', PayPalReturnView.as_view(), name='site_order_paypal_return'),
-    path('orders/<uuid:public_id>/', SiteOrderDetailView.as_view()),
+    path('orders/<str:public_id>/', SiteOrderDetailView.as_view()),
 ]

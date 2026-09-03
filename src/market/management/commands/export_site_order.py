@@ -8,7 +8,7 @@ class Command(BaseCommand):
     help = "Повторно выгрузить оплаченный заказ сайта в Business.Ru"
 
     def add_arguments(self, parser):
-        parser.add_argument("public_id", help="UUID заказа с сайта")
+        parser.add_argument("public_id", help="Номер заказа с сайта")
 
     def handle(self, *args, **options):
         order = SiteOrder.objects.filter(public_id=options["public_id"]).first()
@@ -19,6 +19,7 @@ class Command(BaseCommand):
         export_paid_order(order)
         order.refresh_from_db()
         self.stdout.write(self.style.SUCCESS(
-            f"Business.Ru заказ {order.business_ru_order_id}, "
-            f"резерв {order.business_ru_reservation_id}, партнёр {order.business_ru_partner_id}"
+            f"Business.Ru заказ № {order.business_ru_order_number or order.business_ru_order_id}, "
+            f"оплата № {order.business_ru_payment_number or order.business_ru_payment_id}, "
+            f"резерв № {order.business_ru_reservation_number or order.business_ru_reservation_id}"
         ))

@@ -1,4 +1,5 @@
 from decimal import Decimal, ROUND_HALF_UP
+import json
 import re
 
 import requests
@@ -269,33 +270,208 @@ def _ensure_order_goods_krw(client: BusinessRuOrderClient, order) -> None:
         )
 
 
-def _paypal_rate_text(order) -> str:
+def _format_rate(order) -> str:
     rate = order.usd_rate_snapshot
     if not rate:
         return ""
     pretty = Decimal(str(rate)).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    return f" Курс 1 USD = {pretty} ₩."
+    return f"Курс: 1 USD = {pretty} ₩"
+
+
+def _paypal_details(order) -> dict:
+    extra = {
+        "payer_email": "",
+        "payer_id": "",
+        "payer_name": "",
+        "capture_status": "",
+        "gross": "",
+        "fee": "",
+        "net": "",
+        "paid_at": "",
+    }
+    try:
+        data = json.loads(order.paypal_payload or "")
+    except (TypeError, ValueError):
+        return extra
+    if not isinstance(data, dict):
+        return extra
+    payer = data.get("payer") or {}
+    name = payer.get("name") or {}
+    extra["payer_email"] = str(payer.get("email_address") or "").strip()
+    extra["payer_id"] = str(payer.get("payer_id") or "").strip()
+    extra["payer_name"] = " ".join(
+        part for part in [name.get("given_name"), name.get("surname")] if part
+    ).strip()
+    extra["capture_status"] = str(data.get("status") or "").strip()
+    capture = {}
+    try:
+        capture = data["purchase_units"][0]["payments"]["captures"][0] or {}
+    except (KeyError, IndexError, TypeError):
+        capture = {}
+    if isinstance(capture, dict):
+        extra["capture_status"] = str(capture.get("status") or extra["capture_status"]).strip()
+        extra["paid_at"] = str(capture.get("create_time") or extra["paid_at"]).strip()
+        breakdown = capture.get("seller_receivable_breakdown") or {}
+
+        def money(block) -> str:
+            if not isinstance(block, dict) or not block.get("value"):
+                return ""
+            currency = block.get("currency_code") or "USD"
+            return f"{block.get('value')} {currency}"
+
+        extra["gross"] = money(breakdown.get("gross_amount") or capture.get("amount"))
+        extra["fee"] = money(breakdown.get("paypal_fee"))
+        extra["net"] = money(breakdown.get("net_amount"))
+    return extra
+
+
+def _extract_number(payload) -> str:
+    result = payload.get("result") if isinstance(payload, dict) else payload
+    if isinstance(result, dict):
+        return str(result.get("number") or "").strip()
+    if isinstance(result, list) and result and isinstance(result[0], dict):
+        return str(result[0].get("number") or "").strip()
+    return ""
+
+
+def _document_number(client: BusinessRuOrderClient, model: str, record_id, created=None) -> str:
+    number = _extract_number(created or {})
+    if number:
+        return number
+    if not record_id:
+        return ""
+    record = _get_by_id(client, model, record_id) or {}
+    return str(record.get("number") or "").strip()
+
+
+def _ensure_document_numbers(client: BusinessRuOrderClient, order) -> None:
+    updates = []
+    mapping = (
+        ("business_ru_order_id", "business_ru_order_number", "customerorders"),
+        ("business_ru_payment_id", "business_ru_payment_number", "paymentin"),
+        ("business_ru_reservation_id", "business_ru_reservation_number", "reservations"),
+    )
+    for id_field, number_field, model in mapping:
+        record_id = str(getattr(order, id_field, "") or "").strip()
+        if not record_id or getattr(order, number_field, ""):
+            continue
+        number = _document_number(client, model, record_id)
+        if number:
+            setattr(order, number_field, number[:32])
+            updates.append(number_field)
+    if updates:
+        order.save(update_fields=[*updates, "updated_at"])
+
+
+def _delivery_text(order) -> str:
+    return ", ".join(
+        part for part in [order.postal_code, order.country, order.city, order.address] if part
+    )
+
+
+def _inline(*parts: str) -> str:
+    return " ".join(part.strip() for part in parts if part and str(part).strip())
+
+
+def _document_comment(order) -> str:
+    extra = _paypal_details(order)
+    receipt = order.paypal_receipt_url or receipt_url(order.paypal_capture_id)
+    delivery = _delivery_text(order)
+
+    site = [f"Заказ с сайта evacode.org {order.public_id}"]
+
+    business = ["Business.Ru"]
+    order_no = getattr(order, "business_ru_order_number", "") or ""
+    payment_no = getattr(order, "business_ru_payment_number", "") or ""
+    reserve_no = getattr(order, "business_ru_reservation_number", "") or ""
+    if order_no:
+        business.append(f"заказ: {order_no}")
+    if payment_no:
+        business.append(f"оплата: {payment_no}")
+    if reserve_no:
+        business.append(f"резерв: {reserve_no}")
+
+    paypal = ["PayPal"]
+    if order.paypal_order_id:
+        paypal.append(f"Order ID: {order.paypal_order_id}")
+    if order.paypal_capture_id:
+        paypal.append(f"Capture ID: {order.paypal_capture_id}")
+    paypal.append(
+        _inline(
+            f"Списано: {order.amount_usd} USD",
+            f"В учёте: {order.amount_krw} ₩",
+            _format_rate(order),
+        )
+    )
+    paypal.append(
+        _inline(
+            f"Сумма PayPal: {extra['gross']}" if extra["gross"] else "",
+            f"Комиссия PayPal: {extra['fee']}" if extra["fee"] else "",
+            f"К зачислению: {extra['net']}" if extra["net"] else "",
+        )
+    )
+    paypal.append(
+        _inline(
+            f"Статус PayPal: {extra['capture_status']}" if extra["capture_status"] else "",
+            f"Время оплаты: {extra['paid_at']}" if extra["paid_at"] else "",
+        )
+    )
+    paypal.append(
+        _inline(
+            f"Плательщик PayPal: {extra['payer_name']}" if extra["payer_name"] else "",
+            f"Email: {extra['payer_email']}" if extra["payer_email"] else "",
+            f"Payer ID: {extra['payer_id']}" if extra["payer_id"] else "",
+        )
+    )
+    if receipt:
+        paypal.append(f"Чек: {receipt}")
+
+    buyer = [
+        _inline(
+            f"Покупатель: {order.first_name}" if order.first_name else "",
+            f"Email: {order.email}" if order.email else "",
+            f"Телефон: {order.phone}" if order.phone else "",
+            f"Адрес: {delivery}" if delivery else "",
+        )
+    ]
+    if order.comment:
+        buyer.append(f"Комментарий покупателя: {order.comment}")
+
+    blocks = [
+        "\n".join(line for line in site if line),
+        "\n".join(line for line in business if line),
+        "\n".join(line for line in paypal if line),
+        "\n".join(line for line in buyer if line),
+    ]
+    return "\n\n".join(block for block in blocks if block).strip()[:2000]
 
 
 def _payment_comment(order) -> str:
-    receipt = order.paypal_receipt_url or receipt_url(order.paypal_capture_id)
-    return (
-        f"PayPal списал {order.amount_usd} USD.{_paypal_rate_text(order)} "
-        f"В учёте {order.amount_krw} ₩. "
-        f"Заказ сайта {order.public_id}. "
-        f"Order ID {order.paypal_order_id}. Capture {order.paypal_capture_id}. "
-        f"{order.email} {order.phone}. Чек: {receipt}"
-    )[:2000]
+    return _document_comment(order)
 
 
 def _customer_order_comment(order) -> str:
-    return (
-        f"Оплачено PayPal: {order.amount_usd} USD ({order.amount_krw} ₩)."
-        f"{_paypal_rate_text(order)} "
-        f"Заказ сайта {order.public_id}. "
-        f"PayPal {order.paypal_order_id} / {order.paypal_capture_id}. "
-        f"{order.email} {order.phone}. {order.comment}"
-    )[:2000]
+    return _document_comment(order)
+
+
+def _reservation_comment(order) -> str:
+    return _document_comment(order)
+
+
+def _put_comment(client: BusinessRuOrderClient, model: str, record_id, comment: str) -> None:
+    if not record_id or not comment:
+        return
+    try:
+        client.request("put", model, {"id": record_id, "comment": comment})
+    except BusinessRuOrderError:
+        return
+
+
+def _sync_document_comments(client: BusinessRuOrderClient, order) -> None:
+    _ensure_document_numbers(client, order)
+    _put_comment(client, "customerorders", order.business_ru_order_id, _customer_order_comment(order))
+    _put_comment(client, "paymentin", getattr(order, "business_ru_payment_id", ""), _payment_comment(order))
+    _put_comment(client, "reservations", getattr(order, "business_ru_reservation_id", ""), _reservation_comment(order))
 
 
 def _payment_is_linked(client: BusinessRuOrderClient, payment_id, order_id) -> bool:
@@ -405,7 +581,8 @@ def _export_payment(client: BusinessRuOrderClient, order, partner_id, org_id: st
         if not payment_id:
             raise BusinessRuOrderError(f"Не удалось создать входящий платёж: {created}")
         order.business_ru_payment_id = payment_id
-        order.save(update_fields=["business_ru_payment_id", "updated_at"])
+        order.business_ru_payment_number = _document_number(client, "paymentin", payment_id, created)[:32]
+        order.save(update_fields=["business_ru_payment_id", "business_ru_payment_number", "updated_at"])
     else:
         _set_payment_sum(client, payment_id, payment_sum)
         actual = _record_sum(_get_by_id(client, "paymentin", payment_id))
@@ -415,7 +592,8 @@ def _export_payment(client: BusinessRuOrderClient, order, partner_id, org_id: st
             if not payment_id:
                 raise BusinessRuOrderError(f"Не удалось создать входящий платёж: {created}")
             order.business_ru_payment_id = payment_id
-            order.save(update_fields=["business_ru_payment_id", "updated_at"])
+            order.business_ru_payment_number = _document_number(client, "paymentin", payment_id, created)[:32]
+            order.save(update_fields=["business_ru_payment_id", "business_ru_payment_number", "updated_at"])
     _ensure_payment_account(client, payment_id, account_id)
     _link_payment_to_order(client, payment_id, order)
 
@@ -449,7 +627,7 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
             "customer_order_id": order_id,
             "sync_with_order": 0,
             "held": 1,
-            "comment": f"Сайт {order.public_id}"[:2000],
+            "comment": _reservation_comment(order),
         },
     )
     reservation_id = str(_result_id(created) or "")
@@ -467,7 +645,10 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
             },
         )
     order.business_ru_reservation_id = reservation_id
-    order.save(update_fields=["business_ru_reservation_id", "updated_at"])
+    order.business_ru_reservation_number = _document_number(
+        client, "reservations", reservation_id, created
+    )[:32]
+    order.save(update_fields=["business_ru_reservation_id", "business_ru_reservation_number", "updated_at"])
 
 
 def export_paid_order(order) -> None:
@@ -528,18 +709,14 @@ def export_paid_order(order) -> None:
             )
 
     if not order.business_ru_order_id:
-        delivery_address = ", ".join(
-            part for part in [order.postal_code, order.country, order.city, order.address] if part
-        )
-        comment = _customer_order_comment(order)
         order_params = {
             "partner_id": partner_id,
             "organization_id": org_id,
             "author_employee_id": employee_id,
             "responsible_employee_id": employee_id,
             "status_id": status_id,
-            "comment": comment[:2000],
-            "delivery_address": delivery_address[:500],
+            "comment": _customer_order_comment(order),
+            "delivery_address": _delivery_text(order)[:500],
         }
         created_order = client.request("post", "customerorders", order_params)
         business_order_id = _result_id(created_order)
@@ -561,8 +738,19 @@ def export_paid_order(order) -> None:
 
         order.business_ru_partner_id = str(partner_id)
         order.business_ru_order_id = str(business_order_id)
+        order.business_ru_order_number = _document_number(
+            client, "customerorders", business_order_id, created_order
+        )[:32]
         order.business_ru_error = ""
-        order.save(update_fields=["business_ru_partner_id", "business_ru_order_id", "business_ru_error", "updated_at"])
+        order.save(
+            update_fields=[
+                "business_ru_partner_id",
+                "business_ru_order_id",
+                "business_ru_order_number",
+                "business_ru_error",
+                "updated_at",
+            ]
+        )
     else:
         _ensure_order_goods_krw(client, order)
 
@@ -576,6 +764,8 @@ def export_paid_order(order) -> None:
         order.save(update_fields=["business_ru_error", "updated_at"])
         raise BusinessRuOrderError(order.business_ru_error)
 
+    _sync_document_comments(client, order)
+
     try:
         _export_payment(client, order, partner_id, org_id, employee_id)
         if (order.business_ru_error or "").startswith("Заказ создан, оплата не выгружена"):
@@ -585,3 +775,5 @@ def export_paid_order(order) -> None:
         order.business_ru_error = f"Заказ создан, оплата не выгружена: {exc}"[:4000]
         order.save(update_fields=["business_ru_error", "updated_at"])
         raise BusinessRuOrderError(order.business_ru_error)
+
+    _sync_document_comments(client, order)
