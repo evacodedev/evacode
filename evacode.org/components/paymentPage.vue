@@ -172,7 +172,7 @@
             <button
               class="checkout-v2__cta"
               type="submit"
-              :disabled="paypalLoading"
+              :disabled="handoffOpen"
             >
               {{ ctaLabel }}
             </button>
@@ -180,7 +180,10 @@
         </div>
 
         <aside class="checkout-v2__summary">
-          <h2 class="checkout-v2__heading">Заказ</h2>
+          <div class="checkout-v2__heading-row">
+            <h2 class="checkout-v2__heading">Заказ</h2>
+            <nuxt-link to="/page/account/cart" class="checkout-v2__edit">Редактировать</nuxt-link>
+          </div>
           <ul class="checkout-v2__items">
             <li v-for="item in cart" :key="item.id" class="checkout-v2__item">
               <img
@@ -216,6 +219,31 @@
         </aside>
       </form>
     </div>
+    <Teleport to="body">
+      <div
+        v-if="handoffOpen"
+        class="checkout-handoff"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="checkout-handoff-title"
+        aria-busy="true"
+      >
+        <div class="checkout-handoff__card">
+          <span class="checkout-handoff__icon" aria-hidden="true">
+            <svg viewBox="0 0 48 48" fill="none">
+              <circle class="checkout-handoff__track" cx="24" cy="24" r="22.5" stroke="currentColor" stroke-width="1.25"/>
+              <g class="checkout-handoff__spin">
+                <circle cx="24" cy="24" r="22.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="36 108"/>
+              </g>
+              <path d="M16 20h16l-1.2 14.4A2 2 0 0 1 28.81 36H19.19a2 2 0 0 1-1.99-1.6L16 20Z" stroke="currentColor" stroke-width="1.4"/>
+              <path d="M19 20v-3.2A5 5 0 0 1 24 12a5 5 0 0 1 5 4.8V20" stroke="currentColor" stroke-width="1.4"/>
+            </svg>
+          </span>
+          <p id="checkout-handoff-title" class="checkout-handoff__title">{{ handoffTitle }}</p>
+          <p class="checkout-handoff__note">{{ handoffNote }}</p>
+        </div>
+      </div>
+    </Teleport>
   </section>
 </template>
 
@@ -242,6 +270,19 @@ export default {
     showPhoneError() {
       return Boolean(this.user.phone.errormsg) && (this.phoneTouched || this.submitted)
     },
+    handoffOpen() {
+      return this.paypalLoading || this.telegramLoading
+    },
+    handoffTitle() {
+      return this.paymentMethod === 'paypal'
+        ? 'Спасибо, переходим к оплате'
+        : 'Отправляем заказ'
+    },
+    handoffNote() {
+      return this.paymentMethod === 'paypal'
+        ? 'Сейчас откроется страница PayPal. Не закрывайте вкладку.'
+        : 'Подождите несколько секунд.'
+    },
   },
   data() {
     return {
@@ -262,6 +303,7 @@ export default {
       countryCode: 'KR',
       paymentMethod: 'paypal',
       paypalLoading: false,
+      telegramLoading: false,
       paypalError: '',
       submitted: false,
       phoneTouched: false,
@@ -282,6 +324,12 @@ export default {
         this.user.apartment.errormsg = ''
       }
     },
+    handoffOpen(open) {
+      if (typeof document === 'undefined') {
+        return
+      }
+      document.documentElement.classList.toggle('checkout-handoff-open', open)
+    },
   },
   mounted() {
     if (this.cart.length === 0) {
@@ -292,6 +340,11 @@ export default {
       this.paypalError = 'Оплата в PayPal отменена'
     } else if (paypalStatus === 'fail') {
       this.paypalError = 'Не удалось подтвердить оплату. Заказ сохранён, попробуйте ещё раз.'
+    }
+  },
+  beforeUnmount() {
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.remove('checkout-handoff-open')
     }
   },
   methods: {
@@ -408,29 +461,35 @@ export default {
       return this.onSubmit()
     },
     async onSubmit() {
-      if (!this.validateForm()) {
+      if (!this.validateForm() || this.telegramLoading) {
         return
       }
-      const cartCheckout = []
-      this.cart.forEach((item) => {
-        const checkoutProduct = JSON.parse(JSON.stringify(item))
-        checkoutProduct.retail_price = this.getPrice(checkoutProduct.retail_price)
-        cartCheckout.push(checkoutProduct)
-      })
-      useProductStore().createOrder({
-        product: cartCheckout,
-        userDetail: this.user,
-        amt: this.getPrice(this.cartTotal),
-      })
-      await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout/`, {
-        method: 'POST',
-        body: {
-          cart: cartCheckout,
-          user: this.userValues(),
-          consult: false,
-        },
-      })
-      this.$router.push('/page/order-success')
+      this.telegramLoading = true
+      try {
+        const cartCheckout = []
+        this.cart.forEach((item) => {
+          const checkoutProduct = JSON.parse(JSON.stringify(item))
+          checkoutProduct.retail_price = this.getPrice(checkoutProduct.retail_price)
+          cartCheckout.push(checkoutProduct)
+        })
+        useProductStore().createOrder({
+          product: cartCheckout,
+          userDetail: this.user,
+          amt: this.getPrice(this.cartTotal),
+        })
+        await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout/`, {
+          method: 'POST',
+          body: {
+            cart: cartCheckout,
+            user: this.userValues(),
+            consult: false,
+          },
+        })
+        this.$router.push('/page/order-success')
+      } catch (error) {
+        this.telegramLoading = false
+        this.paypalError = error?.data?.error || 'Не удалось отправить заказ. Попробуйте ещё раз.'
+      }
     },
     async onPaypalSubmit() {
       if (!this.validateForm() || this.paypalLoading) {
@@ -461,9 +520,9 @@ export default {
           return
         }
         this.paypalError = 'PayPal не вернул ссылку на оплату'
+        this.paypalLoading = false
       } catch (error) {
         this.paypalError = error?.data?.error || 'Не удалось создать оплату. Попробуйте ещё раз.'
-      } finally {
         this.paypalLoading = false
       }
     },
