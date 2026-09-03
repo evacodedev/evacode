@@ -775,6 +775,26 @@
     }
 }
 
+@media (max-width: 991px) {
+    .checkout-v2 {
+        padding-top: 24px;
+
+        &__grid {
+            grid-template-columns: 1fr;
+            gap: 32px;
+        }
+
+        &__summary {
+            position: static;
+            order: -1;
+        }
+
+        &__row {
+            grid-template-columns: 1fr;
+        }
+    }
+}
+
 @media (max-width: 420px) {
 }
 

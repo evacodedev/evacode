@@ -433,17 +433,11 @@ def export_paid_order(order) -> None:
     status = None
     if not order.business_ru_order_id:
         store = client.find_by_name("stores", settings.BUSINESS_RU_STORE_NAME)
-        status = client.find_by_name("customerorderstatus", settings.BUSINESS_RU_STATUS_NAME)
-        if status is None:
-            payload = client.request("get", "customerorderstatus")
-            for item in payload.get("result") or []:
-                if item.get("default"):
-                    status = item
-                    break
+        status_id = str(getattr(settings, "BUSINESS_RU_STATUS_ID", "") or "").strip()
         if store is None:
             raise BusinessRuOrderError(f"Склад «{settings.BUSINESS_RU_STORE_NAME}» не найден")
-        if status is None:
-            raise BusinessRuOrderError(f"Статус «{settings.BUSINESS_RU_STATUS_NAME}» не найден")
+        if not status_id:
+            raise BusinessRuOrderError("Не задан BUSINESS_RU_STATUS_ID")
 
     partner = _find_partner(client, order.email, order.phone_digits)
     if partner:
@@ -495,7 +489,7 @@ def export_paid_order(order) -> None:
             "organization_id": org_id,
             "author_employee_id": employee_id,
             "responsible_employee_id": employee_id,
-            "status_id": status["id"],
+            "status_id": status_id,
             "comment": comment[:2000],
             "delivery_address": delivery_address[:500],
         }
