@@ -1,7 +1,8 @@
 //fonts
 
 $font_0: LatoWeb;
-$font_1: sans-serif;
+$font-korean: "Noto Sans KR";
+$font_1: $font-korean, sans-serif;
 $font_0_1: "Inter";
 $font-themify: themify;
 $font-awesome: FontAwesome;

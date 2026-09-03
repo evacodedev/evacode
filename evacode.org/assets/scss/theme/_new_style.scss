@@ -867,7 +867,7 @@ section.beauty-about {
     }
 
     .work-hours {
-        font-family: 'LatoWebBold', sans-serif;
+        font-family: 'LatoWebBold', $font_1;
     }
 
     .contacts-row {
@@ -902,7 +902,7 @@ section.beauty-about {
         line-height: 1.5;
 
         strong {
-            font-family: LatoWebBold, sans-serif;
+            font-family: LatoWebBold, $font_1;
         }
     }
 
@@ -948,7 +948,7 @@ section.beauty-about {
         h2 {
             font-size: 84px;
             color: white;
-            font-family: 'LatoWebLight', sans-serif;
+            font-family: 'LatoWebLight', $font_1;
         }
     }
 }

@@ -1,0 +1,28 @@
+/* Noto Sans KR — хангыль, SIL OFL 1.1 (assets/fonts/noto-sans-kr/LICENSE) */
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('../fonts/noto-sans-kr/noto-sans-kr-korean-300-normal.woff2') format('woff2');
+  unicode-range: #{'U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7A3, U+D7B0-D7FF'};
+}
+
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../fonts/noto-sans-kr/noto-sans-kr-korean-400-normal.woff2') format('woff2');
+  unicode-range: #{'U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7A3, U+D7B0-D7FF'};
+}
+
+@font-face {
+  font-family: 'Noto Sans KR';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../fonts/noto-sans-kr/noto-sans-kr-korean-700-normal.woff2') format('woff2');
+  unicode-range: #{'U+1100-11FF, U+3130-318F, U+A960-A97F, U+AC00-D7A3, U+D7B0-D7FF'};
+}
+

@@ -7166,7 +7166,7 @@ footer {
       .category-list {
         li {
             display: flex;
-            font-family: "Rubik", sans-serif;
+            font-family: "Rubik", $font_1;
             font-size: 16px;
             text-transform: none;
             line-height: 2.5;
@@ -8822,14 +8822,14 @@ footer {
       font-weight: 400;
     margin-bottom: 15px;
     font-size: 18px;
-      font-family: Inter, sans-serif;
+      font-family: Inter, $font_1;
       color: #777;
     line-height: 1.2em;
   }
 
   h3 {
     font-size: 26px;
-      font-family: Inter, sans-serif;
+      font-family: Inter, $font_1;
       color: #777;
     margin-bottom: 15px;
       font-weight: 300;
