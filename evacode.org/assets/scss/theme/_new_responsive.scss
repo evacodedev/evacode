@@ -775,7 +775,23 @@
     }
 }
 
-@media (max-width: 420px) {
+@media (max-width: 575px) {
+    .cart-drawer {
+        width: 100vw;
+    }
+
+    .cart-drawer__header,
+    .cart-drawer__body,
+    .cart-drawer__footer {
+        padding-left: 16px;
+        padding-right: 16px;
+    }
+
+    .cart-drawer__thumb {
+        flex-basis: 76px;
+        width: 76px;
+        height: 76px;
+    }
 }
 
 @media (max-width: 360px) {

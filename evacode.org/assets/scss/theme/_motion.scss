@@ -135,6 +135,16 @@
   transform: translateY(8px);
 }
 
+.cart-drawer-slide-enter-active,
+.cart-drawer-slide-leave-active {
+  transition: transform var(--motion-base) var(--motion-ease);
+}
+
+.cart-drawer-slide-enter-from,
+.cart-drawer-slide-leave-to {
+  transform: translateX(100%);
+}
+
 @keyframes motion-rise {
   from {
     opacity: 0;
@@ -172,6 +182,8 @@
   .soft-fade-leave-active,
   .soft-rise-enter-active,
   .soft-rise-leave-active,
+  .cart-drawer-slide-enter-active,
+  .cart-drawer-slide-leave-active,
   .product-skeleton .img-wrapper,
   .product-skeleton .skeleton-line,
   .skeleton-block {

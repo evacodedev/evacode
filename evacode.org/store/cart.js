@@ -5,10 +5,20 @@ export const useCartStore = defineStore({
     state: () => {
         return {
             cart: [],
-            abc: {}
+            abc: {},
+            drawerOpen: false
         }
     },
     actions: {
+        openDrawer() {
+            this.drawerOpen = true
+        },
+        closeDrawer() {
+            this.drawerOpen = false
+        },
+        toggleDrawer() {
+            this.drawerOpen = !this.drawerOpen
+        },
         addToCart(payloadProduct) {
             console.log('jemin')
             const cartItems = this.cart.find(item => item.id === payloadProduct.id)
@@ -35,14 +45,13 @@ export const useCartStore = defineStore({
             this.cart.find((items, index) => {
                 if (items.id === payload.product.id) {
                     const qty = this.cart[index].quantity + payload.qty
+                    if (qty <= 0) {
+                        this.removeCartItem(this.cart[index])
+                        return true
+                    }
                     const stock = calculateStockCounts(this.cart[index], payload.qty)
-                    if (qty !== 0 && stock) {
+                    if (stock) {
                         this.cart[index].quantity = qty
-                    } else {
-                        // state.cart.push({
-                        //   ...product,
-                        //   quantity: qty
-                        // })
                     }
                     return true
                 }
