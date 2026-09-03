@@ -420,6 +420,56 @@ def _export_payment(client: BusinessRuOrderClient, order, partner_id, org_id: st
     _link_payment_to_order(client, payment_id, order)
 
 
+def _store_record(client: BusinessRuOrderClient):
+    store = client.find_by_name("stores", settings.BUSINESS_RU_STORE_NAME)
+    if store is None:
+        raise BusinessRuOrderError(f"Склад «{settings.BUSINESS_RU_STORE_NAME}» не найден")
+    return store
+
+
+def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id: str, employee_id: str, store) -> None:
+    reservation_id = str(getattr(order, "business_ru_reservation_id", "") or "").strip()
+    if reservation_id:
+        return
+    order_id = str(order.business_ru_order_id or "").strip()
+    if not order_id:
+        raise BusinessRuOrderError("Нет заказа покупателя для резерва")
+    store_id = (store or {}).get("id") if isinstance(store, dict) else None
+    if not store_id:
+        store = _store_record(client)
+        store_id = store.get("id")
+    created = client.request(
+        "post",
+        "reservations",
+        {
+            "partner_id": partner_id,
+            "organization_id": org_id,
+            "author_employee_id": employee_id,
+            "responsible_employee_id": employee_id,
+            "customer_order_id": order_id,
+            "sync_with_order": 0,
+            "held": 1,
+            "comment": f"Сайт {order.public_id}"[:2000],
+        },
+    )
+    reservation_id = str(_result_id(created) or "")
+    if not reservation_id:
+        raise BusinessRuOrderError(f"Не удалось создать резерв: {created}")
+    for item in order.items.all():
+        client.request(
+            "post",
+            "reservationgoods",
+            {
+                "reservation_id": reservation_id,
+                "good_id": item.good_id_snapshot,
+                "amount": item.quantity,
+                "store_id": store_id,
+            },
+        )
+    order.business_ru_reservation_id = reservation_id
+    order.save(update_fields=["business_ru_reservation_id", "updated_at"])
+
+
 def export_paid_order(order) -> None:
     org_id = str(settings.BUSINESS_RU_ORGANIZATION_ID or "").strip()
     employee_id = str(settings.BUSINESS_RU_EMPLOYEE_ID or "").strip()
@@ -430,12 +480,10 @@ def export_paid_order(order) -> None:
 
     client = BusinessRuOrderClient()
     store = None
-    status = None
+    if not order.business_ru_order_id or not getattr(order, "business_ru_reservation_id", ""):
+        store = _store_record(client)
     if not order.business_ru_order_id:
-        store = client.find_by_name("stores", settings.BUSINESS_RU_STORE_NAME)
         status_id = str(getattr(settings, "BUSINESS_RU_STATUS_ID", "") or "").strip()
-        if store is None:
-            raise BusinessRuOrderError(f"Склад «{settings.BUSINESS_RU_STORE_NAME}» не найден")
         if not status_id:
             raise BusinessRuOrderError("Не задан BUSINESS_RU_STATUS_ID")
 
@@ -517,6 +565,16 @@ def export_paid_order(order) -> None:
         order.save(update_fields=["business_ru_partner_id", "business_ru_order_id", "business_ru_error", "updated_at"])
     else:
         _ensure_order_goods_krw(client, order)
+
+    try:
+        _export_reservation(client, order, partner_id, org_id, employee_id, store)
+        if (order.business_ru_error or "").startswith("Заказ создан, резерв не выгружен"):
+            order.business_ru_error = ""
+            order.save(update_fields=["business_ru_error", "updated_at"])
+    except Exception as exc:
+        order.business_ru_error = f"Заказ создан, резерв не выгружен: {exc}"[:4000]
+        order.save(update_fields=["business_ru_error", "updated_at"])
+        raise BusinessRuOrderError(order.business_ru_error)
 
     try:
         _export_payment(client, order, partner_id, org_id, employee_id)

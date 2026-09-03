@@ -127,7 +127,11 @@ def _complete_paid_order(order: SiteOrder, capture_data: dict) -> bool:
         order.paypal_receipt_url = receipt_url(order.paypal_capture_id)
         order.save(update_fields=["paypal_receipt_url", "paypal_payload", "updated_at"])
 
-    if not order.business_ru_order_id or not getattr(order, "business_ru_payment_id", ""):
+    if (
+        not order.business_ru_order_id
+        or not getattr(order, "business_ru_payment_id", "")
+        or not getattr(order, "business_ru_reservation_id", "")
+    ):
         try:
             export_paid_order(order)
         except Exception as exc:

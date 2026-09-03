@@ -57,6 +57,7 @@ class SiteOrder(models.Model):
     business_ru_partner_id = models.CharField(max_length=32, blank=True)
     business_ru_order_id = models.CharField(max_length=32, blank=True)
     business_ru_payment_id = models.CharField(max_length=32, blank=True, verbose_name="ID оплаты Business.Ru")
+    business_ru_reservation_id = models.CharField(max_length=32, blank=True, verbose_name="ID резерва Business.Ru")
     business_ru_error = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

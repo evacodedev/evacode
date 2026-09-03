@@ -19,5 +19,6 @@ class Command(BaseCommand):
         export_paid_order(order)
         order.refresh_from_db()
         self.stdout.write(self.style.SUCCESS(
-            f"Business.Ru заказ {order.business_ru_order_id}, партнёр {order.business_ru_partner_id}"
+            f"Business.Ru заказ {order.business_ru_order_id}, "
+            f"резерв {order.business_ru_reservation_id}, партнёр {order.business_ru_partner_id}"
         ))

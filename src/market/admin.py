@@ -31,6 +31,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "paypal_order_id",
         "business_ru_order_id",
         "business_ru_payment_id",
+        "business_ru_reservation_id",
         "created_at",
     )
     list_filter = ("status",)
@@ -48,6 +49,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_partner_id",
         "business_ru_order_id",
         "business_ru_payment_id",
+        "business_ru_reservation_id",
         "business_ru_error",
         "created_at",
         "updated_at",
