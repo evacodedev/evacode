@@ -2,7 +2,7 @@
   <div
       v-for="n in count"
       :key="n"
-      class="col-grid-box col-xl-3 col-lg-6 col-md-4 col-6"
+      class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
   >
     <div class="product-box product-skeleton" aria-hidden="true">
       <div>
@@ -20,7 +20,7 @@
 defineProps({
   count: {
     type: Number,
-    default: 8,
+    default: 12,
   },
 });
 </script>

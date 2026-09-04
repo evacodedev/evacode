@@ -14,7 +14,7 @@
                                     <div class="col-12">
                                         <div class="collection-product-wrapper">
                                             <div class="product-top-filter mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <span>Найдено: {{ totalProductsCount || 0 }}</span>
+                                                <span>Найдено: {{ displayedProductsCount }}</span>
                                                 <select v-model="ordering" class="form-select catalog-sort">
                                                     <option value="retail_price">Сначала дешевле</option>
                                                     <option value="-retail_price">Сначала дороже</option>
@@ -28,11 +28,11 @@
                                                             <WidgetsProductSkeletons :count="itemsPerPage"/>
                                                         </template>
                                                         <WidgetsProductSkeletons
-                                                            v-if="pending || !catalogReady || !productsResponse"
+                                                            v-if="!catalogReady"
                                                             :count="itemsPerPage"
                                                         />
                                                         <div
-                                                            v-else-if="!totalProductsCount"
+                                                            v-else-if="!displayedProductsCount"
                                                             class="col-12"
                                                         >
                                                             <div class="text-center section-t-space section-b-space">
@@ -67,7 +67,7 @@
                                                 </div>
                                             </div>
                                             <div class="product-pagination mb-0"
-                                                 v-if="catalogReady && totalProductsCount > itemsPerPage">
+                                                 v-if="displayedProductsCount > itemsPerPage">
                                                 <div class="theme-paggination-block">
                                                     <div class="row">
                                                         <div class="col-xl-6 col-md-6 col-sm-12">
@@ -146,41 +146,62 @@ const goodsQuery = computed(() => {
     return query;
 });
 
-const { data: productsResponse, pending } = await useAsyncData(
+const { data: productsResponse } = await useAsyncData(
     'catalog-goods',
     () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
         query: { ...goodsQuery.value },
     }),
-    {
-        watch: [() => route.fullPath],
-    },
 );
 
 const catalogReady = ref(false);
 
-watch(() => route.fullPath, () => {
+const loadCatalog = async () => {
     catalogReady.value = false;
+    try {
+        productsResponse.value = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
+            query: { ...goodsQuery.value },
+        });
+    } catch (error) {
+        console.error(error);
+    }
+    if (!import.meta.client) {
+        return;
+    }
+    await nextTick();
+    catalogReady.value = true;
+};
+
+onMounted(async () => {
+    if (!productsResponse.value) {
+        await loadCatalog();
+        return;
+    }
+    await nextTick();
+    catalogReady.value = true;
 });
 
+watch(() => route.fullPath, () => {
+    loadCatalog();
+});
+
+const products = computed(() => productsResponse.value?.results);
+const lastProductsCount = ref(0);
 watch(
-    pending,
-    async (isPending) => {
-        if (!import.meta.client) {
-            return;
+    productsResponse,
+    (data) => {
+        if (data && typeof data.count === 'number') {
+            lastProductsCount.value = data.count;
         }
-        if (isPending || !productsResponse.value) {
-            catalogReady.value = false;
-            return;
-        }
-        catalogReady.value = false;
-        await nextTick();
-        catalogReady.value = true;
     },
     { immediate: true },
 );
-
-const products = computed(() => productsResponse.value?.results);
-const totalProductsCount = computed(() => productsResponse.value?.count);
+const displayedProductsCount = computed(() => {
+    if (typeof productsResponse.value?.count === 'number') {
+        return productsResponse.value.count;
+    }
+    return lastProductsCount.value;
+});
+const totalProductsCount = displayedProductsCount;
 const previous = computed(() => productsResponse.value?.previous ? `?${productsResponse.value?.previous.split('?')[1]}` : null);
 const next = computed(() => productsResponse.value?.next ? `?${productsResponse.value?.next.split('?')[1]}` : null);
 const paginates = computed(() => Math.ceil((totalProductsCount.value || 0) / itemsPerPage.value));
