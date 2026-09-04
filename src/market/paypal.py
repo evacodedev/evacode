@@ -73,8 +73,10 @@ def create_order(amount_usd, reference_id, return_url, cancel_url, description="
                 },
             }
         ],
+        # Orders v2 has no SOLUTIONTYPE; BILLING is the guest/card landing (classic Sole).
         "application_context": {
             "brand_name": "Evacode",
+            "landing_page": "BILLING",
             "user_action": "PAY_NOW",
             "return_url": return_url,
             "cancel_url": cancel_url,
