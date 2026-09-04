@@ -23,6 +23,7 @@
                                             </div>
                                             <div
                                                 class="product-wrapper-grid catalog-grid-stable"
+                                                :class="{ 'catalog-grid-fade': animateCatalogEnter }"
                                                 :style="{ '--catalog-skel': skeletonCount }"
                                             >
                                                 <div class="row">
@@ -49,10 +50,8 @@
                                                     <template v-else>
                                                         <div
                                                             class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
-                                                            :class="{ 'motion-appear': animateCatalogEnter }"
                                                             v-for="(product, index) in (products || [])"
                                                             :key="product.id || index"
-                                                            :style="{ '--i': index }"
                                                         >
                                                             <div class="product-box">
                                                                 <ProductBoxProductBox1
@@ -162,28 +161,38 @@ const { data: productsResponse } = await useAsyncData(
     }),
 );
 
-const catalogReady = ref(false);
-const animateCatalogEnter = ref(true);
+const catalogReady = ref(import.meta.server && !!productsResponse.value);
+const animateCatalogEnter = ref(false);
 const loadedPath = ref(import.meta.server && productsResponse.value ? route.fullPath : '');
 let catalogLoadId = 0;
+let firstCatalogEnterDone = false;
+let fadeTimer;
 
 const revealCatalog = async (animate) => {
     if (!import.meta.client) {
+        catalogReady.value = true;
         return;
     }
-    if (animate) {
-        catalogReady.value = false;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const shouldFade = animate && !firstCatalogEnterDone && !prefersReduced;
+    catalogReady.value = true;
+    animateCatalogEnter.value = shouldFade;
+    if (shouldFade) {
+        firstCatalogEnterDone = true;
         await nextTick();
-        catalogReady.value = true;
-    } else {
-        catalogReady.value = true;
+        window.clearTimeout(fadeTimer);
+        fadeTimer = window.setTimeout(() => {
+            animateCatalogEnter.value = false;
+        }, 320);
     }
-    animateCatalogEnter.value = false;
 };
 
 const loadCatalog = async ({ animate = false } = {}) => {
     const loadId = ++catalogLoadId;
-    catalogReady.value = false;
+    const hasProducts = Boolean(productsResponse.value?.results?.length);
+    if (animate || !hasProducts) {
+        catalogReady.value = false;
+    }
     try {
         const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
             query: { ...goodsQuery.value },
@@ -206,11 +215,17 @@ const loadCatalog = async ({ animate = false } = {}) => {
 };
 
 onMounted(async () => {
-    if (loadedPath.value === route.fullPath && productsResponse.value) {
-        await revealCatalog(true);
+    if (productsResponse.value) {
+        loadedPath.value = route.fullPath;
+        const alreadyVisible = catalogReady.value;
+        await revealCatalog(!alreadyVisible);
         return;
     }
     await loadCatalog({ animate: true });
+});
+
+onBeforeUnmount(() => {
+    window.clearTimeout(fadeTimer);
 });
 
 watch(

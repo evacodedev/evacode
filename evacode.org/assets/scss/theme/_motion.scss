@@ -35,6 +35,10 @@
   transform: translateY(0);
 }
 
+.catalog-grid-fade > .row {
+  animation: catalog-grid-fade 280ms var(--motion-ease) both;
+}
+
 .product-wrapper-grid.is-refreshing {
   position: relative;
   pointer-events: none;
@@ -158,6 +162,15 @@
   }
 }
 
+@keyframes catalog-grid-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes motion-veil {
   from {
     opacity: 0;
@@ -179,6 +192,7 @@
 @media (prefers-reduced-motion: reduce) {
   .motion-appear,
   .reveal-block,
+  .catalog-grid-fade > .row,
   .product-box img.media,
   .soft-fade-enter-active,
   .soft-fade-leave-active,
