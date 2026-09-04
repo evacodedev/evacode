@@ -143,7 +143,7 @@ export default {
   watch: {
     drawerOpen(open) {
       if (process.client) {
-        document.documentElement.classList.toggle('cart-drawer-open', open)
+        this.lockPageScroll(open)
       }
     },
     '$route.path'() {
@@ -155,9 +155,20 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener('keydown', this.onKeydown)
-    document.documentElement.classList.remove('cart-drawer-open')
+    this.lockPageScroll(false)
   },
   methods: {
+    lockPageScroll(lock) {
+      const root = document.documentElement
+      if (lock) {
+        const gutter = Math.max(0, window.innerWidth - root.clientWidth)
+        root.style.setProperty('--cart-scrollbar-gutter', `${gutter}px`)
+        root.classList.add('cart-drawer-open')
+      } else {
+        root.classList.remove('cart-drawer-open')
+        root.style.removeProperty('--cart-scrollbar-gutter')
+      }
+    },
     itemImage(item) {
       return item?.images?.[0]?.url || ''
     },

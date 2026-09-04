@@ -1351,7 +1351,11 @@ section.beauty-about {
     }
 }
 
-html.cart-drawer-open,
+html.cart-drawer-open {
+    overflow: hidden;
+    padding-right: var(--cart-scrollbar-gutter, 0px);
+}
+
 html.cart-drawer-open body {
     overflow: hidden;
 }
