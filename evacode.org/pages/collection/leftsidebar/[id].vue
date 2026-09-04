@@ -21,11 +21,14 @@
                                                     <option value="title">По названию</option>
                                                 </select>
                                             </div>
-                                            <div class="product-wrapper-grid">
+                                            <div
+                                                class="product-wrapper-grid catalog-grid-stable"
+                                                :style="{ '--catalog-skel': skeletonCount }"
+                                            >
                                                 <div class="row">
                                                     <WidgetsProductSkeletons
                                                         v-if="!catalogReady"
-                                                        :count="itemsPerPage"
+                                                        :count="skeletonCount"
                                                     />
                                                     <div
                                                         v-else-if="!displayedProductsCount"
@@ -45,7 +48,8 @@
                                                     </div>
                                                     <template v-else>
                                                         <div
-                                                            class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6 motion-appear"
+                                                            class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
+                                                            :class="{ 'motion-appear': animateCatalogEnter }"
                                                             v-for="(product, index) in (products || [])"
                                                             :key="product.id || index"
                                                             :style="{ '--i': index }"
@@ -98,6 +102,12 @@
 <script setup>
 import {useRoute, useRouter} from 'vue-router';
 
+definePageMeta({
+    scrollToTop: false,
+});
+
+const CATALOG_PATH = '/collection/leftsidebar/0';
+
 const route = useRoute();
 const router = useRouter();
 
@@ -106,6 +116,10 @@ const paginateRange = ref(3);
 
 const currentPage = computed(() => parseFloat(route.query.page) || 1);
 const currentCategory = computed(() => {
+    const fromQuery = parseFloat(route.query.category);
+    if (fromQuery && fromQuery > 0) {
+        return fromQuery;
+    }
     const id = parseFloat(route.params.id);
     return id && id > 0 ? id : null;
 });
@@ -116,7 +130,7 @@ const ordering = computed({
         const query = { ...route.query, ordering: value, page: 1 };
         delete query.in_stock;
         delete query.bestseller;
-        await router.push({ path: route.path, query });
+        await router.push({ path: CATALOG_PATH, query });
     },
 });
 
@@ -149,19 +163,25 @@ const { data: productsResponse } = await useAsyncData(
 );
 
 const catalogReady = ref(false);
+const animateCatalogEnter = ref(true);
 const loadedPath = ref(import.meta.server && productsResponse.value ? route.fullPath : '');
 let catalogLoadId = 0;
 
-const revealCatalog = async () => {
+const revealCatalog = async (animate) => {
     if (!import.meta.client) {
         return;
     }
-    catalogReady.value = false;
-    await nextTick();
-    catalogReady.value = true;
+    if (animate) {
+        catalogReady.value = false;
+        await nextTick();
+        catalogReady.value = true;
+    } else {
+        catalogReady.value = true;
+    }
+    animateCatalogEnter.value = false;
 };
 
-const loadCatalog = async () => {
+const loadCatalog = async ({ animate = false } = {}) => {
     const loadId = ++catalogLoadId;
     catalogReady.value = false;
     try {
@@ -182,15 +202,15 @@ const loadCatalog = async () => {
     if (loadId !== catalogLoadId) {
         return;
     }
-    await revealCatalog();
+    await revealCatalog(animate);
 };
 
 onMounted(async () => {
     if (loadedPath.value === route.fullPath && productsResponse.value) {
-        await revealCatalog();
+        await revealCatalog(true);
         return;
     }
-    await loadCatalog();
+    await loadCatalog({ animate: true });
 });
 
 watch(
@@ -199,7 +219,7 @@ watch(
         if (!from || to === from) {
             return;
         }
-        await loadCatalog();
+        await loadCatalog({ animate: false });
     },
     { flush: 'pre' },
 );
@@ -220,6 +240,13 @@ const displayedProductsCount = computed(() => {
         return productsResponse.value.count;
     }
     return lastProductsCount.value;
+});
+const skeletonCount = computed(() => {
+    const count = displayedProductsCount.value;
+    if (!count) {
+        return itemsPerPage.value;
+    }
+    return Math.min(itemsPerPage.value, count);
 });
 const totalProductsCount = displayedProductsCount;
 const previous = computed(() => productsResponse.value?.previous ? `?${productsResponse.value?.previous.split('?')[1]}` : null);

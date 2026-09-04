@@ -282,6 +282,15 @@
 }
 
 @media (max-width: 767px) {
+    .collection-content .product-wrapper-grid.catalog-grid-stable {
+        --catalog-card-h: 340px;
+    }
+
+    .product-skeleton .img-wrapper,
+    .product-skeleton .skeleton-block {
+        height: 167px;
+    }
+
     .col-grid-box:not(:first-child) {
         padding: 0 0 0 8px;
     }

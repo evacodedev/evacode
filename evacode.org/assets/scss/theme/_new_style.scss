@@ -325,6 +325,18 @@ section.products-main-section {
     }
 }
 
+.collection-content .product-wrapper-grid.catalog-grid-stable {
+    --catalog-card-h: 572px;
+    --catalog-cols: 4;
+    min-height: calc(var(--catalog-skel, 12) / var(--catalog-cols) * var(--catalog-card-h));
+}
+
+@media (max-width: 1199px) {
+    .collection-content .product-wrapper-grid.catalog-grid-stable {
+        --catalog-cols: 2;
+    }
+}
+
 
 /* Pagination */
 .evacode-pagination {

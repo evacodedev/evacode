@@ -50,7 +50,7 @@
             <li>
               <nuxt-link
                   :class="{ active: !currentCategory }"
-                  :to="{ path: '/collection/leftsidebar/0', query: categoryQuery }"
+                  :to="catalogListTo(null)"
               >
                 Все товары
               </nuxt-link>
@@ -59,7 +59,7 @@
               <nuxt-link
                   v-if="category.id !== 1"
                   :class="{ active: category.id === currentCategory }"
-                  :to="{ path: `/collection/leftsidebar/${category.id}`, query: categoryQuery }"
+                  :to="catalogListTo(category.id)"
               >
                 {{ category.name }}
               </nuxt-link>
@@ -96,10 +96,19 @@ const maxPriceInput = ref(route.query.max_price || '');
 const categoryQuery = computed(() => {
   const query = { ...route.query };
   delete query.page;
+  delete query.category;
   delete query.in_stock;
   delete query.bestseller;
   return query;
 });
+
+const catalogListTo = (categoryId) => {
+  const query = { ...categoryQuery.value };
+  if (categoryId) {
+    query.category = String(categoryId);
+  }
+  return { path: '/collection/leftsidebar/0', query };
+};
 
 const {data: categoriesResponse} = await useAsyncData(
     'categoriesResponse',
@@ -122,7 +131,7 @@ const patchQuery = async (patch) => {
       delete query[key];
     }
   });
-  await router.push({ path: route.path, query });
+  await router.push({ path: '/collection/leftsidebar/0', query });
 };
 
 const applyTextFilters = () => {
