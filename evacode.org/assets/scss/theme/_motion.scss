@@ -54,7 +54,8 @@
   transition: opacity var(--motion-slow) var(--motion-ease);
 }
 
-.product-box img.media.is-loaded {
+.product-box img.media.is-loaded,
+.product-box img.media.is-priority {
   opacity: 1;
 }
 

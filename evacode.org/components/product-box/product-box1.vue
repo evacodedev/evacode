@@ -7,13 +7,20 @@
       </div>
       <nuxt-link :class="'product-detail-link'" :to="{ path: '/product/sidebar/'+product.id}" @click="rememberProduct">
         <img
+            v-if="cardImageUrl"
             ref="productImage"
-            :src='imageSrc ? imageSrc : product.images[0].url'
+            :src="cardImageUrl"
             :id="product.id"
             class="img-fluid bg-img media"
-            :class="{ 'is-loaded': imageLoaded }"
+            :class="{ 'is-loaded': imageLoaded, 'is-priority': isPriorityImage }"
             :alt="product.title"
-            :key="index"
+            :key="product.id"
+            width="340"
+            height="340"
+            decoding="async"
+            :loading="isPriorityImage ? 'eager' : 'lazy'"
+            :fetchpriority="isPriorityImage ? 'high' : 'auto'"
+            sizes="(max-width: 767px) 50vw, (max-width: 1199px) 50vw, 25vw"
             @load="imageLoaded = true"
         />
       </nuxt-link>
@@ -54,7 +61,7 @@ export default {
       _imageSrc: '',
       cartProduct: {},
       cartval: false,
-      imageLoaded: false,
+      imageLoaded: true,
     }
   },
   emits: ['opencartmodel'],
@@ -62,12 +69,22 @@ export default {
     curr() {
       return useProductStore().changeCurrency
     },
+    isPriorityImage() {
+      return Number(this.index) < 4
+    },
     imageSrc() {
       const isImageFromProduct =
           this.product.images &&
           this.product.images.length &&
           this.product.images.map((image)=>image.url).indexOf(this._imageSrc) !== -1;
       return isImageFromProduct ? this._imageSrc : '';
+    },
+    cardImageUrl() {
+      if (this.imageSrc) {
+        return this.imageSrc
+      }
+      const first = this.product && this.product.images && this.product.images[0]
+      return first && first.url ? first.url : ''
     }
   },
   methods: {
@@ -88,17 +105,6 @@ export default {
     getPrice: function (price) {
       return useProductStore().getPrice(price);
     }
-  },
-  mounted() {
-    const img = this.$refs.productImage
-    if (img && img.complete && img.naturalWidth) {
-      this.imageLoaded = true
-    }
-  },
-  watch: {
-    index() {
-      this.imageLoaded = false
-    },
   },
 }
 </script>
