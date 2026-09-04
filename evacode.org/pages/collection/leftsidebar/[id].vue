@@ -21,46 +21,53 @@
                                                     <option value="title">По названию</option>
                                                 </select>
                                             </div>
-                                            <div
-                                                class="product-wrapper-grid"
-                                                :class="{ 'is-refreshing': productsLoading && products?.length }"
-                                            >
+                                            <div class="product-wrapper-grid">
                                                 <div class="row">
-                                                    <div class="col-12">
-                                                        <div class="text-center section-t-space section-b-space"
-                                                             v-if="!productsLoading && totalProductsCount == 0">
-                                                            <img src="/images/evacode/empty-search.jpg"
-                                                                 class="img-fluid" alt/>
-                                                            <h3 class="mt-3">Извините! Не найден товар который Вы
-                                                                искали!!!</h3>
-                                                            <div class="col-12 mt-3">
-                                                                <a href="/collection/leftsidebar/0"
-                                                                   class="btn btn-solid">Сбросить фильтры
-                                                                </a>
+                                                    <ClientOnly>
+                                                        <template #fallback>
+                                                            <WidgetsProductSkeletons :count="itemsPerPage"/>
+                                                        </template>
+                                                        <WidgetsProductSkeletons
+                                                            v-if="pending || !catalogReady || !productsResponse"
+                                                            :count="itemsPerPage"
+                                                        />
+                                                        <div
+                                                            v-else-if="!totalProductsCount"
+                                                            class="col-12"
+                                                        >
+                                                            <div class="text-center section-t-space section-b-space">
+                                                                <img src="/images/evacode/empty-search.jpg"
+                                                                     class="img-fluid" alt/>
+                                                                <h3 class="mt-3">Извините! Не найден товар который Вы
+                                                                    искали!!!</h3>
+                                                                <div class="col-12 mt-3">
+                                                                    <a href="/collection/leftsidebar/0"
+                                                                       class="btn btn-solid">Сбросить фильтры
+                                                                    </a>
+                                                                </div>
                                                             </div>
                                                         </div>
-                                                    </div>
-                                                    <WidgetsProductSkeletons
-                                                        v-if="productsLoading && !products?.length"
-                                                    />
-                                                    <div
-                                                        class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6 motion-appear"
-                                                        v-for="(product, index) in (products || [])"
-                                                        :key="product.id || index"
-                                                        :style="{ '--i': index }"
-                                                    >
-                                                        <div class="product-box">
-                                                            <ProductBoxProductBox1
-                                                                @opencartmodel="showCart"
-                                                                :product="product"
-                                                                :index="index"
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                        <template v-else>
+                                                            <div
+                                                                class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6 motion-appear"
+                                                                v-for="(product, index) in (products || [])"
+                                                                :key="product.id || index"
+                                                                :style="{ '--i': index }"
+                                                            >
+                                                                <div class="product-box">
+                                                                    <ProductBoxProductBox1
+                                                                        @opencartmodel="showCart"
+                                                                        :product="product"
+                                                                        :index="index"
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </template>
+                                                    </ClientOnly>
                                                 </div>
                                             </div>
                                             <div class="product-pagination mb-0"
-                                                 v-if="totalProductsCount > itemsPerPage">
+                                                 v-if="catalogReady && totalProductsCount > itemsPerPage">
                                                 <div class="theme-paggination-block">
                                                     <div class="row">
                                                         <div class="col-xl-6 col-md-6 col-sm-12">
@@ -139,25 +146,38 @@ const goodsQuery = computed(() => {
     return query;
 });
 
-const productsResponse = ref(null);
-const productsLoading = ref(true);
-const isCollectionRoute = () => String(route.path).includes('/collection/leftsidebar');
+const { data: productsResponse, pending } = await useAsyncData(
+    'catalog-goods',
+    () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
+        query: { ...goodsQuery.value },
+    }),
+    {
+        watch: [() => route.fullPath],
+    },
+);
 
-const loadProducts = async () => {
-    if (!isCollectionRoute()) {
-        return;
-    }
-    productsLoading.value = true;
-    try {
-        productsResponse.value = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
-            query: { ...goodsQuery.value },
-        });
-    } finally {
-        productsLoading.value = false;
-    }
-};
-await loadProducts();
-watch(() => route.fullPath, loadProducts);
+const catalogReady = ref(false);
+
+watch(() => route.fullPath, () => {
+    catalogReady.value = false;
+});
+
+watch(
+    pending,
+    async (isPending) => {
+        if (!import.meta.client) {
+            return;
+        }
+        if (isPending || !productsResponse.value) {
+            catalogReady.value = false;
+            return;
+        }
+        catalogReady.value = false;
+        await nextTick();
+        catalogReady.value = true;
+    },
+    { immediate: true },
+);
 
 const products = computed(() => productsResponse.value?.results);
 const totalProductsCount = computed(() => productsResponse.value?.count);
