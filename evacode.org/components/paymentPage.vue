@@ -150,13 +150,11 @@
 
           <section class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Оплата</h2>
-            <label class="checkout-choice" :class="{ 'is-selected': paymentMethod === 'paypal' }">
-              <input v-model="paymentMethod" type="radio" name="payment" value="paypal">
+            <label class="checkout-choice is-disabled" aria-disabled="true">
+              <input type="radio" name="payment" value="paypal" disabled tabindex="-1">
               <span class="checkout-choice__body">
                 <span class="checkout-choice__title">PayPal</span>
-                <span v-if="paymentMethod === 'paypal'" class="checkout-choice__note">
-                  Оплата картой на странице PayPal. Сумма списывается в долларах.
-                </span>
+                <span class="checkout-choice__note">В разработке</span>
               </span>
             </label>
             <label class="checkout-choice" :class="{ 'is-selected': paymentMethod === 'telegram' }">
@@ -301,7 +299,7 @@ export default {
         comment: { value: '', errormsg: '' },
       },
       countryCode: 'KR',
-      paymentMethod: 'paypal',
+      paymentMethod: 'telegram',
       paypalLoading: false,
       telegramLoading: false,
       paypalError: '',
@@ -456,7 +454,7 @@ export default {
         return
       }
       if (this.paymentMethod === 'paypal') {
-        return this.onPaypalSubmit()
+        return
       }
       return this.onSubmit()
     },
