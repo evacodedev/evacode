@@ -19,7 +19,7 @@ services:
       context: .
       network: host
       dockerfile: dockerfiles/Dockerfile
-    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py createsuperuser --noinput & python manage.py create_currency & gunicorn evacode_backend.wsgi:application --bind 0.0.0.0:8000"
+    command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py createsuperuser --noinput & python manage.py create_currency & gunicorn evacode_backend.wsgi:application --bind 0.0.0.0:8000 --timeout 60"
     restart: always
     depends_on:
       - db

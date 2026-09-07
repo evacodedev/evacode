@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+import threading
 
 from asgiref.sync import async_to_sync
 from decimal import Decimal
@@ -127,20 +128,40 @@ def _complete_paid_order(order: SiteOrder, capture_data: dict) -> bool:
         order.paypal_receipt_url = receipt_url(order.paypal_capture_id)
         order.save(update_fields=["paypal_receipt_url", "paypal_payload", "updated_at"])
 
-    if (
-        not order.business_ru_order_id
-        or not getattr(order, "business_ru_payment_id", "")
-        or not getattr(order, "business_ru_reservation_id", "")
-    ):
-        try:
-            export_paid_order(order)
-        except Exception as exc:
-            logger.exception("Выгрузка заказа %s в Business.Ru не удалась", order.public_id)
-            order.business_ru_error = str(exc)[:4000]
-            order.save(update_fields=["business_ru_error", "updated_at"])
-
-    _notify_telegram(order)
+    # PayPal is already PAID here. BR/Telegram run in the background so the
+    # return URL is not blocked. If documents are missing, retry from admin:
+    # «Выгрузить в Business.Ru» or `export_site_order`.
+    threading.Thread(
+        target=_export_paid_side_effects,
+        args=(order.pk,),
+        daemon=True,
+    ).start()
     return True
+
+
+def _export_paid_side_effects(order_id: int) -> None:
+    from django.db import close_old_connections
+
+    close_old_connections()
+    try:
+        order = SiteOrder.objects.filter(pk=order_id).first()
+        if not order:
+            return
+        if (
+            not order.business_ru_order_id
+            or not getattr(order, "business_ru_payment_id", "")
+            or not getattr(order, "business_ru_reservation_id", "")
+        ):
+            try:
+                export_paid_order(order)
+                order.refresh_from_db()
+            except Exception as exc:
+                logger.exception("Выгрузка заказа %s в Business.Ru не удалась", order.public_id)
+                order.business_ru_error = str(exc)[:4000]
+                order.save(update_fields=["business_ru_error", "updated_at"])
+        _notify_telegram(order)
+    finally:
+        close_old_connections()
 
 
 class CreateSiteOrderView(APIView):
