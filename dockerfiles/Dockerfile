@@ -1,4 +1,4 @@
-FROM python:3.11.3-slim as python-base
+FROM python:3.11-slim-bookworm AS python-base
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -15,10 +15,11 @@ ENV PYTHONUNBUFFERED=1 \
 
 ENV PATH="$POETRY_HOME/bin:$VENV_PATH/bin:$PATH"
 
-FROM python-base as builder
+FROM python-base AS builder
 LABEL stage="builder"
 RUN apt-get update && \
-    apt-get install --no-install-recommends -y curl build-essential
+    apt-get install --no-install-recommends -y curl build-essential && \
+    rm -rf /var/lib/apt/lists/*
 
 
 RUN curl -sSL https://install.python-poetry.org | python3 -
@@ -30,7 +31,7 @@ COPY poetry.lock pyproject.toml ./
 
 RUN poetry install --no-root
 
-FROM python-base as development
+FROM python-base AS development
 WORKDIR $PYSETUP_PATH
 COPY --from=builder $PYSETUP_PATH $PYSETUP_PATH
 COPY src /evacode-api/
