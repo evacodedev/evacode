@@ -8,10 +8,12 @@ from .models import GoodsModel
 class GoodsOrderingFilter(OrderingFilter):
     def filter_queryset(self, request, queryset, view):
         ordering = self.get_ordering(request, queryset, view) or ["title"]
-        order_by = [field for field in ordering if field.lstrip("-") != "queue"]
-        order_by.append(F("queue").asc(nulls_last=True))
-        order_by.append("id")
-        return queryset.order_by(*order_by)
+        user_order = [field for field in ordering if field.lstrip("-") != "queue"]
+        return queryset.order_by(
+            F("queue").asc(nulls_last=True),
+            *user_order,
+            "id",
+        )
 
 
 class GoodsFilter(FilterSet):

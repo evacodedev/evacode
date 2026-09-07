@@ -78,17 +78,15 @@ class GoodsFilterApiTests(TestCase):
         response = self.client.get("/api/market/goods/")
         self.assertEqual(self._ids(response), [2, 1])
 
-    def test_queue_breaks_price_ties(self):
-        GoodsModel.objects.filter(id=1).update(retail_price=10000, queue=30)
-        GoodsModel.objects.filter(id=2).update(retail_price=10000, queue=10)
-        response = self.client.get("/api/market/goods/", {"ordering": "retail_price"})
-        self.assertEqual(self._ids(response), [2, 1])
+    def test_queue_comes_before_title(self):
+        GoodsModel.objects.filter(id=1).update(queue=10)
+        response = self.client.get("/api/market/goods/", {"ordering": "title"})
+        self.assertEqual(self._ids(response), [1, 2])
         self.assertNotIn("queue", response.json()["results"][0])
 
-    def test_queue_breaks_title_ties(self):
-        GoodsModel.objects.filter(id=1).update(title="Одинаковое", queue=20)
-        GoodsModel.objects.filter(id=2).update(title="Одинаковое", queue=10)
-        response = self.client.get("/api/market/goods/", {"ordering": "title"})
+    def test_queue_comes_before_price(self):
+        GoodsModel.objects.filter(id=2).update(queue=10)
+        response = self.client.get("/api/market/goods/", {"ordering": "retail_price"})
         self.assertEqual(self._ids(response), [2, 1])
 
     def test_list_includes_weight_grams(self):
