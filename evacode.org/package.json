@@ -23,6 +23,7 @@
     "@vueuse/nuxt": "^9.9.0",
     "bootstrap": "^5.2.3",
     "knitwork": "1.2.0",
+    "libphonenumber-js": "^1.11.17",
     "maz-ui": "^3.42.6",
     "nuxt3-localforage": "^0.1.2",
     "pinia": "^2.0.27",
