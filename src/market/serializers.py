@@ -14,7 +14,7 @@ class GoodsSerializer(serializers.ModelSerializer):
     class Meta:
         model = GoodsModel
         fields = ('id', 'title', 'description', 'category', 'type', 'official_price', 'retail_price', 'wholesale_price',
-                  'large_wholesale_price', 'stock', 'images', 'bestseller')
+                  'large_wholesale_price', 'stock', 'weight', 'images', 'bestseller')
 
 
 class GoodsListSerializer(serializers.ModelSerializer):
@@ -30,6 +30,7 @@ class GoodsListSerializer(serializers.ModelSerializer):
             'official_price',
             'retail_price',
             'stock',
+            'weight',
             'images',
             'bestseller',
         )

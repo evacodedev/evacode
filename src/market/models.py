@@ -23,6 +23,7 @@ class GoodsModel(models.Model):
     retail_price = models.PositiveIntegerField(blank=True, null=True, verbose_name='Розничная цена')
     wholesale_price = models.PositiveIntegerField(blank=True, null=True, verbose_name='Оптовая цена')
     large_wholesale_price = models.PositiveIntegerField(blank=True, null=True, verbose_name='Крупный опт')
+    weight = models.PositiveIntegerField(blank=True, null=True, verbose_name='Вес, г')
 
 
 class ImageModel(models.Model):

@@ -18,6 +18,16 @@ import os
 load_dotenv()
 
 
+def parse_weight_grams(value):
+    if value is None or value == "":
+        return None
+    try:
+        grams = int(round(float(value)))
+    except (TypeError, ValueError):
+        return None
+    return grams if grams >= 0 else None
+
+
 class BusinessRuAPIClient:
     api_secret = os.getenv('API_SECRET')
     app_id = os.getenv('APP_ID')
@@ -144,6 +154,7 @@ class BusinessRuService:
                     'category_id': good['group_id'],
                     'type': good['type'],
                     'stock': float(good['remains'][0]['amount']['total']),
+                    'weight': parse_weight_grams(good.get('weight')),
                     'bestseller': self.get_bestseller_value(good['attributes'])
                 }
 

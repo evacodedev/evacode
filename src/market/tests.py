@@ -3,6 +3,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
 from market.models import GoodsModel, GroupOfGoods, ImageModel
+from market.utils import parse_weight_grams
 
 
 class GoodsFilterApiTests(TestCase):
@@ -30,6 +31,7 @@ class GoodsFilterApiTests(TestCase):
             stock=5,
             bestseller=True,
             retail_price=10000,
+            weight=150,
         )
         GoodsModel.objects.create(
             id=2,
@@ -65,6 +67,22 @@ class GoodsFilterApiTests(TestCase):
     def test_default_ordering_by_title(self):
         response = self.client.get("/api/market/goods/")
         self.assertEqual(self._ids(response), [2, 1])
+
+    def test_list_includes_weight_grams(self):
+        response = self.client.get("/api/market/goods/")
+        by_id = {item["id"]: item for item in response.json()["results"]}
+        self.assertEqual(by_id[1]["weight"], 150)
+        self.assertIsNone(by_id[2]["weight"])
+
+
+class ParseWeightGramsTests(TestCase):
+    def test_parse_weight_grams(self):
+        self.assertEqual(parse_weight_grams("150"), 150)
+        self.assertEqual(parse_weight_grams(150.4), 150)
+        self.assertEqual(parse_weight_grams(150.6), 151)
+        self.assertIsNone(parse_weight_grams(None))
+        self.assertIsNone(parse_weight_grams(""))
+        self.assertIsNone(parse_weight_grams("abc"))
 
 
 class GoodsListPrefetchTests(TestCase):
