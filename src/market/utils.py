@@ -1,14 +1,11 @@
 import hashlib
 import json
-from pprint import pprint
-from django.db.utils import IntegrityError
+from contextlib import contextmanager
 from urllib.parse import urlencode
 import requests
 from datetime import datetime
+from django.db import connection
 from django.utils.timezone import make_aware
-
-from django.core.serializers import serialize
-from .serializers import GoodsSerializer
 
 from .models import ImageModel, GroupOfGoods, GoodsModel
 
@@ -16,6 +13,9 @@ from dotenv import load_dotenv
 import os
 
 load_dotenv()
+
+
+SYNC_LOCK_KEY = 87236401
 
 
 def parse_weight_grams(value):
@@ -26,6 +26,32 @@ def parse_weight_grams(value):
     except (TypeError, ValueError):
         return None
     return grams if grams >= 0 else None
+
+
+@contextmanager
+def catalog_sync_lock():
+    if connection.vendor != "postgresql":
+        yield
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_advisory_lock(%s)", [SYNC_LOCK_KEY])
+    try:
+        yield
+    finally:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT pg_advisory_unlock(%s)", [SYNC_LOCK_KEY])
+
+
+def korea_free_stock(remains):
+    for item in remains or []:
+        store_name = ((item.get("store") or {}).get("name") or "")
+        if "корея" not in store_name.lower():
+            continue
+        amount = item.get("amount") or {}
+        total = float(amount.get("total") or 0)
+        reserved = float(amount.get("reserved") or 0)
+        return max(0, int(total - reserved))
+    return None
 
 
 class BusinessRuAPIClient:
@@ -81,25 +107,23 @@ class BusinessRuAPIClient:
         hashed = self.get_hash(params=params, token=self.token)
         print(f'{self.base_url}/goods.json?{urlencode(params)}&app_psw={hashed}')
         response = requests.get(f'{self.base_url}/goods.json?{urlencode(params)}&app_psw={hashed}')
-        # print(response.content)
+        response.raise_for_status()
         data = dict(json.loads(response.content))
-        return data['result']
+        if "result" not in data:
+            raise ValueError("Business.Ru goods response has no result")
+        return data["result"]
 
 
 class BusinessRuService:
-    def __init__(self):
-        self.api_client = BusinessRuAPIClient()
+    def __init__(self, api_client=None):
+        self.api_client = api_client or BusinessRuAPIClient()
 
     def group_to_model(self):
         group_data = self.api_client.get_goods_group()
         for group in group_data:
             datestr = group["updated"][:19] if len(group["updated"]) >= 21 else group["updated"]
-            # print('______________________________________________________\n'
-            #       f'{datestr}\n'
-            #       '______________________________________________________')
             datetime_object = datetime.strptime(datestr, '%d.%m.%Y %H:%M:%S')
             updated_aware = make_aware(datetime_object)
-            # print(datetime_object, group['updated'])
             defaults = {
                 'id': int(group['id']),
                 'default_order': group['default_order'],
@@ -118,7 +142,6 @@ class BusinessRuService:
                     obj.save(update_fields=['site_order'])
                 else:
                     obj.save()
-            # print(group['images'])
             if group['images']:
                 for image in group['images']:
                     image_object = ImageModel.objects.get_or_create(
@@ -130,68 +153,108 @@ class BusinessRuService:
                     if not (isinstance(image_object, tuple)):
                         image_object.save()
 
+    def _goods_defaults(self, good, stock):
+        defaults = {
+            "title": good.get("full_name") or good.get("name") or "",
+            "description": good.get("description"),
+            "category_id": int(good["group_id"]),
+            "type": good.get("type") or "",
+            "stock": stock,
+            "weight": parse_weight_grams(good.get("weight")),
+            "bestseller": self.get_bestseller_value(good.get("attributes") or []),
+        }
+        for price in good.get("prices") or []:
+            match (price.get("price_type") or {}).get("name"):
+                case "Оптовая Цена":
+                    defaults["wholesale_price"] = price.get("price")
+                case "Крупный опт":
+                    defaults["large_wholesale_price"] = price.get("price")
+                case "Официальная Цена":
+                    defaults["official_price"] = price.get("price")
+                case "Розничная Цена":
+                    defaults["retail_price"] = price.get("price")
+        return defaults
+
+    def _sync_good_images(self, good_id, images):
+        keep_urls = []
+        for image in images or []:
+            url = image.get("url")
+            if not url:
+                continue
+            keep_urls.append(url)
+            ImageModel.objects.update_or_create(
+                good_id=good_id,
+                url=url,
+                defaults={
+                    "name": image.get("name") or "",
+                    "sort": image.get("sort"),
+                },
+            )
+        stale = ImageModel.objects.filter(good_id=good_id)
+        if keep_urls:
+            stale = stale.exclude(url__in=keep_urls)
+        stale.delete()
+
     def goods_to_model(self):
+        with catalog_sync_lock():
+            self._goods_to_model()
+
+    def _goods_to_model(self):
         page = 1
-
-        del_goods = GoodsModel.objects.all().delete()
-        print(del_goods)
-        # return None
-        while True:
-            goods_data = self.api_client.get_goods(page=page)
-            # pprint(goods_data)
-            if not goods_data:
-                break
-            for good in goods_data:
-                kor_store = list(filter(lambda el: 'корея' in el["store"]["name"].lower(), good['remains']))
-                if not kor_store:
-                    continue
-                elif not (float(kor_store[0]['amount']['total']) > float(kor_store[0]['amount']['reserved'])):
-                    continue
-                defaults = {
-                    'id': good['id'],
-                    'title': good['full_name'],
-                    'description': good['description'],
-                    'category_id': good['group_id'],
-                    'type': good['type'],
-                    'stock': float(good['remains'][0]['amount']['total']),
-                    'weight': parse_weight_grams(good.get('weight')),
-                    'bestseller': self.get_bestseller_value(good['attributes'])
-                }
-
-                for price in good['prices']:
-                    match price['price_type']['name']:
-                        case 'Оптовая Цена':
-                            defaults['wholesale_price'] = price['price']
-                        case 'Крупный опт':
-                            defaults['large_wholesale_price'] = price['price']
-                        case 'Официальная Цена':
-                            defaults['official_price'] = price['price']
-                        case 'Розничная Цена':
-                            defaults['retail_price'] = price['price']
-                        case _:
-                            pass
-
-                # obj, created = GoodsModel.objects.update_or_create(id=int(good['id']), defaults=defaults,
-                #                                                    create_defaults=defaults)
-
-                obj = GoodsModel.objects.create(**defaults)
-
-                # if created:
-                obj.save()
-
-                if good['images']:
-                    for image in good['images']:
-                        image_object = ImageModel.objects.get_or_create(
-                            name=image['name'],
-                            url=image['url'],
-                            sort=image['sort'],
-                            good_id=good['id']
-                        )
-                        if not (isinstance(image_object, tuple)):
-                            image_object.save()
-            # print('HELLOOOO_O_O')
-            page += 1
-        print("Goods added successfully!")
+        active_ids = set()
+        created_count = 0
+        updated_count = 0
+        hidden_count = 0
+        completed = False
+        try:
+            while True:
+                goods_data = self.api_client.get_goods(page=page)
+                if not goods_data:
+                    break
+                for good in goods_data:
+                    try:
+                        good_id = int(good["id"])
+                        group_id = int(good["group_id"])
+                    except (KeyError, TypeError, ValueError):
+                        print(f"Skip good with invalid id/group: {good.get('id')}")
+                        continue
+                    free_stock = korea_free_stock(good.get("remains"))
+                    exists = GoodsModel.objects.filter(id=good_id).exists()
+                    if free_stock is None or free_stock <= 0:
+                        if exists:
+                            GoodsModel.objects.filter(id=good_id).update(stock=0)
+                            hidden_count += 1
+                        continue
+                    if not GroupOfGoods.objects.filter(id=group_id).exists():
+                        print(f"Skip good {good_id}: category {group_id} is missing")
+                        continue
+                    defaults = self._goods_defaults(good, free_stock)
+                    _obj, created = GoodsModel.objects.update_or_create(
+                        id=good_id,
+                        defaults=defaults,
+                    )
+                    self._sync_good_images(good_id, good.get("images"))
+                    active_ids.add(good_id)
+                    if created:
+                        created_count += 1
+                    else:
+                        updated_count += 1
+                page += 1
+            completed = True
+        finally:
+            if completed:
+                extra_hidden = (
+                    GoodsModel.objects.exclude(id__in=active_ids)
+                    .exclude(stock=0)
+                    .update(stock=0)
+                )
+                hidden_count += extra_hidden
+                print(
+                    "Goods sync finished: "
+                    f"created={created_count} updated={updated_count} hidden={hidden_count}"
+                )
+            else:
+                print("Goods sync aborted, existing stock was not bulk-hidden")
 
     def get_bestseller_value(self, attrs: list) -> int:
         for attr in attrs:

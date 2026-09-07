@@ -3,7 +3,7 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
 from market.models import GoodsModel, GroupOfGoods, ImageModel
-from market.utils import parse_weight_grams
+from market.utils import BusinessRuService, parse_weight_grams
 
 
 class GoodsFilterApiTests(TestCase):
@@ -39,9 +39,19 @@ class GoodsFilterApiTests(TestCase):
             description="Тонер для лица",
             category=other,
             type="goods",
-            stock=0,
+            stock=3,
             bestseller=False,
             retail_price=25000,
+        )
+        GoodsModel.objects.create(
+            id=3,
+            title="Скрытый",
+            description="Нет остатка",
+            category=other,
+            type="goods",
+            stock=0,
+            bestseller=False,
+            retail_price=1000,
         )
 
     def _ids(self, response):
@@ -73,6 +83,13 @@ class GoodsFilterApiTests(TestCase):
         by_id = {item["id"]: item for item in response.json()["results"]}
         self.assertEqual(by_id[1]["weight"], 150)
         self.assertIsNone(by_id[2]["weight"])
+        self.assertNotIn(3, by_id)
+
+    def test_zero_stock_is_hidden(self):
+        response = self.client.get("/api/market/goods/")
+        self.assertEqual(self._ids(response), [2, 1])
+        missing = self.client.get("/api/market/goods/3/")
+        self.assertEqual(missing.status_code, 404)
 
 
 class ParseWeightGramsTests(TestCase):
@@ -209,3 +226,115 @@ class CategorySiteOrderApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         names = [item["name"] for item in response.json()["result"]]
         self.assertEqual(names, ["Первая", "Вторая", "Без порядка"])
+
+
+class FakeGoodsClient:
+    def __init__(self, pages, fail_on_page=None):
+        self.pages = pages
+        self.fail_on_page = fail_on_page
+
+    def get_goods(self, page=1, **kwargs):
+        if self.fail_on_page is not None and page == self.fail_on_page:
+            raise RuntimeError("Business.Ru timeout")
+        return self.pages.get(page, [])
+
+
+def korea_payload(good_id, group_id, title, total, reserved=0, weight=100, images=None):
+    return {
+        "id": str(good_id),
+        "group_id": str(group_id),
+        "full_name": title,
+        "description": title,
+        "type": "goods",
+        "weight": weight,
+        "attributes": [],
+        "prices": [{"price_type": {"name": "Розничная Цена"}, "price": 5000}],
+        "remains": [
+            {
+                "store": {"name": "Корея"},
+                "amount": {"total": total, "reserved": reserved},
+            }
+        ],
+        "images": images or [],
+    }
+
+
+class GoodsSyncTests(TestCase):
+    def setUp(self):
+        self.category = GroupOfGoods.objects.create(
+            id=10,
+            default_order="1",
+            deleted=False,
+            name="Кремы",
+            updated="2024-01-01T00:00:00Z",
+        )
+
+    def test_creates_updates_and_hides_without_delete(self):
+        stale = GoodsModel.objects.create(
+            id=3,
+            title="Старый",
+            category=self.category,
+            type="goods",
+            stock=8,
+        )
+        existing = GoodsModel.objects.create(
+            id=1,
+            title="Был",
+            category=self.category,
+            type="goods",
+            stock=1,
+        )
+        ImageModel.objects.create(good=existing, name="old", url="https://cdn.example/old.jpg", sort=1)
+        client = FakeGoodsClient(
+            {
+                1: [
+                    korea_payload(
+                        1,
+                        10,
+                        "Новый",
+                        total=5,
+                        images=[{"name": "new", "url": "https://cdn.example/new.jpg", "sort": 1}],
+                    ),
+                    korea_payload(2, 10, "Без Кореи", total=4, images=[]),
+                ]
+            }
+        )
+        client.pages[1][1]["remains"] = [
+            {"store": {"name": "Москва"}, "amount": {"total": 4, "reserved": 0}}
+        ]
+        BusinessRuService(api_client=client).goods_to_model()
+
+        created = GoodsModel.objects.get(id=1)
+        self.assertEqual(created.title, "Новый")
+        self.assertEqual(created.stock, 5)
+        self.assertEqual(created.weight, 100)
+        self.assertEqual(list(created.images.values_list("url", flat=True)), ["https://cdn.example/new.jpg"])
+        self.assertFalse(GoodsModel.objects.filter(id=2).exists())
+        stale.refresh_from_db()
+        self.assertEqual(stale.stock, 0)
+        self.assertTrue(GoodsModel.objects.filter(id=3).exists())
+
+        client.pages[1][0]["full_name"] = "Обновлённый"
+        client.pages[1][0]["remains"][0]["amount"]["total"] = 9
+        BusinessRuService(api_client=client).goods_to_model()
+        created.refresh_from_db()
+        self.assertEqual(created.title, "Обновлённый")
+        self.assertEqual(created.stock, 9)
+
+    def test_incomplete_sync_does_not_hide_unseen(self):
+        kept = GoodsModel.objects.create(
+            id=4,
+            title="Не трогать",
+            category=self.category,
+            type="goods",
+            stock=7,
+        )
+        client = FakeGoodsClient(
+            {1: [korea_payload(1, 10, "Первая страница", total=2)]},
+            fail_on_page=2,
+        )
+        with self.assertRaises(RuntimeError):
+            BusinessRuService(api_client=client).goods_to_model()
+        kept.refresh_from_db()
+        self.assertEqual(kept.stock, 7)
+        self.assertEqual(GoodsModel.objects.get(id=1).stock, 2)

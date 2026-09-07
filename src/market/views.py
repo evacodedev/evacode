@@ -41,7 +41,7 @@ keyboard = types.InlineKeyboardMarkup().add(InlineKeyboardButton(text='Обра�
 
 
 class GoodsAPIView(ModelViewSet):
-    queryset = GoodsModel.objects.all().distinct().prefetch_related("images")
+    queryset = GoodsModel.objects.filter(stock__gt=0).distinct().prefetch_related("images")
     serializer_class = GoodsSerializer
     pagination_class = CustomPagination
     filter_backends = (filters.DjangoFilterBackend, OrderingFilter)
@@ -114,7 +114,7 @@ def update_data(request):
 
 
 def get_all_goods(request):
-    mast_point = GoodsSerializer(GoodsModel.objects.all(), many=True).data
+    mast_point = GoodsSerializer(GoodsModel.objects.filter(stock__gt=0), many=True).data
     data = {'result': mast_point}
     # out.write(json.dumps(data, ensure_ascii=False))
     return JsonResponse(data, safe=False)
