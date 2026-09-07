@@ -24,6 +24,7 @@ class GoodsModel(models.Model):
     wholesale_price = models.PositiveIntegerField(blank=True, null=True, verbose_name='Оптовая цена')
     large_wholesale_price = models.PositiveIntegerField(blank=True, null=True, verbose_name='Крупный опт')
     weight = models.PositiveIntegerField(blank=True, null=True, verbose_name='Вес, г')
+    queue = models.IntegerField(blank=True, null=True, verbose_name='Очередь в списке')
 
 
 class ImageModel(models.Model):
