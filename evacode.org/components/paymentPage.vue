@@ -157,20 +157,19 @@
                 <span class="checkout-choice__note">В разработке</span>
               </span>
             </label>
-            <label class="checkout-choice" :class="{ 'is-selected': paymentMethod === 'telegram' }">
-              <input v-model="paymentMethod" type="radio" name="payment" value="telegram">
+            <label class="checkout-choice is-disabled" aria-disabled="true">
+              <input type="radio" name="payment" value="telegram" disabled tabindex="-1">
               <span class="checkout-choice__body">
                 <span class="checkout-choice__title">Заказ в Telegram</span>
-                <span v-if="paymentMethod === 'telegram'" class="checkout-choice__note">
-                  Без оплаты на сайте. Заявка уйдёт менеджеру в Telegram.
-                </span>
+                <span class="checkout-choice__note">В разработке</span>
               </span>
             </label>
             <p v-if="paypalError" class="checkout-v2__pay-error">{{ paypalError }}</p>
             <button
               class="checkout-v2__cta"
               type="submit"
-              :disabled="handoffOpen"
+              disabled
+              aria-disabled="true"
             >
               {{ ctaLabel }}
             </button>
@@ -260,10 +259,7 @@ export default {
       return useCartStore().cartTotalAmount
     },
     ctaLabel() {
-      if (this.paymentMethod === 'paypal') {
-        return this.paypalLoading ? 'Переход в PayPal...' : 'Оплатить'
-      }
-      return 'Отправить заказ'
+      return 'Оплата в разработке'
     },
     showPhoneError() {
       return Boolean(this.user.phone.errormsg) && (this.phoneTouched || this.submitted)
@@ -448,15 +444,7 @@ export default {
       }
     },
     onPrimarySubmit() {
-      this.submitted = true
-      if (!this.validateForm()) {
-        this.$nextTick(() => this.scrollToFirstError())
-        return
-      }
-      if (this.paymentMethod === 'paypal') {
-        return
-      }
-      return this.onSubmit()
+      return
     },
     async onSubmit() {
       if (!this.validateForm() || this.telegramLoading) {
