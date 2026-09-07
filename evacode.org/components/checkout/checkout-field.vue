@@ -5,9 +5,30 @@
       'is-filled': filled,
       'is-focused': focused,
       'is-invalid': showError,
+      'is-select': Boolean(options),
     }"
   >
+    <select
+      v-if="options"
+      :id="inputId"
+      :value="modelValue"
+      :name="name"
+      :autocomplete="autocomplete"
+      @change="$emit('update:modelValue', $event.target.value)"
+      @focus="focused = true"
+      @blur="onBlur"
+    >
+      <option value="" disabled hidden></option>
+      <option
+        v-for="option in options"
+        :key="option.value"
+        :value="option.value"
+      >
+        {{ option.label }}
+      </option>
+    </select>
     <input
+      v-else
       :id="inputId"
       :type="type"
       :value="modelValue"
@@ -34,6 +55,7 @@ export default {
     type: { type: String, default: 'text' },
     autocomplete: { type: String, default: 'off' },
     name: { type: String, default: '' },
+    options: { type: Array, default: null },
   },
   emits: ['update:modelValue', 'blur'],
   data() {

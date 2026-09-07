@@ -62,12 +62,32 @@
           </section>
 
           <section class="checkout-v2__section">
-            <h2 class="checkout-v2__heading">Доставка</h2>
+            <h2 class="checkout-v2__heading">Способ доставки</h2>
+            <label class="checkout-choice" :class="{ 'is-selected': shippingMethod === 'ems' }">
+              <input v-model="shippingMethod" type="radio" name="shipping" value="ems">
+              <span class="checkout-choice__body">
+                <span class="checkout-choice__title">EMS</span>
+                <span class="checkout-choice__note">Почта Кореи, стоимость по стране и весу заказа.</span>
+              </span>
+            </label>
+            <label class="checkout-choice" :class="{ 'is-selected': shippingMethod === 'pickup' }">
+              <input v-model="shippingMethod" type="radio" name="shipping" value="pickup">
+              <span class="checkout-choice__body">
+                <span class="checkout-choice__title">Самовывоз</span>
+                <span class="checkout-choice__note">Забрать заказ в Корее, без доставки.</span>
+              </span>
+            </label>
+            <p v-if="shippingError" class="checkout-field__error">{{ shippingError }}</p>
+          </section>
+
+          <section v-if="isEms" class="checkout-v2__section">
+            <h2 class="checkout-v2__heading">Адрес</h2>
             <CheckoutField
-              v-model="user.country.value"
+              v-model="destinationCode"
               name="country"
               label="Страна"
               autocomplete="country-name"
+              :options="destinationOptions"
               :error="user.country.errormsg"
               :submitted="submitted"
               @blur="validateField('country')"
@@ -137,15 +157,14 @@
             />
           </section>
 
-          <section class="checkout-v2__section">
-            <h2 class="checkout-v2__heading">Способ доставки</h2>
-            <label class="checkout-choice is-selected">
-              <input type="radio" name="shipping" value="standard" checked disabled>
-              <span class="checkout-choice__body">
-                <span class="checkout-choice__title">Стандартная доставка</span>
-                <span class="checkout-choice__note">Стоимость пока не считается на сайте — уточним после заказа.</span>
-              </span>
-            </label>
+          <section v-else class="checkout-v2__section">
+            <h2 class="checkout-v2__heading">Самовывоз</h2>
+            <p class="checkout-choice__note">Адрес для отправки не нужен. Напишите, если удобно забрать в другое время.</p>
+            <CheckoutField
+              v-model="user.comment.value"
+              name="comment"
+              label="Комментарий (необязательно)"
+            />
           </section>
 
           <section class="checkout-v2__section">
@@ -204,12 +223,16 @@
               <dd>{{ getPrice(cartTotal) }}</dd>
             </div>
             <div>
+              <dt>Вес</dt>
+              <dd>{{ packageWeightLabel }}</dd>
+            </div>
+            <div>
               <dt>Доставка</dt>
-              <dd>Уточняется</dd>
+              <dd>{{ shippingLine }}</dd>
             </div>
             <div class="checkout-v2__grand">
               <dt>Итого</dt>
-              <dd>{{ getPrice(cartTotal) }}</dd>
+              <dd>{{ getPrice(grandTotal) }}</dd>
             </div>
           </dl>
           <WidgetsCurrencyWarning />
@@ -258,6 +281,52 @@ export default {
     cartTotal() {
       return useCartStore().cartTotalAmount
     },
+    isEms() {
+      return this.shippingMethod === 'ems'
+    },
+    destinationOptions() {
+      return this.destinations.map((item) => ({ value: item.code, label: item.name }))
+    },
+    selectedDestination() {
+      return this.destinations.find((item) => item.code === this.destinationCode) || null
+    },
+    shippingLine() {
+      if (this.shippingMethod === 'pickup') {
+        return 'Бесплатно'
+      }
+      if (this.shippingLoading) {
+        return 'Считаем…'
+      }
+      if (this.shippingKrw == null) {
+        return this.destinationCode ? '—' : 'Выберите страну'
+      }
+      return this.getPrice(this.shippingKrw)
+    },
+    grandTotal() {
+      return this.cartTotal + (this.shippingKrw || 0)
+    },
+    packageWeightGrams() {
+      if (this.quotedWeightGrams > 0) {
+        return this.quotedWeightGrams
+      }
+      return this.cart.reduce((total, item) => {
+        return total + Number(item.weight || 0) * Number(item.quantity || 0)
+      }, 0)
+    },
+    packageWeightLabel() {
+      const grams = this.packageWeightGrams
+      if (!grams) {
+        return '—'
+      }
+      if (grams >= 1000) {
+        const kg = (grams / 1000).toLocaleString('ru-RU', {
+          maximumFractionDigits: 2,
+          minimumFractionDigits: grams % 1000 === 0 ? 0 : 2,
+        })
+        return `${kg} кг`
+      }
+      return `${grams.toLocaleString('ru-RU')} г`
+    },
     ctaLabel() {
       return 'Оплата в разработке'
     },
@@ -296,27 +365,46 @@ export default {
       },
       countryCode: 'KR',
       paymentMethod: 'telegram',
+      shippingMethod: 'ems',
+      destinationCode: '',
+      destinations: [],
+      shippingKrw: null,
+      quotedWeightGrams: null,
+      shippingLoading: false,
+      shippingError: '',
+      quoteTimer: null,
       paypalLoading: false,
       telegramLoading: false,
       paypalError: '',
       submitted: false,
       phoneTouched: false,
       privateHouse: false,
+      cartReady: false,
     }
   },
   watch: {
-    cart: {
-      handler(value) {
-        if (value.length === 0) {
-          this.$router.replace('/page/account/cart')
-        }
-      },
-      deep: true,
-    },
     privateHouse(checked) {
       if (checked) {
         this.user.apartment.errormsg = ''
       }
+    },
+    shippingMethod() {
+      this.user.country.errormsg = ''
+      this.scheduleQuote()
+    },
+    destinationCode() {
+      this.user.country.errormsg = ''
+      this.scheduleQuote()
+    },
+    cart: {
+      handler(value) {
+        if (value.length === 0 && this.cartReady) {
+          this.$router.replace('/page/account/cart')
+          return
+        }
+        this.scheduleQuote()
+      },
+      deep: true,
     },
     handoffOpen(open) {
       if (typeof document === 'undefined') {
@@ -325,10 +413,15 @@ export default {
       document.documentElement.classList.toggle('checkout-handoff-open', open)
     },
   },
-  mounted() {
+  async mounted() {
+    await this.restoreCart()
+    this.cartReady = true
     if (this.cart.length === 0) {
       this.$router.replace('/page/account/cart')
+      return
     }
+    this.loadDestinations()
+    this.fetchQuote()
     const paypalStatus = this.$route.query.paypal
     if (paypalStatus === 'cancel') {
       this.paypalError = 'Оплата в PayPal отменена'
@@ -339,6 +432,9 @@ export default {
   beforeUnmount() {
     if (typeof document !== 'undefined') {
       document.documentElement.classList.remove('checkout-handoff-open')
+    }
+    if (this.quoteTimer) {
+      clearTimeout(this.quoteTimer)
     }
   },
   methods: {
@@ -363,11 +459,17 @@ export default {
         firstName,
         phone: this.user.phone.value,
         email: this.user.email.value,
-        country: this.user.country.value,
+        country: this.selectedDestination?.name || this.user.country.value,
         city: this.user.city.value,
         address,
         postalCode: this.user.postalCode.value,
         comment: this.user.comment.value,
+      }
+    },
+    shippingPayload() {
+      return {
+        method: this.shippingMethod,
+        destination: this.shippingMethod === 'pickup' ? 'KR' : this.destinationCode,
       }
     },
     setError(field, message) {
@@ -396,7 +498,8 @@ export default {
         return this.setError(field, '')
       }
       if (field === 'country') {
-        return this.setError(field, value ? '' : 'Укажите страну')
+        if (!this.isEms) return this.setError(field, '')
+        return this.setError(field, this.destinationCode ? '' : 'Укажите страну')
       }
       if (field === 'city') {
         return this.setError(field, value ? '' : 'Укажите город')
@@ -414,11 +517,81 @@ export default {
       return true
     },
     validateForm() {
-      const fields = ['firstName', 'lastName', 'email', 'phone', 'country', 'city', 'address', 'house']
-      if (!this.privateHouse) {
-        fields.push('apartment')
+      const fields = ['firstName', 'lastName', 'email', 'phone']
+      if (this.isEms) {
+        fields.push('country', 'city', 'address', 'house')
+        if (!this.privateHouse) {
+          fields.push('apartment')
+        }
       }
-      return fields.map((field) => this.validateField(field)).every(Boolean)
+      const valid = fields.map((field) => this.validateField(field)).every(Boolean)
+      if (this.isEms && this.shippingKrw == null) {
+        this.shippingError = this.shippingError || 'Не удалось посчитать доставку'
+        return false
+      }
+      return valid
+    },
+    async loadDestinations() {
+      try {
+        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/shipping/destinations/`)
+        this.destinations = data.results || []
+      } catch (error) {
+        this.destinations = []
+        this.shippingError = 'Не удалось загрузить страны доставки'
+      }
+    },
+    async restoreCart() {
+      if (!process.client || this.cart.length > 0) {
+        return
+      }
+      try {
+        const stored = await useLocalForage().getItem('evacode_cart')
+        const cartArray = JSON.parse(stored || '[]')
+        if (cartArray?.length) {
+          useCartStore().setInitialCart(cartArray)
+        }
+      } catch (error) {
+        return
+      }
+    },
+    scheduleQuote() {
+      if (this.quoteTimer) {
+        clearTimeout(this.quoteTimer)
+      }
+      this.quoteTimer = setTimeout(() => {
+        this.fetchQuote()
+      }, 250)
+    },
+    async fetchQuote() {
+      if (this.cart.length === 0) {
+        return
+      }
+      const waitingForCountry = this.isEms && !this.destinationCode
+      if (!waitingForCountry) {
+        this.shippingLoading = true
+      }
+      this.shippingError = ''
+      try {
+        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/shipping/quote/`, {
+          method: 'POST',
+          body: {
+            cart: this.cart.map((item) => ({ id: item.id, quantity: item.quantity })),
+            shipping: this.shippingPayload(),
+          },
+        })
+        this.quotedWeightGrams = data.weight_grams || 0
+        this.shippingKrw = waitingForCountry ? null : data.shipping_krw
+      } catch (error) {
+        if (error?.data?.weight_grams) {
+          this.quotedWeightGrams = error.data.weight_grams
+        }
+        this.shippingKrw = null
+        if (!waitingForCountry) {
+          this.shippingError = error?.data?.error || 'Не удалось посчитать доставку'
+        }
+      } finally {
+        this.shippingLoading = false
+      }
     },
     onPhoneFocusOut(event) {
       const wrap = this.$refs.phoneWrap
@@ -461,7 +634,7 @@ export default {
         useProductStore().createOrder({
           product: cartCheckout,
           userDetail: this.user,
-          amt: this.getPrice(this.cartTotal),
+          amt: this.getPrice(this.grandTotal),
         })
         await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout/`, {
           method: 'POST',
@@ -469,6 +642,7 @@ export default {
             cart: cartCheckout,
             user: this.userValues(),
             consult: false,
+            shipping: this.shippingPayload(),
           },
         })
         this.$router.push('/page/order-success')
@@ -493,12 +667,13 @@ export default {
           body: {
             cart: cartCheckout,
             user: this.userValues(),
+            shipping: this.shippingPayload(),
           },
         })
         useProductStore().createOrder({
           product: this.cart,
           userDetail: this.user,
-          amt: this.getPrice(this.cartTotal),
+          amt: this.getPrice(this.grandTotal),
           publicId: data.id,
         })
         if (data.approve_url) {

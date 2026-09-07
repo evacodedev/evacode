@@ -65,6 +65,14 @@
               </div>
               <div class="total-sec">
                 <ul>
+                  <li v-if="paidOrder">
+                    Товары
+                    <span>{{ goodsTotal }}</span>
+                  </li>
+                  <li v-if="paidOrder">
+                    Доставка
+                    <span>{{ shippingTotal }}</span>
+                  </li>
                   <li>
                     Итого
                     <span>{{ displayTotal }}</span>
@@ -110,6 +118,21 @@ export default {
         return `${this.paidOrder.amount_krw} ₩ / ${this.paidOrder.amount_usd} USD`;
       }
       return this.getPrice(useCartStore().cartTotalAmount);
+    },
+    goodsTotal() {
+      if (!this.paidOrder) {
+        return '';
+      }
+      return `${this.paidOrder.goods_krw || this.paidOrder.amount_krw} ₩`;
+    },
+    shippingTotal() {
+      if (!this.paidOrder) {
+        return '';
+      }
+      if (this.paidOrder.shipping_method === 'pickup') {
+        return 'Самовывоз';
+      }
+      return `${this.paidOrder.shipping_krw || 0} ₩`;
     },
     curr(){
       return useProductStore().changeCurrency

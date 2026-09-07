@@ -121,6 +121,11 @@ class SiteOrder(models.Model):
     address = models.CharField(max_length=255, verbose_name="Адрес")
     postal_code = models.CharField(max_length=32, blank=True, verbose_name="Индекс")
     comment = models.TextField(blank=True, verbose_name="Комментарий")
+    shipping_method = models.CharField(max_length=16, blank=True, verbose_name="Способ доставки")
+    shipping_destination = models.CharField(max_length=16, blank=True, verbose_name="Направление EMS")
+    shipping_krw = models.PositiveIntegerField(default=0, verbose_name="Доставка, ₩")
+    goods_krw = models.PositiveIntegerField(default=0, verbose_name="Товары, ₩")
+    weight_grams = models.PositiveIntegerField(blank=True, null=True, verbose_name="Вес заказа, г")
     amount_krw = models.PositiveIntegerField(verbose_name="Сумма, ₩")
     amount_usd = models.DecimalField(max_digits=12, decimal_places=2, verbose_name="Сумма, USD")
     usd_rate_snapshot = models.DecimalField(

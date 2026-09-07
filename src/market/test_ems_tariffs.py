@@ -8,6 +8,7 @@ from openpyxl import Workbook
 
 from market.ems_tariffs import ems_price_krw, import_ems_xlsx, parse_ems_xlsx
 from market.models import EmsDestination, EmsRate, EmsRateColumn
+from market.shipping import chargeable_weight_grams
 
 
 def make_ems_xlsx() -> bytes:
@@ -93,6 +94,12 @@ class EmsTariffImportTests(TestCase):
         self.assertEqual(EmsRateColumn.objects.get(code="러시아").title, "Russia")
         self.assertEqual(EmsRateColumn.objects.get(code="3지역").title, "Zone 3")
         self.assertEqual(EmsRateColumn.objects.get(code="독일").title, "Germany")
+
+    def test_chargeable_weight_rounds_up_100g(self):
+        self.assertEqual(chargeable_weight_grams(1), 100)
+        self.assertEqual(chargeable_weight_grams(100), 100)
+        self.assertEqual(chargeable_weight_grams(101), 200)
+        self.assertEqual(chargeable_weight_grams(0), 0)
 
     def test_admin_upload(self):
         User.objects.create_superuser("admin", "admin@example.com", "pass")

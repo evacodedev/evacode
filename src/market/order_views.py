@@ -19,8 +19,17 @@ from urllib.parse import urljoin, urlencode
 
 from .business_ru_orders import export_paid_order
 from .currency import krw_to_usd
-from .models import GoodsModel, SiteOrder, SiteOrderItem
+from .models import SiteOrder, SiteOrderItem
 from .paypal import PayPalError, capture_id_from_payload, capture_order, create_order, receipt_url
+from .shipping import (
+    METHOD_EMS,
+    METHOD_PICKUP,
+    active_shipping_destinations,
+    cart_weight_grams,
+    chargeable_weight_grams,
+    parse_cart_lines,
+    quote_shipping,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +69,7 @@ def _notify_telegram(order: SiteOrder):
         f"Телефон: {order.phone}",
         f"Email: {order.email}",
         f"Адрес: {order.postal_code} {order.country}, {order.city}, {order.address}",
+        _shipping_telegram_line(order),
     ]
     for item in order.items.all():
         lines.append(f'{item.title} — {item.quantity} шт — {item.price_krw} ₩')
@@ -73,6 +83,16 @@ def _notify_telegram(order: SiteOrder):
         async_to_sync(bot.send_message)(chat_id=chat_id, text="\n".join(lines), reply_markup=keyboard)
     except Exception:
         logger.exception("Не удалось отправить заказ %s в Telegram", order.public_id)
+
+
+def _shipping_telegram_line(order: SiteOrder) -> str:
+    if order.shipping_method == METHOD_PICKUP:
+        return "Доставка: самовывоз"
+    if order.shipping_krw:
+        destination = order.country or order.shipping_destination
+        weight = f", {order.weight_grams} г" if order.weight_grams else ""
+        return f"Доставка EMS {destination}: {order.shipping_krw} ₩{weight}"
+    return "Доставка: не указана"
 
 
 def _order_payload(order: SiteOrder) -> dict:
@@ -101,6 +121,11 @@ def _order_payload(order: SiteOrder) -> dict:
         "city": order.city,
         "address": order.address,
         "postal_code": order.postal_code,
+        "shipping_method": order.shipping_method,
+        "shipping_destination": order.shipping_destination,
+        "shipping_krw": order.shipping_krw,
+        "goods_krw": order.goods_krw,
+        "weight_grams": order.weight_grams,
         "amount_krw": order.amount_krw,
         "amount_usd": str(order.amount_usd),
         "paypal_capture_id": order.paypal_capture_id,
@@ -172,6 +197,9 @@ class CreateSiteOrderView(APIView):
         data = request.data if hasattr(request, "data") else {}
         user = data.get("user") or {}
         cart = data.get("cart") or []
+        shipping = data.get("shipping") or {}
+        shipping_method = str(shipping.get("method") or "").strip()
+        shipping_destination = str(shipping.get("destination") or "").strip()
 
         first_name = str(user.get("firstName") or "").strip()
         phone = str(user.get("phone") or "").strip()
@@ -181,6 +209,10 @@ class CreateSiteOrderView(APIView):
         address = str(user.get("address") or "").strip()
         postal_code = str(user.get("postalCode") or "").strip()
         comment = str(user.get("comment") or "").strip()
+        if shipping_method == METHOD_PICKUP:
+            country = country or "Корея"
+            city = city or "Самовывоз"
+            address = address or "Самовывоз"
 
         errors = {}
         if len(first_name) < 2:
@@ -195,29 +227,19 @@ class CreateSiteOrderView(APIView):
             errors["city"] = "Обязательное поле"
         if not address:
             errors["address"] = "Обязательное поле"
-        if not isinstance(cart, list) or not cart:
-            errors["cart"] = "Корзина пуста"
+        parsed, cart_error = parse_cart_lines(cart)
+        if cart_error:
+            errors["cart"] = cart_error
+        quote = None
+        if parsed:
+            quote, shipping_error = quote_shipping(shipping_method, shipping_destination, parsed[0])
+            if shipping_error:
+                errors["shipping"] = shipping_error
         if errors:
             return JsonResponse({"errors": errors}, status=400)
 
-        prepared = []
-        total_krw = 0
-        for raw in cart:
-            try:
-                good_id = int(raw.get("id"))
-                quantity = int(raw.get("quantity") or 0)
-            except (TypeError, ValueError):
-                return JsonResponse({"errors": {"cart": "Некорректная позиция"}}, status=400)
-            if quantity < 1:
-                return JsonResponse({"errors": {"cart": "Количество должно быть больше 0"}}, status=400)
-            good = GoodsModel.objects.filter(id=good_id).first()
-            if not good or not good.retail_price:
-                return JsonResponse({"errors": {"cart": f"Товар {good_id} недоступен"}}, status=400)
-            if good.stock is not None and quantity > good.stock:
-                return JsonResponse({"errors": {"cart": f"Недостаточно остатка: {good.title}"}}, status=400)
-            line_total = good.retail_price * quantity
-            total_krw += line_total
-            prepared.append((good, quantity, line_total))
+        prepared, goods_krw = parsed
+        total_krw = goods_krw + quote["shipping_krw"]
 
         try:
             amount_usd, usd_snapshot = krw_to_usd(total_krw)
@@ -237,6 +259,11 @@ class CreateSiteOrderView(APIView):
             address=address[:255],
             postal_code=postal_code[:32],
             comment=comment[:2000],
+            shipping_method=quote["method"],
+            shipping_destination=quote["destination"],
+            shipping_krw=quote["shipping_krw"],
+            goods_krw=goods_krw,
+            weight_grams=quote["weight_grams"] or None,
             amount_krw=total_krw,
             amount_usd=amount_usd,
             usd_rate_snapshot=usd_snapshot,
@@ -284,8 +311,43 @@ class CreateSiteOrderView(APIView):
                 "approve_url": approve_url,
                 "amount_usd": str(order.amount_usd),
                 "amount_krw": order.amount_krw,
+                "shipping_krw": order.shipping_krw,
+                "goods_krw": order.goods_krw,
             }
         )
+
+
+class ShippingDestinationsView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        return JsonResponse({"results": active_shipping_destinations()})
+
+
+class ShippingQuoteView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def post(self, request):
+        data = request.data if hasattr(request, "data") else {}
+        parsed, cart_error = parse_cart_lines(data.get("cart") or [])
+        if cart_error:
+            return JsonResponse({"error": cart_error}, status=400)
+        shipping = data.get("shipping") or data
+        method = str(shipping.get("method") or "").strip()
+        destination = str(shipping.get("destination") or "").strip()
+        weight, _weight_error = cart_weight_grams(parsed[0])
+        weight_payload = {
+            "weight_grams": weight or 0,
+            "chargeable_weight_grams": chargeable_weight_grams(weight or 0),
+        }
+        if not method or (method == METHOD_EMS and not destination):
+            return JsonResponse({**weight_payload, "shipping_krw": None})
+        quote, shipping_error = quote_shipping(method, destination, parsed[0])
+        if shipping_error:
+            return JsonResponse({"error": shipping_error, **weight_payload}, status=400)
+        return JsonResponse(quote)
 
 
 class SiteOrderDetailView(APIView):

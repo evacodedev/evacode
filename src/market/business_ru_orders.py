@@ -364,6 +364,8 @@ def _ensure_document_numbers(client: BusinessRuOrderClient, order) -> None:
 
 
 def _delivery_text(order) -> str:
+    if getattr(order, "shipping_method", "") == "pickup":
+        return "Самовывоз"
     return ", ".join(
         part for part in [order.postal_code, order.country, order.city, order.address] if part
     )
@@ -436,6 +438,10 @@ def _document_comment(order) -> str:
     ]
     if order.comment:
         buyer.append(f"Комментарий покупателя: {order.comment}")
+    if getattr(order, "shipping_method", "") == "pickup":
+        buyer.append("Доставка: самовывоз")
+    elif getattr(order, "shipping_krw", 0):
+        buyer.append(f"Доставка EMS: {order.shipping_krw} ₩, товары: {getattr(order, 'goods_krw', 0)} ₩")
 
     blocks = [
         "\n".join(line for line in site if line),
