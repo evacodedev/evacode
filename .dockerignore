@@ -1,0 +1,5 @@
+.venv
+**/__pycache__
+**/*.pyc
+.git
+evacode.org/node_modules
