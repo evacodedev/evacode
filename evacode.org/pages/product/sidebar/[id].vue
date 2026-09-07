@@ -190,15 +190,19 @@ const isProductRoute = computed(() => String(route.path).includes('/product/side
 
 const { data: productResponse, pending, status, error } = await useAsyncData(
     `goods-product-${productId}`,
-    () => $fetch(`${runtimeConfig.public.apiBase}/market/goods`, {
-        query: { id: productId },
-    }),
+    () => $fetch(`${runtimeConfig.public.apiBase}/market/goods/${productId}/`),
     {
         lazy: import.meta.client,
     },
 );
 
-const fetchedProduct = computed(() => productResponse.value?.results?.[0] ?? null);
+const fetchedProduct = computed(() => {
+    const payload = productResponse.value
+    if (!payload || payload.id == null) {
+        return null
+    }
+    return payload
+});
 const product = computed(() => fetchedProduct.value || previewFor(productId));
 const productImages = computed(() => product.value?.images || []);
 const showNotFound = computed(() =>

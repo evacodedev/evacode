@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("market", "0004_groupofgoods_site_order"),
+        ("market", "0008_ems_column_english_titles"),
     ]
 
     operations = [

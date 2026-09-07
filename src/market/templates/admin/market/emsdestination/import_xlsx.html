@@ -1,0 +1,16 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<p>Загрузите выгрузку тарифов Korea Post EMS (<code>.xlsx</code>). Импортируется только блок <strong>비서류</strong>. Цены из файла умножаются на 1000 (33.5 → 33 500 ₩).</p>
+<p>Привязки направлений к колонкам не перезаписываются, если колонка уже задана. Пустые привязки заполняются по правилу: своя колонка, иначе <code>3지역</code>. Корея остаётся без колонки.</p>
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <p>
+    <input type="file" name="xlsx" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" required>
+  </p>
+  <p>
+    <input type="submit" value="Загрузить" class="default">
+    <a href="{% url 'admin:market_emsdestination_changelist' %}" class="button cancel-link">Отмена</a>
+  </p>
+</form>
+{% endblock %}

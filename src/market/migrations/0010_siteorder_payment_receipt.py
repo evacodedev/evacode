@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("market", "0005_siteorder"),
+        ("market", "0009_siteorder"),
     ]
 
     operations = [

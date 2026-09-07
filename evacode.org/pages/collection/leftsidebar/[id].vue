@@ -14,7 +14,7 @@
                                     <div class="col-12">
                                         <div class="collection-product-wrapper">
                                             <div class="product-top-filter mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <span>Найдено: {{ totalProductsCount || 0 }}</span>
+                                                <span>Найдено: {{ displayedProductsCount }}</span>
                                                 <select v-model="ordering" class="form-select catalog-sort">
                                                     <option value="retail_price">Сначала дешевле</option>
                                                     <option value="-retail_price">Сначала дороже</option>
@@ -22,13 +22,20 @@
                                                 </select>
                                             </div>
                                             <div
-                                                class="product-wrapper-grid"
-                                                :class="{ 'is-refreshing': productsLoading && products?.length }"
+                                                class="product-wrapper-grid catalog-grid-stable"
+                                                :class="{ 'catalog-grid-fade': animateCatalogEnter }"
+                                                :style="{ '--catalog-skel': skeletonCount }"
                                             >
                                                 <div class="row">
-                                                    <div class="col-12">
-                                                        <div class="text-center section-t-space section-b-space"
-                                                             v-if="!productsLoading && totalProductsCount == 0">
+                                                    <WidgetsProductSkeletons
+                                                        v-if="!catalogReady"
+                                                        :count="skeletonCount"
+                                                    />
+                                                    <div
+                                                        v-else-if="!displayedProductsCount"
+                                                        class="col-12"
+                                                    >
+                                                        <div class="text-center section-t-space section-b-space">
                                                             <img src="/images/evacode/empty-search.jpg"
                                                                  class="img-fluid" alt/>
                                                             <h3 class="mt-3">Извините! Не найден товар который Вы
@@ -40,27 +47,25 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <WidgetsProductSkeletons
-                                                        v-if="productsLoading && !products?.length"
-                                                    />
-                                                    <div
-                                                        class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6 motion-appear"
-                                                        v-for="(product, index) in (products || [])"
-                                                        :key="product.id || index"
-                                                        :style="{ '--i': index }"
-                                                    >
-                                                        <div class="product-box">
-                                                            <ProductBoxProductBox1
-                                                                @opencartmodel="showCart"
-                                                                :product="product"
-                                                                :index="index"
-                                                            />
+                                                    <template v-else>
+                                                        <div
+                                                            class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
+                                                            v-for="(product, index) in (products || [])"
+                                                            :key="product.id || index"
+                                                        >
+                                                            <div class="product-box">
+                                                                <ProductBoxProductBox1
+                                                                    @opencartmodel="showCart"
+                                                                    :product="product"
+                                                                    :index="index"
+                                                                />
+                                                            </div>
                                                         </div>
-                                                    </div>
+                                                    </template>
                                                 </div>
                                             </div>
                                             <div class="product-pagination mb-0"
-                                                 v-if="totalProductsCount > itemsPerPage">
+                                                 v-if="displayedProductsCount > itemsPerPage">
                                                 <div class="theme-paggination-block">
                                                     <div class="row">
                                                         <div class="col-xl-6 col-md-6 col-sm-12">
@@ -96,6 +101,12 @@
 <script setup>
 import {useRoute, useRouter} from 'vue-router';
 
+definePageMeta({
+    scrollToTop: false,
+});
+
+const CATALOG_PATH = '/collection/leftsidebar/0';
+
 const route = useRoute();
 const router = useRouter();
 
@@ -104,6 +115,10 @@ const paginateRange = ref(3);
 
 const currentPage = computed(() => parseFloat(route.query.page) || 1);
 const currentCategory = computed(() => {
+    const fromQuery = parseFloat(route.query.category);
+    if (fromQuery && fromQuery > 0) {
+        return fromQuery;
+    }
     const id = parseFloat(route.params.id);
     return id && id > 0 ? id : null;
 });
@@ -114,7 +129,7 @@ const ordering = computed({
         const query = { ...route.query, ordering: value, page: 1 };
         delete query.in_stock;
         delete query.bestseller;
-        await router.push({ path: route.path, query });
+        await router.push({ path: CATALOG_PATH, query });
     },
 });
 
@@ -139,28 +154,116 @@ const goodsQuery = computed(() => {
     return query;
 });
 
-const productsResponse = ref(null);
-const productsLoading = ref(true);
-const isCollectionRoute = () => String(route.path).includes('/collection/leftsidebar');
+const { data: productsResponse } = await useAsyncData(
+    `catalog-goods:${route.fullPath}`,
+    () => $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
+        query: { ...goodsQuery.value },
+    }),
+);
 
-const loadProducts = async () => {
-    if (!isCollectionRoute()) {
+const catalogReady = ref(import.meta.server && !!productsResponse.value);
+const animateCatalogEnter = ref(false);
+const loadedPath = ref(import.meta.server && productsResponse.value ? route.fullPath : '');
+let catalogLoadId = 0;
+let firstCatalogEnterDone = false;
+let fadeTimer;
+
+const revealCatalog = async (animate) => {
+    if (!import.meta.client) {
+        catalogReady.value = true;
         return;
     }
-    productsLoading.value = true;
-    try {
-        productsResponse.value = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
-            query: { ...goodsQuery.value },
-        });
-    } finally {
-        productsLoading.value = false;
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const shouldFade = animate && !firstCatalogEnterDone && !prefersReduced;
+    catalogReady.value = true;
+    animateCatalogEnter.value = shouldFade;
+    if (shouldFade) {
+        firstCatalogEnterDone = true;
+        await nextTick();
+        window.clearTimeout(fadeTimer);
+        fadeTimer = window.setTimeout(() => {
+            animateCatalogEnter.value = false;
+        }, 320);
     }
 };
-await loadProducts();
-watch(() => route.fullPath, loadProducts);
+
+const loadCatalog = async ({ animate = false } = {}) => {
+    const loadId = ++catalogLoadId;
+    const hasProducts = Boolean(productsResponse.value?.results?.length);
+    if (animate || !hasProducts) {
+        catalogReady.value = false;
+    }
+    try {
+        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/goods`, {
+            query: { ...goodsQuery.value },
+        });
+        if (loadId !== catalogLoadId) {
+            return;
+        }
+        productsResponse.value = data;
+        loadedPath.value = route.fullPath;
+    } catch (error) {
+        console.error(error);
+        if (loadId !== catalogLoadId) {
+            return;
+        }
+    }
+    if (loadId !== catalogLoadId) {
+        return;
+    }
+    await revealCatalog(animate);
+};
+
+onMounted(async () => {
+    if (productsResponse.value) {
+        loadedPath.value = route.fullPath;
+        const alreadyVisible = catalogReady.value;
+        await revealCatalog(!alreadyVisible);
+        return;
+    }
+    await loadCatalog({ animate: true });
+});
+
+onBeforeUnmount(() => {
+    window.clearTimeout(fadeTimer);
+});
+
+watch(
+    () => route.fullPath,
+    async (to, from) => {
+        if (!from || to === from) {
+            return;
+        }
+        await loadCatalog({ animate: false });
+    },
+    { flush: 'pre' },
+);
 
 const products = computed(() => productsResponse.value?.results);
-const totalProductsCount = computed(() => productsResponse.value?.count);
+const lastProductsCount = ref(0);
+watch(
+    productsResponse,
+    (data) => {
+        if (data && typeof data.count === 'number') {
+            lastProductsCount.value = data.count;
+        }
+    },
+    { immediate: true },
+);
+const displayedProductsCount = computed(() => {
+    if (typeof productsResponse.value?.count === 'number') {
+        return productsResponse.value.count;
+    }
+    return lastProductsCount.value;
+});
+const skeletonCount = computed(() => {
+    const count = displayedProductsCount.value;
+    if (!count) {
+        return itemsPerPage.value;
+    }
+    return Math.min(itemsPerPage.value, count);
+});
+const totalProductsCount = displayedProductsCount;
 const previous = computed(() => productsResponse.value?.previous ? `?${productsResponse.value?.previous.split('?')[1]}` : null);
 const next = computed(() => productsResponse.value?.next ? `?${productsResponse.value?.next.split('?')[1]}` : null);
 const paginates = computed(() => Math.ceil((totalProductsCount.value || 0) / itemsPerPage.value));

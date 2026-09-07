@@ -13,15 +13,14 @@ import os
 
 from rest_framework.views import APIView
 
-from .filters import GoodsFilter
+from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
 from .pagination import CustomPagination, AllObjectPagination
 from .utils import BusinessRuService, BusinessRuAPIClient
-from rest_framework.filters import OrderingFilter
 from rest_framework import generics
 from rest_framework.viewsets import ModelViewSet
 from .models import GoodsModel, GroupOfGoods
-from .serializers import GoodsSerializer, GroupOfGoodsSerializer
+from .serializers import GoodsListSerializer, GoodsSerializer, GroupOfGoodsSerializer
 from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import F
@@ -41,13 +40,18 @@ keyboard = types.InlineKeyboardMarkup().add(InlineKeyboardButton(text='Обра�
 
 
 class GoodsAPIView(ModelViewSet):
-    queryset = GoodsModel.objects.all().distinct()
+    queryset = GoodsModel.objects.filter(stock__gt=0).distinct().prefetch_related("images")
     serializer_class = GoodsSerializer
     pagination_class = CustomPagination
-    filter_backends = (filters.DjangoFilterBackend, OrderingFilter)
+    filter_backends = (filters.DjangoFilterBackend, GoodsOrderingFilter)
     filterset_class = GoodsFilter
     ordering_fields = ["retail_price", "title"]
     ordering = ["title"]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return GoodsListSerializer
+        return GoodsSerializer
 
 
 class GroupListAPIView(generics.ListAPIView):
@@ -109,7 +113,7 @@ def update_data(request):
 
 
 def get_all_goods(request):
-    mast_point = GoodsSerializer(GoodsModel.objects.all(), many=True).data
+    mast_point = GoodsSerializer(GoodsModel.objects.filter(stock__gt=0), many=True).data
     data = {'result': mast_point}
     # out.write(json.dumps(data, ensure_ascii=False))
     return JsonResponse(data, safe=False)

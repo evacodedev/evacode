@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("market", "0006_siteorder_payment_receipt"),
+        ("market", "0010_siteorder_payment_receipt"),
     ]
 
     operations = [

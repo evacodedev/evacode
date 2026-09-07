@@ -12,7 +12,10 @@
             </div>
           </div>
         </div>
-        <WidgetsProductSkeletons v-if="loading && !products?.length" />
+        <WidgetsProductSkeletons
+            v-if="loading && !products?.length"
+            :count="paginationProps.itemsPerPage || 12"
+        />
         <div
             class="col-grid-box col-xl-3 col-md-4 col-6 motion-appear"
             v-for="(product, index) in (products || [])"

@@ -22,12 +22,12 @@
           >
             <div class="collection-block">
               <div>
-                <nuxt-link :to="`/collection/leftsidebar/${category.id}`">
+                <nuxt-link :to="{ path: '/collection/leftsidebar/0', query: { category: String(category.id) } }">
                   <img v-if="category.images[0]" :src="category.images[0].url" class="img-fluid" alt="item.title" />
                 </nuxt-link>
               </div>
               <div class="collection-content">
-                <nuxt-link :to="`/collection/leftsidebar/${category.id}`">
+                <nuxt-link :to="{ path: '/collection/leftsidebar/0', query: { category: String(category.id) } }">
                   <h3>{{category.name}}</h3>
                 </nuxt-link>
               </div>

@@ -5,7 +5,7 @@ import market.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("market", "0007_siteorder_business_ru_reservation_id"),
+        ("market", "0011_siteorder_business_ru_reservation_id"),
     ]
 
     operations = [
