@@ -1,9 +1,11 @@
+from unittest.mock import patch
+
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
-from market.models import GoodsModel, GroupOfGoods, ImageModel
-from market.utils import BusinessRuService, parse_weight_grams
+from market.models import GoodsModel, GroupOfGoods, ImageModel, PartnerApiKey
+from market.utils import BusinessRuBarcodeLookup, BusinessRuService, parse_weight_grams
 
 
 class GoodsFilterApiTests(TestCase):
@@ -349,3 +351,196 @@ class GoodsSyncTests(TestCase):
         kept.refresh_from_db()
         self.assertEqual(kept.stock, 7)
         self.assertEqual(GoodsModel.objects.get(id=1).stock, 2)
+
+
+class FakeBarcodeClient:
+    def __init__(self, handlers):
+        self.handlers = handlers
+        self.calls = []
+
+    def get_json(self, model, extra=None):
+        extra = extra or {}
+        self.calls.append((model, extra))
+        handler = self.handlers.get(model)
+        if handler is None:
+            return {"result": []}
+        if callable(handler):
+            return handler(extra)
+        return handler
+
+
+class BarcodeLookupTests(TestCase):
+    def test_finds_via_barcodes_model(self):
+        payload = korea_payload(12, 10, "Sum37", total=2)
+
+        def goods(extra):
+            if str(extra.get("id")) == "12":
+                return {"result": [payload]}
+            return {"result": []}
+
+        client = FakeBarcodeClient(
+            {
+                "goods": goods,
+                "barcodes": {"result": [{"value": "490123", "good_id": "12"}]},
+            }
+        )
+        found = BusinessRuBarcodeLookup(api_client=client).find("490123")
+        self.assertEqual(int(found["id"]), 12)
+        self.assertEqual(found["barcode"], "490123")
+        self.assertEqual(client.calls[0], ("barcodes", {"value": "490123"}))
+
+    def test_find_all_returns_every_matching_good(self):
+        first = korea_payload(12, 10, "Набор", total=1)
+        second = korea_payload(13, 10, "Набор промо", total=1)
+
+        def goods(extra):
+            good_id = str(extra.get("id") or "")
+            if good_id == "12":
+                return {"result": [first]}
+            if good_id == "13":
+                return {"result": [second]}
+            return {"result": []}
+
+        client = FakeBarcodeClient(
+            {
+                "goods": goods,
+                "barcodes": {
+                    "result": [
+                        {"value": "880111", "good_id": "12"},
+                        {"value": "880111", "good_id": "13"},
+                    ]
+                },
+            }
+        )
+        found = BusinessRuBarcodeLookup(api_client=client).find_all("880111")
+        self.assertEqual([int(item["id"]) for item in found], [12, 13])
+
+    def test_ignores_unrelated_barcode_rows(self):
+        client = FakeBarcodeClient(
+            {
+                "barcodes": {"result": [{"value": "880111", "good_id": "11"}]},
+                "goodssearch": {"result": {"goods": {}}},
+            }
+        )
+        self.assertIsNone(BusinessRuBarcodeLookup(api_client=client).find("12312351gsdfvwerg"))
+
+    def test_finds_via_goodssearch_when_barcode_found(self):
+        payload = korea_payload(15, 10, "Sulwhasoo", total=1)
+
+        def goods(extra):
+            if str(extra.get("id")) == "15":
+                return {"result": [payload]}
+            return {"result": []}
+
+        client = FakeBarcodeClient(
+            {
+                "goods": goods,
+                "barcodes": {"result": []},
+                "goodssearch": {
+                    "result": {
+                        "goods": {
+                            "a0": {"good_id": "15", "barcode_found": True, "name": "Sulwhasoo"},
+                        }
+                    }
+                },
+            }
+        )
+        found = BusinessRuBarcodeLookup(api_client=client).find("8809925186569")
+        self.assertEqual(int(found["id"]), 15)
+
+    def test_unknown_barcodes_model_is_skipped(self):
+        client = FakeBarcodeClient(
+            {
+                "goods": {"result": []},
+                "barcodes": lambda extra: (_ for _ in ()).throw(ValueError("Модель barcodes не найдена")),
+                "goodssearch": {"result": {"goods": {}}},
+            }
+        )
+        self.assertIsNone(BusinessRuBarcodeLookup(api_client=client).find("111"))
+
+
+class GoodsByBarcodeApiTests(TestCase):
+    def setUp(self):
+        self.key = PartnerApiKey.objects.create(name="Тест", token="test-partner-token")
+        self.auth = {"HTTP_X_API_KEY": self.key.token}
+
+    def test_requires_token(self):
+        response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "000"})
+        self.assertEqual(response.status_code, 401)
+
+    def test_rejects_invalid_token(self):
+        response = self.client.get(
+            "/api/market/goods/by-barcode/",
+            {"barcode": "000"},
+            HTTP_X_API_KEY="wrong",
+        )
+        self.assertEqual(response.status_code, 401)
+
+    def test_rejects_inactive_token(self):
+        self.key.is_active = False
+        self.key.save(update_fields=["is_active"])
+        response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "000"}, **self.auth)
+        self.assertEqual(response.status_code, 401)
+
+    def test_accepts_bearer_token(self):
+        with patch("market.views.BusinessRuBarcodeLookup") as lookup_cls:
+            lookup_cls.return_value.find_all.return_value = []
+            response = self.client.get(
+                "/api/market/goods/by-barcode/",
+                {"barcode": "000"},
+                HTTP_AUTHORIZATION=f"Bearer {self.key.token}",
+            )
+        self.assertEqual(response.status_code, 404)
+
+    def test_catalog_stays_public(self):
+        response = self.client.get("/api/market/goods/")
+        self.assertEqual(response.status_code, 200)
+
+    def test_requires_barcode(self):
+        response = self.client.get("/api/market/goods/by-barcode/", **self.auth)
+        self.assertEqual(response.status_code, 400)
+
+    def test_not_found(self):
+        with patch("market.views.BusinessRuBarcodeLookup") as lookup_cls:
+            lookup_cls.return_value.find_all.return_value = []
+            response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "000"}, **self.auth)
+        self.assertEqual(response.status_code, 404)
+
+    def test_returns_business_ru_fields(self):
+        payload = korea_payload(11, 10, "Whoo крем", total=4, weight=150)
+        payload["barcode"] = "8801234567890"
+        payload["part"] = "WHOO-01"
+        with patch("market.views.BusinessRuBarcodeLookup") as lookup_cls:
+            lookup_cls.return_value.find_all.return_value = [payload]
+            response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "8801234567890"}, **self.auth)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["count"], 1)
+        self.assertEqual(len(data["results"]), 1)
+        item = data["results"][0]
+        self.assertEqual(item["id"], 11)
+        self.assertEqual(item["title"], "Whoo крем")
+        self.assertEqual(item["part"], "WHOO-01")
+        self.assertEqual(item["barcode"], "8801234567890")
+        self.assertEqual(item["weight"], 150)
+        self.assertNotIn("retail_price", item)
+        self.assertNotIn("stock", item)
+
+    def test_returns_count_for_several_goods(self):
+        first = korea_payload(11, 10, "Набор", total=1)
+        first["barcode"] = "880111"
+        second = korea_payload(12, 10, "Набор промо", total=1)
+        second["barcode"] = "880111"
+        with patch("market.views.BusinessRuBarcodeLookup") as lookup_cls:
+            lookup_cls.return_value.find_all.return_value = [first, second]
+            response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "880111"}, **self.auth)
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["count"], 2)
+        self.assertEqual([item["id"] for item in data["results"]], [11, 12])
+
+    def test_business_ru_error(self):
+        with patch("market.views.BusinessRuBarcodeLookup") as lookup_cls:
+            lookup_cls.return_value.find_all.side_effect = ValueError("timeout")
+            response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "880"}, **self.auth)
+        self.assertEqual(response.status_code, 502)

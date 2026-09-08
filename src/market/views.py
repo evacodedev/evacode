@@ -12,12 +12,16 @@ from dotenv import load_dotenv
 import os
 
 from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+import logging
 
 from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
 from .pagination import CustomPagination, AllObjectPagination
-from .utils import BusinessRuService, BusinessRuAPIClient
-from rest_framework import generics
+from .auth import PartnerApiKeyAuthentication
+from .utils import BusinessRuBarcodeLookup, BusinessRuService, serialize_business_ru_good
+from rest_framework import generics, status
 from rest_framework.viewsets import ModelViewSet
 from .models import GoodsModel, GroupOfGoods
 from .serializers import GoodsListSerializer, GoodsSerializer, GroupOfGoodsSerializer
@@ -30,6 +34,8 @@ from aiogram.utils import executor
 from aiohttp import web
 
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 token = os.getenv('BOT_TOKEN')
 chat_id = os.getenv('CHAT_ID')
@@ -52,6 +58,28 @@ class GoodsAPIView(ModelViewSet):
         if self.action == "list":
             return GoodsListSerializer
         return GoodsSerializer
+
+
+class GoodsByBarcodeView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [PartnerApiKeyAuthentication]
+
+    def get(self, request):
+        barcode = str(request.query_params.get("barcode") or request.query_params.get("code") or "").strip()
+        if not barcode:
+            return Response({"detail": "Укажите barcode"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            goods = BusinessRuBarcodeLookup().find_all(barcode)
+        except Exception:
+            logger.exception("Поиск товара по штрихкоду %s в Business.Ru не удался", barcode)
+            return Response(
+                {"detail": "Не удалось запросить товар в Business.Ru"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        if not goods:
+            return Response({"detail": "Товар не найден"}, status=status.HTTP_404_NOT_FOUND)
+        results = [serialize_business_ru_good(good, barcode) for good in goods]
+        return Response({"count": len(results), "results": results})
 
 
 class GroupListAPIView(generics.ListAPIView):

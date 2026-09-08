@@ -11,8 +11,20 @@ from .models import ImageModel, GroupOfGoods, GoodsModel
 
 from dotenv import load_dotenv
 import os
+from pathlib import Path
 
 load_dotenv()
+
+
+def load_evacode_env():
+    src_dir = Path(__file__).resolve().parents[1]
+    root_dir = Path(__file__).resolve().parents[2]
+    load_dotenv(src_dir / ".env")
+    if not (os.getenv("APP_ID") or "").strip() or not (os.getenv("API_SECRET") or "").strip():
+        load_dotenv(root_dir / ".env", override=True)
+
+
+load_evacode_env()
 
 
 SYNC_LOCK_KEY = 87236401
@@ -55,24 +67,35 @@ def korea_free_stock(remains):
 
 
 class BusinessRuAPIClient:
-    api_secret = os.getenv('API_SECRET')
-    app_id = os.getenv('APP_ID')
-    base_url = 'https://a46291.business.ru/api/rest'
-    token = ''
-    app_psw = ''
-    params = {
-        'app_id': app_id
-    }
+    base_url = "https://a46291.business.ru/api/rest"
 
     def __init__(self):
-        self.repair_hash = self.get_hash(params={'app_id': self.app_id})
+        load_evacode_env()
+        self.api_secret = (os.getenv("API_SECRET") or "").strip()
+        self.app_id = (os.getenv("APP_ID") or "").strip()
+        self.token = ""
+        self.app_psw = ""
+        self.params = {"app_id": self.app_id}
+        if not self.app_id or not self.api_secret:
+            raise ValueError("Не заданы APP_ID / API_SECRET для Business.Ru")
+        self.repair_hash = self.get_hash(params={"app_id": self.app_id})
         self.set_token()
 
     def set_token(self) -> None:
-        response = requests.get(f'{self.base_url}/repair.json?app_id={self.app_id}&app_psw={self.repair_hash}')
-        data = dict(json.loads(response.content))
-        self.token = data['token']
-        self.app_psw = data['app_psw']
+        response = requests.get(
+            f"{self.base_url}/repair.json?app_id={self.app_id}&app_psw={self.repair_hash}",
+            timeout=30,
+        )
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise ValueError(
+                f"Business.Ru repair: не JSON ({response.status_code})"
+            ) from exc
+        if not response.ok or not isinstance(data, dict) or not data.get("token"):
+            raise ValueError(f"Business.Ru repair: HTTP {response.status_code}")
+        self.token = data["token"]
+        self.app_psw = data.get("app_psw") or ""
 
     def get_hash(self, params: dict, token='') -> str:
         params = dict(sorted(params.items()))
@@ -112,6 +135,168 @@ class BusinessRuAPIClient:
         if "result" not in data:
             raise ValueError("Business.Ru goods response has no result")
         return data["result"]
+
+    def get_json(self, model: str, extra: dict | None = None) -> dict:
+        params = {"app_id": self.app_id, **(extra or {})}
+        hashed = self.get_hash(params=params, token=self.token)
+        response = requests.get(
+            f"{self.base_url}/{model}.json",
+            params={**params, "app_psw": hashed},
+            timeout=30,
+        )
+        try:
+            data = response.json()
+        except ValueError as exc:
+            raise ValueError(
+                f"Business.Ru {model}: не JSON ({response.status_code}) {response.text}"
+            ) from exc
+        if not response.ok:
+            raise ValueError(f"Business.Ru {model}: HTTP {response.status_code} {data}")
+        if isinstance(data, dict) and data.get("status") == "error":
+            raise ValueError(
+                data.get("error_text") or data.get("error_code") or f"Business.Ru {model}: {data}"
+            )
+        return data
+
+
+def normalize_barcode(value) -> str:
+    return "".join(str(value or "").split())
+
+
+def _payload_list(payload) -> list:
+    result = payload.get("result") if isinstance(payload, dict) else payload
+    if result is None or result is False:
+        return []
+    if isinstance(result, list):
+        return [item for item in result if item is not None]
+    if isinstance(result, dict):
+        return [result]
+    return []
+
+
+def serialize_business_ru_good(good: dict, scanned_barcode: str = "") -> dict:
+    group_id = good.get("group_id")
+    try:
+        category = int(group_id) if group_id not in (None, "") else None
+    except (TypeError, ValueError):
+        category = group_id
+    good_id = good.get("id")
+    try:
+        good_id = int(good_id)
+    except (TypeError, ValueError):
+        pass
+    listed = []
+    for item in good.get("barcodes") or []:
+        if isinstance(item, dict):
+            value = item.get("barcode") or item.get("value")
+        else:
+            value = item
+        if value:
+            listed.append(value)
+    scanned = normalize_barcode(scanned_barcode)
+    listed_normalized = [normalize_barcode(value) for value in listed]
+    if scanned and (scanned == normalize_barcode(good.get("barcode")) or scanned in listed_normalized):
+        barcode = scanned_barcode or good.get("barcode")
+    else:
+        barcode = good.get("barcode") or (listed[0] if listed else "")
+    unit = good.get("unit") or good.get("measure") or ""
+    if isinstance(unit, dict):
+        unit = unit.get("name") or unit.get("abbreviation") or ""
+    return {
+        "id": good_id,
+        "title": good.get("full_name") or good.get("name") or "",
+        "part": good.get("part") or "",
+        "barcode": barcode,
+        "description": good.get("description") or "",
+        "category": category,
+        "type": good.get("type") or "",
+        "weight": parse_weight_grams(good.get("weight")),
+        "unit": unit or "",
+    }
+
+
+class BusinessRuBarcodeLookup:
+    def __init__(self, api_client=None):
+        self.api_client = api_client or BusinessRuAPIClient()
+
+    def find(self, barcode: str) -> dict | None:
+        goods = self.find_all(barcode)
+        return goods[0] if goods else None
+
+    def find_all(self, barcode: str) -> list[dict]:
+        code = normalize_barcode(barcode)
+        if not code:
+            return []
+        found = []
+        seen = set()
+        for item in self._results("barcodes", {"value": code}):
+            if item.get("deleted") in (True, 1, "1"):
+                continue
+            item_code = item.get("value") or item.get("barcode")
+            if normalize_barcode(item_code) != code:
+                continue
+            good = self._get_good(item.get("good_id") or item.get("goods_id"))
+            self._append_unique(found, seen, good, item_code)
+        if found:
+            return found
+        for hit in self._goodssearch_hits(code):
+            if not hit.get("barcode_found"):
+                continue
+            good = self._get_good(hit.get("good_id") or hit.get("id"))
+            self._append_unique(found, seen, good, code)
+        return found
+
+    @staticmethod
+    def _append_unique(found: list, seen: set, good: dict | None, barcode: str) -> bool:
+        if not good:
+            return False
+        good_id = str(good.get("id") or "")
+        if not good_id or good_id in seen:
+            return False
+        seen.add(good_id)
+        found.append({**good, "barcode": barcode})
+        return True
+
+    def _get_good(self, good_id) -> dict | None:
+        if good_id in (None, ""):
+            return None
+        items = self._results(
+            "goods",
+            {
+                "id": good_id,
+                "with_attributes": 1,
+            },
+        )
+        return items[0] if items else None
+
+    def _goodssearch_hits(self, code: str) -> list:
+        try:
+            payload = self.api_client.get_json("goodssearch", {"text": code})
+        except ValueError as exc:
+            if self._unknown_model(str(exc)) or "text" in str(exc).lower():
+                return []
+            raise
+        result = payload.get("result") if isinstance(payload, dict) else payload
+        goods = result.get("goods") if isinstance(result, dict) else result
+        if isinstance(goods, dict):
+            return [item for item in goods.values() if isinstance(item, dict)]
+        if isinstance(goods, list):
+            return [item for item in goods if isinstance(item, dict)]
+        return []
+
+    def _results(self, model: str, extra: dict) -> list:
+        try:
+            payload = self.api_client.get_json(model, extra)
+        except ValueError as exc:
+            if self._unknown_model(str(exc)):
+                return []
+            raise
+        return [item for item in _payload_list(payload) if isinstance(item, dict)]
+
+    @staticmethod
+    def _unknown_model(message: str) -> bool:
+        text = (message or "").lower()
+        return any(token in text for token in ("unknown model", "не найден", "not found", "does not exist"))
 
 
 class BusinessRuService:

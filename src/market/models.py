@@ -10,6 +10,10 @@ def generate_public_id() -> str:
     return "".join(secrets.choice(PUBLIC_ID_ALPHABET) for _ in range(8))
 
 
+def generate_partner_token() -> str:
+    return secrets.token_urlsafe(32)
+
+
 class GroupOfGoods(models.Model):
     default_order = models.CharField(max_length=128)
     site_order = models.IntegerField(blank=True, null=True, verbose_name='Порядок на сайте')
@@ -173,6 +177,34 @@ class SiteOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.title} × {self.quantity}"
+
+
+class PartnerApiKey(models.Model):
+    name = models.CharField(max_length=128, verbose_name="Партнёр")
+    token = models.CharField(
+        max_length=64,
+        unique=True,
+        blank=True,
+        verbose_name="Токен",
+        help_text="Если оставить пустым, сгенерируется при сохранении",
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Включён")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Создан")
+
+    class Meta:
+        verbose_name = "Токен API партнёра"
+        verbose_name_plural = "Токены API партнёров"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not (self.token or "").strip():
+            self.token = generate_partner_token()
+        else:
+            self.token = self.token.strip()
+        super().save(*args, **kwargs)
 
 
 class ImageModel(models.Model):

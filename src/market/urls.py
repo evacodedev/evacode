@@ -3,7 +3,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
-from .views import update_data, get_all_goods, GroupListAPIView, GoodsAPIView, Checkout
+from .views import update_data, get_all_goods, GroupListAPIView, GoodsAPIView, GoodsByBarcodeView, Checkout
 from .order_views import (
     CreateSiteOrderView,
     PayPalReturnView,
@@ -16,6 +16,7 @@ router = DefaultRouter()
 router.register('goods', GoodsAPIView, basename='good')
 
 urlpatterns = [
+    path("goods/by-barcode/", GoodsByBarcodeView.as_view()),
     path("", include(router.urls)),
     path('categories/', GroupListAPIView.as_view()),
     path('update_data/', update_data),

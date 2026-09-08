@@ -10,9 +10,18 @@ from .models import (
     EmsRateColumn,
     GoodsModel,
     GroupOfGoods,
+    PartnerApiKey,
     SiteOrder,
     SiteOrderItem,
 )
+
+
+@admin.register(PartnerApiKey)
+class PartnerApiKeyAdmin(admin.ModelAdmin):
+    list_display = ("name", "token", "is_active", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("name", "token")
+    readonly_fields = ("created_at",)
 
 
 @admin.register(GroupOfGoods)
