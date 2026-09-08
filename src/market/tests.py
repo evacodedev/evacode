@@ -1,5 +1,6 @@
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
@@ -415,6 +416,34 @@ class BarcodeLookupTests(TestCase):
         found = BusinessRuBarcodeLookup(api_client=client).find_all("880111")
         self.assertEqual([int(item["id"]) for item in found], [12, 13])
 
+    def test_skips_archived_goods(self):
+        live = korea_payload(12, 10, "Живой", total=1)
+        live["archive"] = 0
+        archived = korea_payload(13, 10, "Архив", total=1)
+        archived["archive"] = 1
+        also_archived = korea_payload(14, 10, "Тоже архив", total=1)
+        also_archived["archive"] = 1
+
+        def goods(extra):
+            mapping = {"12": live, "13": archived, "14": also_archived}
+            payload = mapping.get(str(extra.get("id") or ""))
+            return {"result": [payload] if payload else []}
+
+        client = FakeBarcodeClient(
+            {
+                "goods": goods,
+                "barcodes": {
+                    "result": [
+                        {"value": "8809816980900", "good_id": "12"},
+                        {"value": "8809816980900", "good_id": "13"},
+                        {"value": "8809816980900", "good_id": "14"},
+                    ]
+                },
+            }
+        )
+        found = BusinessRuBarcodeLookup(api_client=client).find_all("8809816980900")
+        self.assertEqual([int(item["id"]) for item in found], [12])
+
     def test_ignores_unrelated_barcode_rows(self):
         client = FakeBarcodeClient(
             {
@@ -544,3 +573,16 @@ class GoodsByBarcodeApiTests(TestCase):
             lookup_cls.return_value.find_all.side_effect = ValueError("timeout")
             response = self.client.get("/api/market/goods/by-barcode/", {"barcode": "880"}, **self.auth)
         self.assertEqual(response.status_code, 502)
+
+
+class AdminAppListTests(TestCase):
+    def test_ems_and_settings_are_separate_groups(self):
+        User.objects.create_superuser("admin", "admin@example.com", "pass")
+        self.client.login(username="admin", password="pass")
+        response = self.client.get("/admin/")
+        self.assertEqual(response.status_code, 200)
+        html = response.content.decode()
+        self.assertRegex(html, r">EMS</")
+        self.assertRegex(html, r">SETTINGS</")
+        self.assertIn("Токены API партнёров", html)
+        self.assertIn("Направления EMS", html)

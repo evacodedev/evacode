@@ -89,8 +89,8 @@ class EmsDestinationAdmin(admin.ModelAdmin):
                 return render(request, "admin/market/emsdestination/import_xlsx.html", context)
             try:
                 result = import_ems_xlsx(upload)
-            except Exception as exc:
-                messages.error(request, f"Не удалось прочитать файл: {exc}")
+            except Exception as extra:
+                messages.error(request, f"Не удалось прочитать файл: {extra}")
                 return render(request, "admin/market/emsdestination/import_xlsx.html", context)
             sample = result.get("sample")
             sample_text = ""
@@ -194,5 +194,70 @@ class SiteOrderAdmin(admin.ModelAdmin):
                     f"{order.public_id}: заказ № {order.business_ru_order_number or order.business_ru_order_id}",
                     level=messages.SUCCESS,
                 )
-            except Exception as exc:
-                self.message_user(request, f"{order.public_id}: {exc}", level=messages.ERROR)
+            except Exception as extra:
+                self.message_user(request, f"{order.public_id}: {extra}", level=messages.ERROR)
+
+
+_EMS_MODELS = {"emsratecolumn", "emsrate", "emsdestination"}
+_SETTINGS_MODELS = {"partnerapikey"}
+
+_original_get_app_list = admin.site.get_app_list
+
+
+def _app_group(name, app_label, models):
+    if not models:
+        return None
+    return {
+        "name": name,
+        "app_label": app_label,
+        "app_url": models[0].get("admin_url"),
+        "has_module_perms": True,
+        "models": models,
+    }
+
+
+def get_app_list(request, app_label=None):
+    app_list = _original_get_app_list(request, app_label)
+    ems_models = []
+    settings_models = []
+    for app in app_list:
+        if app.get("app_label") != "market":
+            continue
+        remaining = []
+        for model in app.get("models") or []:
+            object_name = str(model.get("object_name") or "").lower()
+            if object_name in _EMS_MODELS:
+                ems_models.append(model)
+            elif object_name in _SETTINGS_MODELS:
+                settings_models.append(model)
+            else:
+                remaining.append(model)
+        app["models"] = remaining
+
+    extras = [
+        group
+        for group in (
+            _app_group("EMS", "ems", ems_models),
+            _app_group("SETTINGS", "settings", settings_models),
+        )
+        if group
+    ]
+    if not extras:
+        return app_list
+
+    result = []
+    inserted = False
+    for app in app_list:
+        result.append(app)
+        if app.get("app_label") == "market":
+            result.extend(extras)
+            inserted = True
+    if not inserted:
+        result.extend(extras)
+
+    if app_label in {"ems", "settings"}:
+        return [app for app in result if app.get("app_label") == app_label]
+    return result
+
+
+admin.site.get_app_list = get_app_list

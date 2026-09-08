@@ -229,15 +229,17 @@ class BusinessRuBarcodeLookup:
             return []
         found = []
         seen = set()
+        had_barcode_rows = False
         for item in self._results("barcodes", {"value": code}):
-            if item.get("deleted") in (True, 1, "1"):
-                continue
             item_code = item.get("value") or item.get("barcode")
             if normalize_barcode(item_code) != code:
                 continue
+            had_barcode_rows = True
+            if item.get("deleted") in (True, 1, "1"):
+                continue
             good = self._get_good(item.get("good_id") or item.get("goods_id"))
             self._append_unique(found, seen, good, item_code)
-        if found:
+        if had_barcode_rows:
             return found
         for hit in self._goodssearch_hits(code):
             if not hit.get("barcode_found"):
@@ -249,6 +251,8 @@ class BusinessRuBarcodeLookup:
     @staticmethod
     def _append_unique(found: list, seen: set, good: dict | None, barcode: str) -> bool:
         if not good:
+            return False
+        if BusinessRuBarcodeLookup._is_archived(good):
             return False
         good_id = str(good.get("id") or "")
         if not good_id or good_id in seen:
@@ -265,9 +269,22 @@ class BusinessRuBarcodeLookup:
             {
                 "id": good_id,
                 "with_attributes": 1,
+                "archive": 0,
             },
         )
-        return items[0] if items else None
+        good = items[0] if items else None
+        if good and self._is_archived(good):
+            return None
+        return good
+
+    @staticmethod
+    def _is_archived(good: dict) -> bool:
+        archive = good.get("archive")
+        if archive in (True, 1, "1"):
+            return True
+        if str(archive).strip().lower() in ("true", "yes"):
+            return True
+        return good.get("deleted") in (True, 1, "1")
 
     def _goodssearch_hits(self, code: str) -> list:
         try:
