@@ -5,6 +5,7 @@ from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from .views import update_data, get_all_goods, GroupListAPIView, GoodsAPIView, GoodsByBarcodeView, Checkout
 from .order_views import (
+    CheckoutSettingsView,
     CreateSiteOrderView,
     PayPalReturnView,
     ShippingDestinationsView,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('update_data/', update_data),
     path('get_all_goods/', get_all_goods),
     path('checkout/', Checkout.as_view()),
+    path('checkout-settings/', CheckoutSettingsView.as_view()),
     path('orders/', CreateSiteOrderView.as_view()),
     path('orders/paypal/return/', PayPalReturnView.as_view(), name='site_order_paypal_return'),
     path('orders/<str:public_id>/', SiteOrderDetailView.as_view()),

@@ -19,7 +19,7 @@ from urllib.parse import urljoin, urlencode
 
 from .business_ru_orders import export_paid_order
 from .currency import krw_to_usd
-from .models import SiteOrder, SiteOrderItem
+from .models import CheckoutSettings, SiteOrder, SiteOrderItem
 from .paypal import PayPalError, capture_id_from_payload, capture_order, create_order, receipt_url
 from .shipping import (
     METHOD_EMS,
@@ -194,6 +194,9 @@ class CreateSiteOrderView(APIView):
     authentication_classes = []
 
     def post(self, request):
+        if not CheckoutSettings.load().paypal_enabled:
+            return JsonResponse({"error": "Оплата PayPal сейчас выключена"}, status=403)
+
         data = request.data if hasattr(request, "data") else {}
         user = data.get("user") or {}
         cart = data.get("cart") or []
@@ -359,6 +362,20 @@ class SiteOrderDetailView(APIView):
         if not order:
             return JsonResponse({"error": "Заказ не найден"}, status=404)
         return JsonResponse(_order_payload(order))
+
+
+class CheckoutSettingsView(APIView):
+    permission_classes = [AllowAny]
+    authentication_classes = []
+
+    def get(self, request):
+        settings_row = CheckoutSettings.load()
+        return JsonResponse(
+            {
+                "paypal_enabled": settings_row.paypal_enabled,
+                "telegram_enabled": settings_row.telegram_enabled,
+            }
+        )
 
 
 @method_decorator(csrf_exempt, name="dispatch")

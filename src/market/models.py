@@ -207,6 +207,38 @@ class PartnerApiKey(models.Model):
         super().save(*args, **kwargs)
 
 
+class CheckoutSettings(models.Model):
+    paypal_enabled = models.BooleanField(
+        default=False,
+        verbose_name="PayPal на сайте",
+        help_text="Ключи PayPal остаются в .env. Этот флаг только показывает оплату на витрине.",
+    )
+    telegram_enabled = models.BooleanField(
+        default=False,
+        verbose_name="Заказ в Telegram",
+        help_text="Консультация в подвале сайта работает независимо от этого флага.",
+    )
+
+    class Meta:
+        verbose_name = "Оплата на сайте"
+        verbose_name_plural = "Оплата на сайте"
+
+    def __str__(self):
+        return "Оплата на сайте"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={"paypal_enabled": False, "telegram_enabled": False},
+        )
+        return obj
+
+
 class ImageModel(models.Model):
     group = models.ForeignKey(GroupOfGoods, on_delete=models.CASCADE, related_name='images', blank=True, null=True, verbose_name='Группа')
     good = models.ForeignKey(GoodsModel, on_delete=models.CASCADE, related_name='images', blank=True, null=True, verbose_name='Товар')

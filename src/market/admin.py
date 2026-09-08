@@ -1,4 +1,5 @@
 from django.contrib import admin, messages
+from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 
@@ -13,7 +14,23 @@ from .models import (
     PartnerApiKey,
     SiteOrder,
     SiteOrderItem,
+    CheckoutSettings,
 )
+
+
+@admin.register(CheckoutSettings)
+class CheckoutSettingsAdmin(admin.ModelAdmin):
+    list_display = ("paypal_enabled", "telegram_enabled")
+    fields = ("paypal_enabled", "telegram_enabled")
+
+    def has_add_permission(self, request):
+        try:
+            return not CheckoutSettings.objects.exists()
+        except (ProgrammingError, OperationalError):
+            return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(PartnerApiKey)

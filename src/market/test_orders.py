@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.models import Currency
-from market.models import GoodsModel, GroupOfGoods, SiteOrder
+from market.models import CheckoutSettings, GoodsModel, GroupOfGoods, SiteOrder
 
 
 @override_settings(
@@ -34,6 +34,10 @@ class SiteOrderApiTests(TestCase):
             stock=5,
             retail_price=10000,
             weight=400,
+        )
+        CheckoutSettings.objects.update_or_create(
+            pk=1,
+            defaults={"paypal_enabled": True, "telegram_enabled": False},
         )
 
     def _payload(self, **overrides):
@@ -193,3 +197,28 @@ class SiteOrderApiTests(TestCase):
         data = response.json()
         self.assertEqual(data["weight_grams"], 800)
         self.assertIsNone(data["shipping_krw"])
+
+    def test_checkout_settings_are_public(self):
+        CheckoutSettings.objects.update_or_create(
+            pk=1,
+            defaults={"paypal_enabled": False, "telegram_enabled": True},
+        )
+        response = self.client.get("/api/market/checkout-settings/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            {"paypal_enabled": False, "telegram_enabled": True},
+        )
+
+    def test_create_order_forbidden_when_paypal_disabled(self):
+        CheckoutSettings.objects.update_or_create(
+            pk=1,
+            defaults={"paypal_enabled": False, "telegram_enabled": False},
+        )
+        response = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(self._payload()),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertFalse(SiteOrder.objects.exists())

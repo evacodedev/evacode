@@ -23,7 +23,7 @@ from .auth import PartnerApiKeyAuthentication
 from .utils import BusinessRuBarcodeLookup, BusinessRuService, serialize_business_ru_good
 from rest_framework import generics, status
 from rest_framework.viewsets import ModelViewSet
-from .models import GoodsModel, GroupOfGoods
+from .models import CheckoutSettings, GoodsModel, GroupOfGoods
 from .serializers import GoodsListSerializer, GoodsSerializer, GroupOfGoodsSerializer
 from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
@@ -109,10 +109,14 @@ class Checkout(View):
                         print(f"Message not send! {diff.seconds / 3600}")
                         return JsonResponse({'message': 'Please wait!'}, status=200)
 
+                consult = bool(data.get('consult'))
+                if not consult and not CheckoutSettings.load().telegram_enabled:
+                    return JsonResponse({'error': 'Заказ в Telegram сейчас выключен'}, status=403)
+
                 orders_data[data['user']['phone']] = datetime.now().strftime(date_format)
 
                 message_text = 'ЗАКАЗ С САЙТА:\n'
-                if data['consult']:
+                if consult:
                     message_text += f"Консультация - {data['user']['phone']}"
                     n = async_to_sync(bot.send_message)(chat_id=chat_id, text=message_text, reply_markup=keyboard)
                 else:

@@ -169,26 +169,48 @@
 
           <section class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Оплата</h2>
-            <label class="checkout-choice is-disabled" aria-disabled="true">
-              <input type="radio" name="payment" value="paypal" disabled tabindex="-1">
+            <label
+              class="checkout-choice"
+              :class="{ 'is-disabled': !paypalEnabled }"
+              :aria-disabled="paypalEnabled ? 'false' : 'true'"
+            >
+              <input
+                v-model="paymentMethod"
+                type="radio"
+                name="payment"
+                value="paypal"
+                :disabled="!paypalEnabled"
+                :tabindex="paypalEnabled ? 0 : -1"
+              >
               <span class="checkout-choice__body">
                 <span class="checkout-choice__title">PayPal</span>
-                <span class="checkout-choice__note">В разработке</span>
+                <span class="checkout-choice__note">{{ paypalNote }}</span>
               </span>
             </label>
-            <label class="checkout-choice is-disabled" aria-disabled="true">
-              <input type="radio" name="payment" value="telegram" disabled tabindex="-1">
+            <label
+              class="checkout-choice"
+              :class="{ 'is-disabled': !telegramEnabled }"
+              :aria-disabled="telegramEnabled ? 'false' : 'true'"
+            >
+              <input
+                v-model="paymentMethod"
+                type="radio"
+                name="payment"
+                value="telegram"
+                :disabled="!telegramEnabled"
+                :tabindex="telegramEnabled ? 0 : -1"
+              >
               <span class="checkout-choice__body">
                 <span class="checkout-choice__title">Заказ в Telegram</span>
-                <span class="checkout-choice__note">В разработке</span>
+                <span class="checkout-choice__note">{{ telegramNote }}</span>
               </span>
             </label>
             <p v-if="paypalError" class="checkout-v2__pay-error">{{ paypalError }}</p>
             <button
               class="checkout-v2__cta"
               type="submit"
-              disabled
-              aria-disabled="true"
+              :disabled="ctaDisabled"
+              :aria-disabled="ctaDisabled ? 'true' : 'false'"
             >
               {{ ctaLabel }}
             </button>
@@ -328,7 +350,31 @@ export default {
       return `${grams.toLocaleString('ru-RU')} г`
     },
     ctaLabel() {
-      return 'Оплата в разработке'
+      if (!this.settingsLoaded) {
+        return 'Загрузка…'
+      }
+      if (this.ctaDisabled && !this.paypalEnabled && !this.telegramEnabled) {
+        return 'Оплата недоступна'
+      }
+      if (this.paymentMethod === 'paypal') {
+        return this.paypalLoading ? 'Переход к PayPal…' : 'Оплатить PayPal'
+      }
+      return this.telegramLoading ? 'Отправляем…' : 'Отправить заказ'
+    },
+    ctaDisabled() {
+      if (!this.settingsLoaded || this.paypalLoading || this.telegramLoading) {
+        return true
+      }
+      if (this.paymentMethod === 'paypal') {
+        return !this.paypalEnabled
+      }
+      return !this.telegramEnabled
+    },
+    paypalNote() {
+      return this.paypalEnabled ? 'Оплата картой через PayPal' : 'Сейчас недоступно'
+    },
+    telegramNote() {
+      return this.telegramEnabled ? 'Менеджер подтвердит заказ в Telegram' : 'Сейчас недоступно'
     },
     showPhoneError() {
       return Boolean(this.user.phone.errormsg) && (this.phoneTouched || this.submitted)
@@ -380,6 +426,9 @@ export default {
       phoneTouched: false,
       privateHouse: false,
       cartReady: false,
+      settingsLoaded: false,
+      paypalEnabled: false,
+      telegramEnabled: false,
     }
   },
   watch: {
@@ -422,6 +471,7 @@ export default {
     }
     this.loadDestinations()
     this.fetchQuote()
+    this.loadCheckoutSettings()
     const paypalStatus = this.$route.query.paypal
     if (paypalStatus === 'cancel') {
       this.paypalError = 'Оплата в PayPal отменена'
@@ -531,6 +581,24 @@ export default {
       }
       return valid
     },
+    async loadCheckoutSettings() {
+      try {
+        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout-settings/`)
+        this.paypalEnabled = Boolean(data.paypal_enabled)
+        this.telegramEnabled = Boolean(data.telegram_enabled)
+      } catch (error) {
+        this.paypalEnabled = false
+        this.telegramEnabled = false
+      }
+      if (this.paypalEnabled && !this.telegramEnabled) {
+        this.paymentMethod = 'paypal'
+      } else if (!this.paypalEnabled && this.telegramEnabled) {
+        this.paymentMethod = 'telegram'
+      } else if (this.paypalEnabled) {
+        this.paymentMethod = 'paypal'
+      }
+      this.settingsLoaded = true
+    },
     async loadDestinations() {
       try {
         const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/shipping/destinations/`)
@@ -617,10 +685,16 @@ export default {
       }
     },
     onPrimarySubmit() {
-      return
+      if (this.ctaDisabled) {
+        return
+      }
+      if (this.paymentMethod === 'paypal') {
+        return this.onPaypalSubmit()
+      }
+      return this.onSubmit()
     },
     async onSubmit() {
-      if (!this.validateForm() || this.telegramLoading) {
+      if (!this.telegramEnabled || !this.validateForm() || this.telegramLoading) {
         return
       }
       this.telegramLoading = true
@@ -652,7 +726,7 @@ export default {
       }
     },
     async onPaypalSubmit() {
-      if (!this.validateForm() || this.paypalLoading) {
+      if (!this.paypalEnabled || !this.validateForm() || this.paypalLoading) {
         return
       }
       this.paypalLoading = true
