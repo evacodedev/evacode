@@ -575,11 +575,14 @@ export default {
         }
       }
       const valid = fields.map((field) => this.validateField(field)).every(Boolean)
+      if (!valid) {
+        return false
+      }
       if (this.isEms && this.shippingKrw == null) {
         this.shippingError = this.shippingError || 'Не удалось посчитать доставку'
         return false
       }
-      return valid
+      return true
     },
     async loadCheckoutSettings() {
       try {
@@ -670,7 +673,7 @@ export default {
       this.validateField('phone')
     },
     scrollToFirstError() {
-      const invalid = this.$el.querySelector('.checkout-field.is-invalid, .checkout-phone.is-invalid')
+      const invalid = this.$el.querySelector('.checkout-field.is-invalid, .checkout-phone.is-invalid, .checkout-v2__section > p.checkout-field__error')
       if (!invalid) {
         return
       }
@@ -686,6 +689,11 @@ export default {
     },
     onPrimarySubmit() {
       if (this.ctaDisabled) {
+        return
+      }
+      this.submitted = true
+      if (!this.validateForm()) {
+        this.$nextTick(() => this.scrollToFirstError())
         return
       }
       if (this.paymentMethod === 'paypal') {
