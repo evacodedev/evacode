@@ -1,5 +1,6 @@
 import secrets
 
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -281,6 +282,39 @@ class ApiKzSync(models.Model):
     def __str__(self):
         when = self.run_at.strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
         return f"{self.get_warehouse_code_display()} {when}"
+
+
+class ApiKzSyncSettings(models.Model):
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Расписание включено",
+        help_text="Пока выключено, фоновый воркер не запускает синхронизацию. Ручной запуск из истории работает всегда.",
+    )
+    interval_hours = models.PositiveIntegerField(
+        default=24,
+        validators=[MinValueValidator(1), MaxValueValidator(168)],
+        verbose_name="Интервал, часов",
+        help_text="Отсчёт от последнего запуска (по расписанию или вручную). От 1 до 168 часов.",
+    )
+
+    class Meta:
+        verbose_name = "Расписание синхронизации"
+        verbose_name_plural = "Расписание синхронизации"
+
+    def __str__(self):
+        return "Расписание синхронизации KZ"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={"enabled": False, "interval_hours": 24},
+        )
+        return obj
 
 
 class ImageModel(models.Model):

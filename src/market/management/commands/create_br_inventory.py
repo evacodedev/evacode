@@ -1,6 +1,10 @@
 from django.core.management.base import BaseCommand, CommandError
 
-from market.br_stock_inventory import BrStockInventoryError, create_stock_inventory
+from market.br_stock_inventory import (
+    BrStockInventoryError,
+    create_stock_inventory,
+    execute_kz_stock_sync,
+)
 
 
 class Command(BaseCommand):
@@ -17,10 +21,18 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        try:
-            summary = create_stock_inventory(dry_run=options["dry_run"])
-        except BrStockInventoryError as exc:
-            raise CommandError(str(exc)) from exc
+        if options["dry_run"]:
+            try:
+                summary = create_stock_inventory(dry_run=True)
+            except BrStockInventoryError as exc:
+                raise CommandError(str(exc)) from exc
+        else:
+            result = execute_kz_stock_sync()
+            if result.get("busy"):
+                raise CommandError(result["message"])
+            if not result.get("ok"):
+                raise CommandError(result["message"])
+            summary = result.get("summary") or {}
         self.stdout.write(
             f"склад id={summary['store_id']} "
             f"остатки={summary['current_lines']} "
@@ -33,10 +45,10 @@ class Command(BaseCommand):
         if summary.get("skipped_unknown_ids"):
             self.stdout.write(
                 self.style.WARNING(
-                    f"нет в BR, пропущены: {summary['skipped_unknown_ids']}"
+                    f"пропущены комплекты: {summary['skipped_unknown_ids']}"
                 )
             )
-        if summary["dry_run"]:
+        if summary.get("dry_run"):
             self.stdout.write("dry-run: документ не создан")
             return
         if not summary["inventory_id"]:

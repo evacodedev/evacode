@@ -3,11 +3,12 @@ from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 
-from .br_stock_inventory import BrStockInventoryError, create_stock_inventory
+from .br_stock_inventory import execute_kz_stock_sync
 from .business_ru_orders import export_paid_order
 from .ems_tariffs import import_ems_xlsx
 from .models import (
     ApiKzSync,
+    ApiKzSyncSettings,
     EmsDestination,
     EmsRate,
     EmsRateColumn,
@@ -43,89 +44,23 @@ class PartnerApiKeyAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
 
 
-def _held_suffix(summary: dict, id_key: str, held_key: str) -> str:
-    if not summary.get(id_key):
-        return ""
-    if summary.get(held_key):
-        return " (проведено)"
-    return " (не проведено)"
+@admin.register(ApiKzSyncSettings)
+class ApiKzSyncSettingsAdmin(admin.ModelAdmin):
+    list_display = ("enabled", "interval_hours")
+    fields = ("enabled", "interval_hours")
 
+    def has_add_permission(self, request):
+        try:
+            return not ApiKzSyncSettings.objects.exists()
+        except (ProgrammingError, OperationalError):
+            return False
 
-def _sync_result_text(summary: dict) -> str:
-    skipped = summary.get("skipped_unknown_ids") or []
-    skipped_posting = summary.get("skipped_posting_ids") or []
-    skipped_charge = summary.get("skipped_charge_ids") or []
-    text = (
-        f"склад {summary.get('store_id')}: остатки {summary.get('current_lines')}, "
-        f"API {summary.get('api_lines')}, строк описи {summary.get('inventory_lines')}, "
-        f"излишки {summary.get('surplus')}, недостачи {summary.get('shortage')}, "
-        f"инвентаризация id={summary.get('inventory_id')}"
-    )
-    if summary.get("inventory_number"):
-        text += f" № {summary['inventory_number']}"
-    text += _held_suffix(summary, "inventory_id", "inventory_held")
-    if summary.get("posting_id"):
-        text += f", оприходование id={summary['posting_id']}"
-        if summary.get("posting_number"):
-            text += f" № {summary['posting_number']}"
-        text += _held_suffix(summary, "posting_id", "posting_held")
-    else:
-        text += ", оприходование не создано (нет излишков)"
-    if summary.get("charge_id"):
-        text += f", списание id={summary['charge_id']}"
-        if summary.get("charge_number"):
-            text += f" № {summary['charge_number']}"
-        text += _held_suffix(summary, "charge_id", "charge_held")
-    else:
-        text += ", списание не создано (нет недостач)"
-    if skipped:
-        text += f", пропущены в описи id {skipped[:20]}"
-    if skipped_posting:
-        text += f", пропущены в оприходовании id {skipped_posting[:20]}"
-    if skipped_charge:
-        text += f", пропущены в списании id {skipped_charge[:20]}"
-    text += (
-        f", цены: обновлено {summary.get('prices_updated') or 0}"
-        f", без изменений {summary.get('prices_unchanged') or 0}"
-        f", ошибок {summary.get('prices_failed') or 0}"
-        f", товаров {summary.get('prices_goods') or 0}"
-    )
-    if summary.get("prices_list_id"):
-        text += f", назначение цен id={summary['prices_list_id']}"
-        if summary.get("prices_list_number"):
-            text += f" № {summary['prices_list_number']}"
-    skipped_prices = summary.get("skipped_price_ids") or []
-    if skipped_prices:
-        text += f", цены пропущены {skipped_prices[:20]}"
-    held_errors = summary.get("held_errors") or []
-    if held_errors:
-        text += f", проводка не удалась: {held_errors[:5]}"
-    return text
+    def has_delete_permission(self, request, obj=None):
+        return False
 
-
-def _create_sync_log(summary: dict | None, *, ok: bool, message: str) -> ApiKzSync:
-    summary = summary or {}
-    warehouse = str(summary.get("warehouse_code") or "KZ").upper()
-    if warehouse not in {ApiKzSync.WAREHOUSE_KZ, ApiKzSync.WAREHOUSE_RU, ApiKzSync.WAREHOUSE_UZ}:
-        warehouse = ApiKzSync.WAREHOUSE_KZ
-    return ApiKzSync.objects.create(
-        warehouse_code=warehouse,
-        store_id=str(summary.get("store_id") or "")[:32],
-        ok=ok,
-        message=message[:4000],
-        inventory_id=str(summary.get("inventory_id") or "")[:32],
-        inventory_number=str(summary.get("inventory_number") or "")[:32],
-        posting_id=str(summary.get("posting_id") or "")[:32],
-        posting_number=str(summary.get("posting_number") or "")[:32],
-        charge_id=str(summary.get("charge_id") or "")[:32],
-        charge_number=str(summary.get("charge_number") or "")[:32],
-        prices_updated=int(summary.get("prices_updated") or 0),
-        prices_unchanged=int(summary.get("prices_unchanged") or 0),
-        prices_failed=int(summary.get("prices_failed") or 0),
-        prices_goods=int(summary.get("prices_goods") or 0),
-        prices_list_id=str(summary.get("prices_list_id") or "")[:32],
-        prices_list_number=str(summary.get("prices_list_number") or "")[:32],
-    )
+    def changelist_view(self, request, extra_context=None):
+        obj = ApiKzSyncSettings.load()
+        return redirect(reverse("admin:market_apikzsyncsettings_change", args=[obj.pk]))
 
 
 @admin.register(ApiKzSync)
@@ -196,29 +131,15 @@ class ApiKzSyncAdmin(admin.ModelAdmin):
         list_url = reverse("admin:market_apikzsync_changelist")
         if request.method != "POST":
             return redirect(list_url)
-        summary = None
-        try:
-            summary = create_stock_inventory()
-            if not summary.get("inventory_id"):
-                raise BrStockInventoryError(
-                    "Документ инвентаризации не создан: "
-                    f"остатки {summary.get('current_lines')}, "
-                    f"API {summary.get('api_lines')}, "
-                    f"строк описи {summary.get('inventory_lines')}"
-                )
-        except BrStockInventoryError as extra:
-            _create_sync_log(summary, ok=False, message=str(extra))
-            messages.error(request, str(extra))
+        result = execute_kz_stock_sync()
+        if result.get("busy"):
+            messages.warning(request, result["message"])
             return redirect(list_url)
-        except Exception as extra:
-            _create_sync_log(summary, ok=False, message=str(extra))
-            messages.error(request, f"Синхронизация не удалась: {extra}")
-            return redirect(list_url)
-
-        text = _sync_result_text(summary)
-        log = _create_sync_log(summary, ok=True, message=text)
-        messages.success(request, text)
-        return redirect(reverse("admin:market_apikzsync_change", args=[log.pk]))
+        if result.get("ok") and result.get("log") is not None:
+            messages.success(request, result["message"])
+            return redirect(reverse("admin:market_apikzsync_change", args=[result["log"].pk]))
+        messages.error(request, result["message"])
+        return redirect(list_url)
 
 
 @admin.register(GroupOfGoods)
@@ -397,7 +318,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
 
 _EMS_MODELS = {"emsratecolumn", "emsrate", "emsdestination"}
 _SETTINGS_MODELS = {"partnerapikey"}
-_API_KZ_MODELS = {"apikzsync"}
+_API_KZ_MODELS = {"apikzsync", "apikzsyncsettings"}
 
 _original_get_app_list = admin.site.get_app_list
 

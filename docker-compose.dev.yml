@@ -46,6 +46,20 @@ services:
 #      - .:/evacode
 #    env_file:
 #      - .env
+  kz_stock_sync:
+    build:
+      context: .
+      dockerfile: dockerfiles/Dockerfile.dev
+    working_dir: /evacode/src
+    command: python manage.py sync_kz_stock
+    restart: always
+    volumes:
+      - .:/evacode
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - server
   nginx:
     container_name: evacode-nginx-dev
     build:

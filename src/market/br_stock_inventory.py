@@ -1,8 +1,11 @@
-from datetime import datetime
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 import os
 
 import requests
 from django.conf import settings
+from django.db import connection
+from django.utils import timezone
 
 from .business_ru_orders import (
     BusinessRuOrderClient,
@@ -22,6 +25,9 @@ KZ_SALE_PRICE_TYPES = (
     ("price_wholesale_large", "BUSINESS_RU_KZ_PRICE_TYPE_WHOLESALE_LARGE", "1058605"),
     ("price_retail", "BUSINESS_RU_KZ_PRICE_TYPE_RETAIL", "936503"),
 )
+KZ_SYNC_LOCK_KEY = 87236402
+KZ_SYNC_INTERVAL_MIN_HOURS = 1
+KZ_SYNC_INTERVAL_MAX_HOURS = 168
 
 
 class BrStockInventoryError(BusinessRuOrderError):
@@ -750,3 +756,185 @@ def _document_goods(client: BusinessRuOrderClient, model: str, record_id) -> lis
         return []
     goods = record.get("goods") or []
     return [item for item in goods if isinstance(item, dict)]
+
+
+@contextmanager
+def kz_stock_sync_lock():
+    if connection.vendor != "postgresql":
+        yield True
+        return
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT pg_try_advisory_lock(%s)", [KZ_SYNC_LOCK_KEY])
+        acquired = bool(cursor.fetchone()[0])
+    try:
+        yield acquired
+    finally:
+        if acquired:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT pg_advisory_unlock(%s)", [KZ_SYNC_LOCK_KEY])
+
+
+def kz_sync_is_due(enabled, interval_hours, last_run_at, now) -> bool:
+    if not enabled:
+        return False
+    try:
+        hours = int(interval_hours or 24)
+    except (TypeError, ValueError):
+        hours = 24
+    hours = min(max(hours, KZ_SYNC_INTERVAL_MIN_HOURS), KZ_SYNC_INTERVAL_MAX_HOURS)
+    if last_run_at is None:
+        return True
+    return now >= last_run_at + timedelta(hours=hours)
+
+
+def _held_suffix(summary: dict, id_key: str, held_key: str) -> str:
+    if not summary.get(id_key):
+        return ""
+    if summary.get(held_key):
+        return " (проведено)"
+    return " (не проведено)"
+
+
+def sync_result_text(summary: dict) -> str:
+    skipped = summary.get("skipped_unknown_ids") or []
+    skipped_posting = summary.get("skipped_posting_ids") or []
+    skipped_charge = summary.get("skipped_charge_ids") or []
+    text = (
+        f"склад {summary.get('store_id')}: остатки {summary.get('current_lines')}, "
+        f"API {summary.get('api_lines')}, строк описи {summary.get('inventory_lines')}, "
+        f"излишки {summary.get('surplus')}, недостачи {summary.get('shortage')}, "
+        f"инвентаризация id={summary.get('inventory_id')}"
+    )
+    if summary.get("inventory_number"):
+        text += f" № {summary['inventory_number']}"
+    text += _held_suffix(summary, "inventory_id", "inventory_held")
+    if summary.get("posting_id"):
+        text += f", оприходование id={summary['posting_id']}"
+        if summary.get("posting_number"):
+            text += f" № {summary['posting_number']}"
+        text += _held_suffix(summary, "posting_id", "posting_held")
+    else:
+        text += ", оприходование не создано (нет излишков)"
+    if summary.get("charge_id"):
+        text += f", списание id={summary['charge_id']}"
+        if summary.get("charge_number"):
+            text += f" № {summary['charge_number']}"
+        text += _held_suffix(summary, "charge_id", "charge_held")
+    else:
+        text += ", списание не создано (нет недостач)"
+    if skipped:
+        text += f", пропущены комплекты id {skipped[:20]}"
+    if skipped_posting:
+        text += f", пропущены в оприходовании id {skipped_posting[:20]}"
+    if skipped_charge:
+        text += f", пропущены в списании id {skipped_charge[:20]}"
+    text += (
+        f", цены: обновлено {summary.get('prices_updated') or 0}"
+        f", без изменений {summary.get('prices_unchanged') or 0}"
+        f", ошибок {summary.get('prices_failed') or 0}"
+        f", товаров {summary.get('prices_goods') or 0}"
+    )
+    if summary.get("prices_list_id"):
+        text += f", назначение цен id={summary['prices_list_id']}"
+        if summary.get("prices_list_number"):
+            text += f" № {summary['prices_list_number']}"
+    skipped_prices = summary.get("skipped_price_ids") or []
+    if skipped_prices:
+        text += f", цены пропущены {skipped_prices[:20]}"
+    held_errors = summary.get("held_errors") or []
+    if held_errors:
+        text += f", проводка не удалась: {held_errors[:5]}"
+    return text
+
+
+def create_sync_log(summary: dict | None, *, ok: bool, message: str):
+    from .models import ApiKzSync
+
+    summary = summary or {}
+    warehouse = str(summary.get("warehouse_code") or "KZ").upper()
+    if warehouse not in {ApiKzSync.WAREHOUSE_KZ, ApiKzSync.WAREHOUSE_RU, ApiKzSync.WAREHOUSE_UZ}:
+        warehouse = ApiKzSync.WAREHOUSE_KZ
+    return ApiKzSync.objects.create(
+        warehouse_code=warehouse,
+        store_id=str(summary.get("store_id") or "")[:32],
+        ok=ok,
+        message=message[:4000],
+        inventory_id=str(summary.get("inventory_id") or "")[:32],
+        inventory_number=str(summary.get("inventory_number") or "")[:32],
+        posting_id=str(summary.get("posting_id") or "")[:32],
+        posting_number=str(summary.get("posting_number") or "")[:32],
+        charge_id=str(summary.get("charge_id") or "")[:32],
+        charge_number=str(summary.get("charge_number") or "")[:32],
+        prices_updated=int(summary.get("prices_updated") or 0),
+        prices_unchanged=int(summary.get("prices_unchanged") or 0),
+        prices_failed=int(summary.get("prices_failed") or 0),
+        prices_goods=int(summary.get("prices_goods") or 0),
+        prices_list_id=str(summary.get("prices_list_id") or "")[:32],
+        prices_list_number=str(summary.get("prices_list_number") or "")[:32],
+    )
+
+
+def execute_kz_stock_sync() -> dict:
+    with kz_stock_sync_lock() as acquired:
+        if not acquired:
+            return {
+                "busy": True,
+                "ok": False,
+                "message": "Синхронизация уже выполняется",
+                "log": None,
+                "summary": None,
+            }
+        summary = None
+        try:
+            summary = create_stock_inventory()
+            if not summary.get("inventory_id"):
+                raise BrStockInventoryError(
+                    "Документ инвентаризации не создан: "
+                    f"остатки {summary.get('current_lines')}, "
+                    f"API {summary.get('api_lines')}, "
+                    f"строк описи {summary.get('inventory_lines')}"
+                )
+        except BrStockInventoryError as extra:
+            log = create_sync_log(summary, ok=False, message=str(extra))
+            return {
+                "busy": False,
+                "ok": False,
+                "message": str(extra),
+                "log": log,
+                "summary": summary,
+            }
+        except Exception as extra:
+            message = f"Синхронизация не удалась: {extra}"
+            log = create_sync_log(summary, ok=False, message=message)
+            return {
+                "busy": False,
+                "ok": False,
+                "message": message,
+                "log": log,
+                "summary": summary,
+            }
+        text = sync_result_text(summary)
+        log = create_sync_log(summary, ok=True, message=text)
+        return {
+            "busy": False,
+            "ok": True,
+            "message": text,
+            "log": log,
+            "summary": summary,
+        }
+
+
+def run_scheduled_kz_stock_sync(now=None):
+    from .models import ApiKzSync, ApiKzSyncSettings
+
+    settings_row = ApiKzSyncSettings.load()
+    last = ApiKzSync.objects.order_by("-run_at", "-id").first()
+    now = now or timezone.now()
+    if not kz_sync_is_due(
+        settings_row.enabled,
+        settings_row.interval_hours,
+        last.run_at if last else None,
+        now,
+    ):
+        return None
+    return execute_kz_stock_sync()

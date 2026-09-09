@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.test import SimpleTestCase
 
 from market.br_stock_inventory import (
@@ -7,6 +9,7 @@ from market.br_stock_inventory import (
     fetch_kz_purchase_prices,
     hold_stock_documents,
     kz_purchase_from_postings,
+    kz_sync_is_due,
     merge_inventory_rows,
     parse_crm_catalog,
     parse_crm_products,
@@ -14,6 +17,7 @@ from market.br_stock_inventory import (
     shortage_rows,
     store_total,
     surplus_rows,
+    sync_result_text,
 )
 
 
@@ -301,3 +305,18 @@ class BrStockInventoryTests(SimpleTestCase):
         self.assertTrue(summary["posting_held"])
         self.assertFalse(summary["inventory_held"])
         self.assertTrue(summary["held_errors"])
+
+    def test_sync_is_due_when_enabled_and_never_run(self):
+        now = datetime(2026, 9, 9, 12, 0)
+        self.assertTrue(kz_sync_is_due(True, 24, None, now))
+        self.assertFalse(kz_sync_is_due(False, 24, None, now))
+
+    def test_sync_is_due_from_last_run(self):
+        last = datetime(2026, 9, 8, 12, 0)
+        now = datetime(2026, 9, 9, 12, 0)
+        self.assertTrue(kz_sync_is_due(True, 24, last, now))
+        self.assertFalse(kz_sync_is_due(True, 24, last, datetime(2026, 9, 9, 11, 59)))
+
+    def test_sync_result_text_names_skipped_kits(self):
+        text = sync_result_text({"skipped_unknown_ids": [11, 22], "store_id": "936507"})
+        self.assertIn("пропущены комплекты id [11, 22]", text)

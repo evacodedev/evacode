@@ -4,7 +4,7 @@
 <li>
   <form method="post" action="{% url 'admin:market_apikzsync_sync' %}">
     {% csrf_token %}
-    <input type="submit" value="Синхронизировать остатки" class="addlink">
+    <input type="submit" value="Запустить сейчас" class="addlink">
   </form>
 </li>
 {{ block.super }}
