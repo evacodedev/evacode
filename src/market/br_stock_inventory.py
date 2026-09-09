@@ -16,7 +16,6 @@ from .business_ru_orders import (
 from .utils import load_evacode_env
 
 
-TEST_STORE_ID = "2787290"
 KZT_CURRENCY_ID = "7"
 KZ_PURCHASE_PRICE_TYPE_ID = "936485"
 KZ_SALE_PRICE_TYPES = (
@@ -512,7 +511,7 @@ def _env(name: str, default: str = "") -> str:
 
 def inventory_settings() -> dict:
     load_evacode_env()
-    store_id = _env("BUSINESS_RU_INVENTORY_STORE_ID", TEST_STORE_ID)
+    store_id = _env("BUSINESS_RU_INVENTORY_STORE_ID")
     org_id = _env("BUSINESS_RU_ORGANIZATION_ID") or str(
         getattr(settings, "BUSINESS_RU_ORGANIZATION_ID", "") or ""
     ).strip()

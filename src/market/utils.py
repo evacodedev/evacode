@@ -19,9 +19,8 @@ load_dotenv()
 def load_evacode_env():
     src_dir = Path(__file__).resolve().parents[1]
     root_dir = Path(__file__).resolve().parents[2]
-    load_dotenv(src_dir / ".env")
-    if not (os.getenv("APP_ID") or "").strip() or not (os.getenv("API_SECRET") or "").strip():
-        load_dotenv(root_dir / ".env", override=True)
+    load_dotenv(src_dir / ".env", override=False)
+    load_dotenv(root_dir / ".env", override=False)
 
 
 load_evacode_env()
