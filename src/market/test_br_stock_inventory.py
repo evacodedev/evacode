@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, time as dt_time
 
 from django.test import SimpleTestCase
 
@@ -308,14 +308,17 @@ class BrStockInventoryTests(SimpleTestCase):
 
     def test_sync_is_due_when_enabled_and_never_run(self):
         now = datetime(2026, 9, 9, 12, 0)
-        self.assertTrue(kz_sync_is_due(True, 24, None, now))
-        self.assertFalse(kz_sync_is_due(False, 24, None, now))
+        self.assertTrue(kz_sync_is_due(True, "2", dt_time(3, 0), None, now))
+        self.assertFalse(kz_sync_is_due(False, "2", dt_time(3, 0), None, now))
+        self.assertFalse(kz_sync_is_due(True, "0", dt_time(3, 0), None, now))
+        self.assertFalse(kz_sync_is_due(True, "2", dt_time(12, 1), None, now))
+        self.assertTrue(kz_sync_is_due(True, "2,4", dt_time(12, 0), None, now))
 
     def test_sync_is_due_from_last_run(self):
-        last = datetime(2026, 9, 8, 12, 0)
         now = datetime(2026, 9, 9, 12, 0)
-        self.assertTrue(kz_sync_is_due(True, 24, last, now))
-        self.assertFalse(kz_sync_is_due(True, 24, last, datetime(2026, 9, 9, 11, 59)))
+        self.assertTrue(kz_sync_is_due(True, "2", dt_time(3, 0), datetime(2026, 9, 9, 2, 0), now))
+        self.assertFalse(kz_sync_is_due(True, "2", dt_time(3, 0), datetime(2026, 9, 9, 3, 0), now))
+        self.assertFalse(kz_sync_is_due(True, "2", dt_time(3, 0), datetime(2026, 9, 9, 12, 0), now))
 
     def test_sync_result_text_names_skipped_kits(self):
         text = sync_result_text({"skipped_unknown_ids": [11, 22], "store_id": "936507"})

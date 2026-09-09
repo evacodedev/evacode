@@ -1,0 +1,39 @@
+{% extends "admin/change_form.html" %}
+
+{% block after_field_sets %}
+<p class="help" style="margin: 12px 0 20px;">
+  Сейчас на сервере:
+  <strong
+    id="kz-server-clock"
+    data-iso="{{ server_time_iso }}"
+    data-tz="{{ server_tz }}"
+  >{{ server_time_display }}</strong>
+  (пояс Django: {{ server_tz }}). Время запуска задаётся в этом поясе.
+</p>
+<script>
+(function () {
+  var el = document.getElementById("kz-server-clock");
+  if (!el) return;
+  var origin = Date.parse(el.getAttribute("data-iso") || "");
+  var tz = el.getAttribute("data-tz") || "UTC";
+  if (!origin) return;
+  var started = Date.now();
+  var fmt = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  function tick() {
+    el.textContent = fmt.format(new Date(origin + (Date.now() - started))).replace("T", " ");
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+{{ block.super }}
+{% endblock %}

@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from datetime import timedelta
+from datetime import time as dt_time, timedelta
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
@@ -61,7 +61,10 @@ class ApiKzAdminTests(TestCase):
         response = self.client.get(reverse("admin:market_apikzsyncsettings_changelist"), follow=True)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Расписание включено")
-        self.assertContains(response, "Интервал, часов")
+        self.assertContains(response, "Дни недели")
+        self.assertContains(response, "Время запуска")
+        self.assertContains(response, "Сейчас на сервере")
+        self.assertContains(response, "пояс Django:")
 
     @patch("market.br_stock_inventory.create_stock_inventory")
     def test_sync_appends_history_row(self, mocked):
@@ -144,11 +147,13 @@ class ApiKzAdminTests(TestCase):
     @patch("market.br_stock_inventory.create_stock_inventory")
     def test_schedule_runs_when_due(self, mocked):
         mocked.return_value = SUCCESS_SUMMARY
+        now = timezone.localtime()
         row = ApiKzSyncSettings.load()
         row.enabled = True
-        row.interval_hours = 24
+        row.weekdays = str(now.weekday())
+        row.run_time = dt_time(0, 0)
         row.save()
-        result = run_scheduled_kz_stock_sync()
+        result = run_scheduled_kz_stock_sync(now=now)
         self.assertTrue(result["ok"])
         self.assertEqual(ApiKzSync.objects.count(), 1)
         mocked.assert_called_once()
@@ -156,14 +161,16 @@ class ApiKzAdminTests(TestCase):
     @patch("market.br_stock_inventory.create_stock_inventory")
     def test_schedule_uses_last_run_including_manual(self, mocked):
         mocked.return_value = SUCCESS_SUMMARY
+        now = timezone.localtime()
         row = ApiKzSyncSettings.load()
         row.enabled = True
-        row.interval_hours = 24
+        row.weekdays = str(now.weekday())
+        row.run_time = dt_time(0, 0)
         row.save()
         ApiKzSync.objects.create(ok=True, message="manual")
-        self.assertIsNone(run_scheduled_kz_stock_sync())
+        self.assertIsNone(run_scheduled_kz_stock_sync(now=now))
         mocked.assert_not_called()
-        later = timezone.now() + timedelta(hours=24)
+        later = now + timedelta(days=7)
         result = run_scheduled_kz_stock_sync(now=later)
         self.assertTrue(result["ok"])
         mocked.assert_called_once()

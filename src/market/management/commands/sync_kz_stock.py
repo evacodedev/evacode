@@ -23,7 +23,7 @@ class Command(BaseCommand):
         while True:
             result = run_scheduled_kz_stock_sync()
             if result is None:
-                self.stdout.write("пропуск: расписание выключено или интервал ещё не прошёл")
+                self.stdout.write("пропуск: расписание выключено или слот ещё не наступил")
             elif result.get("busy"):
                 self.stdout.write(self.style.WARNING(result["message"]))
             elif result.get("ok"):

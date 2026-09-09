@@ -1,6 +1,6 @@
+from datetime import time as dt_time
 import secrets
 
-from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -285,16 +285,32 @@ class ApiKzSync(models.Model):
 
 
 class ApiKzSyncSettings(models.Model):
+    WEEKDAY_CHOICES = (
+        (0, "Понедельник"),
+        (1, "Вторник"),
+        (2, "Среда"),
+        (3, "Четверг"),
+        (4, "Пятница"),
+        (5, "Суббота"),
+        (6, "Воскресенье"),
+    )
+
     enabled = models.BooleanField(
         default=False,
         verbose_name="Расписание включено",
         help_text="Пока выключено, фоновый воркер не запускает синхронизацию. Ручной запуск из истории работает всегда.",
     )
-    interval_hours = models.PositiveIntegerField(
-        default=24,
-        validators=[MinValueValidator(1), MaxValueValidator(168)],
-        verbose_name="Интервал, часов",
-        help_text="Отсчёт от последнего запуска (по расписанию или вручную). От 1 до 168 часов.",
+    weekdays = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name="Дни недели",
+        help_text="Можно выбрать несколько дней. Время одно на все выбранные дни.",
+    )
+    run_time = models.TimeField(
+        default=dt_time(3, 0),
+        verbose_name="Время запуска",
+        help_text="Часы и минуты в поясе сервера — смотрите часы на этой странице.",
     )
 
     class Meta:
@@ -312,7 +328,7 @@ class ApiKzSyncSettings(models.Model):
     def load(cls):
         obj, _ = cls.objects.get_or_create(
             pk=1,
-            defaults={"enabled": False, "interval_hours": 24},
+            defaults={"enabled": False, "weekdays": "", "run_time": dt_time(3, 0)},
         )
         return obj
 

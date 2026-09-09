@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 
 import requests
@@ -26,8 +26,6 @@ KZ_SALE_PRICE_TYPES = (
     ("price_retail", "BUSINESS_RU_KZ_PRICE_TYPE_RETAIL", "936503"),
 )
 KZ_SYNC_LOCK_KEY = 87236402
-KZ_SYNC_INTERVAL_MIN_HOURS = 1
-KZ_SYNC_INTERVAL_MAX_HOURS = 168
 
 
 class BrStockInventoryError(BusinessRuOrderError):
@@ -774,17 +772,54 @@ def kz_stock_sync_lock():
                 cursor.execute("SELECT pg_advisory_unlock(%s)", [KZ_SYNC_LOCK_KEY])
 
 
-def kz_sync_is_due(enabled, interval_hours, last_run_at, now) -> bool:
-    if not enabled:
+def parse_kz_weekdays(value) -> set[int]:
+    if value is None:
+        return set()
+    if isinstance(value, (list, tuple, set)):
+        items = value
+    else:
+        items = str(value).replace(";", ",").split(",")
+    days = set()
+    for item in items:
+        text = str(item).strip()
+        if text == "":
+            continue
+        try:
+            day = int(text)
+        except (TypeError, ValueError):
+            continue
+        if 0 <= day <= 6:
+            days.add(day)
+    return days
+
+
+def _as_local(dt):
+    if dt is None:
+        return None
+    if timezone.is_aware(dt):
+        return timezone.localtime(dt)
+    return dt
+
+
+def kz_sync_is_due(enabled, weekdays, run_time, last_run_at, now) -> bool:
+    if not enabled or run_time is None:
         return False
-    try:
-        hours = int(interval_hours or 24)
-    except (TypeError, ValueError):
-        hours = 24
-    hours = min(max(hours, KZ_SYNC_INTERVAL_MIN_HOURS), KZ_SYNC_INTERVAL_MAX_HOURS)
-    if last_run_at is None:
+    days = parse_kz_weekdays(weekdays)
+    local_now = _as_local(now)
+    if local_now is None or local_now.weekday() not in days:
+        return False
+    slot = local_now.replace(
+        hour=run_time.hour,
+        minute=run_time.minute,
+        second=0,
+        microsecond=0,
+    )
+    if local_now < slot:
+        return False
+    last_local = _as_local(last_run_at)
+    if last_local is None:
         return True
-    return now >= last_run_at + timedelta(hours=hours)
+    return last_local < slot
 
 
 def _held_suffix(summary: dict, id_key: str, held_key: str) -> str:
@@ -932,7 +967,8 @@ def run_scheduled_kz_stock_sync(now=None):
     now = now or timezone.now()
     if not kz_sync_is_due(
         settings_row.enabled,
-        settings_row.interval_hours,
+        settings_row.weekdays,
+        settings_row.run_time,
         last.run_at if last else None,
         now,
     ):

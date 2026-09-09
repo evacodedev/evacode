@@ -1,7 +1,11 @@
+from datetime import time as dt_time
+
+from django import forms
 from django.contrib import admin, messages
 from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
+from django.utils import timezone
 
 from .br_stock_inventory import execute_kz_stock_sync
 from .business_ru_orders import export_paid_order
@@ -44,10 +48,47 @@ class PartnerApiKeyAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at",)
 
 
+class ApiKzSyncSettingsForm(forms.ModelForm):
+    weekdays = forms.MultipleChoiceField(
+        choices=ApiKzSyncSettings.WEEKDAY_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Дни недели",
+        help_text="Можно выбрать несколько дней. Время одно на все выбранные дни.",
+    )
+
+    class Meta:
+        model = ApiKzSyncSettings
+        fields = ("enabled", "weekdays", "run_time")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        raw = ""
+        if self.instance and self.instance.pk:
+            raw = self.instance.weekdays or ""
+        elif "weekdays" in self.initial:
+            raw = self.initial.get("weekdays") or ""
+        if isinstance(raw, str):
+            self.initial["weekdays"] = [item for item in raw.split(",") if item != ""]
+        self.fields["run_time"].initial = self.fields["run_time"].initial or dt_time(3, 0)
+
+    def clean_weekdays(self):
+        days = self.cleaned_data.get("weekdays") or []
+        return ",".join(str(day) for day in days)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("enabled") and not cleaned.get("weekdays"):
+            self.add_error("weekdays", "Выберите хотя бы один день недели.")
+        return cleaned
+
+
 @admin.register(ApiKzSyncSettings)
 class ApiKzSyncSettingsAdmin(admin.ModelAdmin):
-    list_display = ("enabled", "interval_hours")
-    fields = ("enabled", "interval_hours")
+    form = ApiKzSyncSettingsForm
+    change_form_template = "admin/market/apikzsyncsettings/change_form.html"
+    list_display = ("enabled", "weekdays", "run_time")
+    fields = ("enabled", "weekdays", "run_time")
 
     def has_add_permission(self, request):
         try:
@@ -61,6 +102,13 @@ class ApiKzSyncSettingsAdmin(admin.ModelAdmin):
     def changelist_view(self, request, extra_context=None):
         obj = ApiKzSyncSettings.load()
         return redirect(reverse("admin:market_apikzsyncsettings_change", args=[obj.pk]))
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        now = timezone.localtime()
+        context["server_tz"] = timezone.get_current_timezone_name()
+        context["server_time_display"] = now.strftime("%Y-%m-%d %H:%M:%S")
+        context["server_time_iso"] = now.isoformat()
+        return super().render_change_form(request, context, add, change, form_url, obj)
 
 
 @admin.register(ApiKzSync)
