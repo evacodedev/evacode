@@ -3,9 +3,11 @@ from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 
+from .br_stock_inventory import BrStockInventoryError, create_stock_inventory
 from .business_ru_orders import export_paid_order
 from .ems_tariffs import import_ems_xlsx
 from .models import (
+    ApiKzSync,
     EmsDestination,
     EmsRate,
     EmsRateColumn,
@@ -39,6 +41,184 @@ class PartnerApiKeyAdmin(admin.ModelAdmin):
     list_filter = ("is_active",)
     search_fields = ("name", "token")
     readonly_fields = ("created_at",)
+
+
+def _held_suffix(summary: dict, id_key: str, held_key: str) -> str:
+    if not summary.get(id_key):
+        return ""
+    if summary.get(held_key):
+        return " (проведено)"
+    return " (не проведено)"
+
+
+def _sync_result_text(summary: dict) -> str:
+    skipped = summary.get("skipped_unknown_ids") or []
+    skipped_posting = summary.get("skipped_posting_ids") or []
+    skipped_charge = summary.get("skipped_charge_ids") or []
+    text = (
+        f"склад {summary.get('store_id')}: остатки {summary.get('current_lines')}, "
+        f"API {summary.get('api_lines')}, строк описи {summary.get('inventory_lines')}, "
+        f"излишки {summary.get('surplus')}, недостачи {summary.get('shortage')}, "
+        f"инвентаризация id={summary.get('inventory_id')}"
+    )
+    if summary.get("inventory_number"):
+        text += f" № {summary['inventory_number']}"
+    text += _held_suffix(summary, "inventory_id", "inventory_held")
+    if summary.get("posting_id"):
+        text += f", оприходование id={summary['posting_id']}"
+        if summary.get("posting_number"):
+            text += f" № {summary['posting_number']}"
+        text += _held_suffix(summary, "posting_id", "posting_held")
+    else:
+        text += ", оприходование не создано (нет излишков)"
+    if summary.get("charge_id"):
+        text += f", списание id={summary['charge_id']}"
+        if summary.get("charge_number"):
+            text += f" № {summary['charge_number']}"
+        text += _held_suffix(summary, "charge_id", "charge_held")
+    else:
+        text += ", списание не создано (нет недостач)"
+    if skipped:
+        text += f", пропущены в описи id {skipped[:20]}"
+    if skipped_posting:
+        text += f", пропущены в оприходовании id {skipped_posting[:20]}"
+    if skipped_charge:
+        text += f", пропущены в списании id {skipped_charge[:20]}"
+    text += (
+        f", цены: обновлено {summary.get('prices_updated') or 0}"
+        f", без изменений {summary.get('prices_unchanged') or 0}"
+        f", ошибок {summary.get('prices_failed') or 0}"
+        f", товаров {summary.get('prices_goods') or 0}"
+    )
+    if summary.get("prices_list_id"):
+        text += f", назначение цен id={summary['prices_list_id']}"
+        if summary.get("prices_list_number"):
+            text += f" № {summary['prices_list_number']}"
+    skipped_prices = summary.get("skipped_price_ids") or []
+    if skipped_prices:
+        text += f", цены пропущены {skipped_prices[:20]}"
+    held_errors = summary.get("held_errors") or []
+    if held_errors:
+        text += f", проводка не удалась: {held_errors[:5]}"
+    return text
+
+
+def _create_sync_log(summary: dict | None, *, ok: bool, message: str) -> ApiKzSync:
+    summary = summary or {}
+    warehouse = str(summary.get("warehouse_code") or "KZ").upper()
+    if warehouse not in {ApiKzSync.WAREHOUSE_KZ, ApiKzSync.WAREHOUSE_RU, ApiKzSync.WAREHOUSE_UZ}:
+        warehouse = ApiKzSync.WAREHOUSE_KZ
+    return ApiKzSync.objects.create(
+        warehouse_code=warehouse,
+        store_id=str(summary.get("store_id") or "")[:32],
+        ok=ok,
+        message=message[:4000],
+        inventory_id=str(summary.get("inventory_id") or "")[:32],
+        inventory_number=str(summary.get("inventory_number") or "")[:32],
+        posting_id=str(summary.get("posting_id") or "")[:32],
+        posting_number=str(summary.get("posting_number") or "")[:32],
+        charge_id=str(summary.get("charge_id") or "")[:32],
+        charge_number=str(summary.get("charge_number") or "")[:32],
+        prices_updated=int(summary.get("prices_updated") or 0),
+        prices_unchanged=int(summary.get("prices_unchanged") or 0),
+        prices_failed=int(summary.get("prices_failed") or 0),
+        prices_goods=int(summary.get("prices_goods") or 0),
+        prices_list_id=str(summary.get("prices_list_id") or "")[:32],
+        prices_list_number=str(summary.get("prices_list_number") or "")[:32],
+    )
+
+
+@admin.register(ApiKzSync)
+class ApiKzSyncAdmin(admin.ModelAdmin):
+    change_list_template = "admin/market/apikzsync/change_list.html"
+    list_display = (
+        "run_at",
+        "warehouse_code",
+        "store_id",
+        "ok",
+        "inventory_number",
+        "posting_number",
+        "charge_number",
+        "prices_updated",
+        "prices_unchanged",
+        "prices_failed",
+    )
+    list_filter = ("warehouse_code", "ok")
+    search_fields = (
+        "store_id",
+        "inventory_id",
+        "inventory_number",
+        "posting_id",
+        "posting_number",
+        "charge_id",
+        "charge_number",
+        "prices_list_id",
+        "prices_list_number",
+        "message",
+    )
+    fields = (
+        "run_at",
+        "warehouse_code",
+        "store_id",
+        "ok",
+        "inventory_id",
+        "inventory_number",
+        "posting_id",
+        "posting_number",
+        "charge_id",
+        "charge_number",
+        "prices_updated",
+        "prices_unchanged",
+        "prices_failed",
+        "prices_goods",
+        "prices_list_id",
+        "prices_list_number",
+        "message",
+    )
+    readonly_fields = fields
+    ordering = ("-run_at", "-id")
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "sync/",
+                self.admin_site.admin_view(self.sync_view),
+                name="market_apikzsync_sync",
+            ),
+        ]
+        return extra + urls
+
+    def sync_view(self, request):
+        list_url = reverse("admin:market_apikzsync_changelist")
+        if request.method != "POST":
+            return redirect(list_url)
+        summary = None
+        try:
+            summary = create_stock_inventory()
+            if not summary.get("inventory_id"):
+                raise BrStockInventoryError(
+                    "Документ инвентаризации не создан: "
+                    f"остатки {summary.get('current_lines')}, "
+                    f"API {summary.get('api_lines')}, "
+                    f"строк описи {summary.get('inventory_lines')}"
+                )
+        except BrStockInventoryError as extra:
+            _create_sync_log(summary, ok=False, message=str(extra))
+            messages.error(request, str(extra))
+            return redirect(list_url)
+        except Exception as extra:
+            _create_sync_log(summary, ok=False, message=str(extra))
+            messages.error(request, f"Синхронизация не удалась: {extra}")
+            return redirect(list_url)
+
+        text = _sync_result_text(summary)
+        log = _create_sync_log(summary, ok=True, message=text)
+        messages.success(request, text)
+        return redirect(reverse("admin:market_apikzsync_change", args=[log.pk]))
 
 
 @admin.register(GroupOfGoods)
@@ -217,6 +397,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
 
 _EMS_MODELS = {"emsratecolumn", "emsrate", "emsdestination"}
 _SETTINGS_MODELS = {"partnerapikey"}
+_API_KZ_MODELS = {"apikzsync"}
 
 _original_get_app_list = admin.site.get_app_list
 
@@ -237,6 +418,7 @@ def get_app_list(request, app_label=None):
     app_list = _original_get_app_list(request, app_label)
     ems_models = []
     settings_models = []
+    api_kz_models = []
     for app in app_list:
         if app.get("app_label") != "market":
             continue
@@ -247,6 +429,8 @@ def get_app_list(request, app_label=None):
                 ems_models.append(model)
             elif object_name in _SETTINGS_MODELS:
                 settings_models.append(model)
+            elif object_name in _API_KZ_MODELS:
+                api_kz_models.append(model)
             else:
                 remaining.append(model)
         app["models"] = remaining
@@ -254,6 +438,7 @@ def get_app_list(request, app_label=None):
     extras = [
         group
         for group in (
+            _app_group("API KZ", "api_kz", api_kz_models),
             _app_group("EMS", "ems", ems_models),
             _app_group("SETTINGS", "settings", settings_models),
         )
@@ -272,7 +457,7 @@ def get_app_list(request, app_label=None):
     if not inserted:
         result.extend(extras)
 
-    if app_label in {"ems", "settings"}:
+    if app_label in {"ems", "settings", "api_kz"}:
         return [app for app in result if app.get("app_label") == app_label]
     return result
 

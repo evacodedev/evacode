@@ -239,6 +239,50 @@ class CheckoutSettings(models.Model):
         return obj
 
 
+class ApiKzSync(models.Model):
+    WAREHOUSE_KZ = "KZ"
+    WAREHOUSE_RU = "RU"
+    WAREHOUSE_UZ = "UZ"
+    WAREHOUSE_CHOICES = (
+        (WAREHOUSE_KZ, "Казахстан"),
+        (WAREHOUSE_RU, "Россия"),
+        (WAREHOUSE_UZ, "Узбекистан"),
+    )
+
+    warehouse_code = models.CharField(
+        max_length=8,
+        choices=WAREHOUSE_CHOICES,
+        default=WAREHOUSE_KZ,
+        db_index=True,
+        verbose_name="Склад",
+    )
+    store_id = models.CharField(max_length=32, blank=True, db_index=True, verbose_name="ID склада BR")
+    run_at = models.DateTimeField(auto_now_add=True, verbose_name="Запуск")
+    ok = models.BooleanField(default=False, verbose_name="Успешно")
+    message = models.TextField(blank=True, verbose_name="Результат")
+    inventory_id = models.CharField(max_length=32, blank=True, verbose_name="ID инвентаризации BR")
+    inventory_number = models.CharField(max_length=32, blank=True, verbose_name="№ инвентаризации")
+    posting_id = models.CharField(max_length=32, blank=True, verbose_name="ID оприходования BR")
+    posting_number = models.CharField(max_length=32, blank=True, verbose_name="№ оприходования")
+    charge_id = models.CharField(max_length=32, blank=True, verbose_name="ID списания BR")
+    charge_number = models.CharField(max_length=32, blank=True, verbose_name="№ списания")
+    prices_updated = models.PositiveIntegerField(default=0, verbose_name="Цен обновлено")
+    prices_unchanged = models.PositiveIntegerField(default=0, verbose_name="Цен без изменений")
+    prices_failed = models.PositiveIntegerField(default=0, verbose_name="Цен с ошибкой")
+    prices_goods = models.PositiveIntegerField(default=0, verbose_name="Товаров с ценами")
+    prices_list_id = models.CharField(max_length=32, blank=True, verbose_name="ID назначения цен BR")
+    prices_list_number = models.CharField(max_length=32, blank=True, verbose_name="№ назначения цен")
+
+    class Meta:
+        verbose_name = "Запуск синхронизации"
+        verbose_name_plural = "История синхронизаций"
+        ordering = ("-run_at", "-id")
+
+    def __str__(self):
+        when = self.run_at.strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
+        return f"{self.get_warehouse_code_display()} {when}"
+
+
 class ImageModel(models.Model):
     group = models.ForeignKey(GroupOfGoods, on_delete=models.CASCADE, related_name='images', blank=True, null=True, verbose_name='Группа')
     good = models.ForeignKey(GoodsModel, on_delete=models.CASCADE, related_name='images', blank=True, null=True, verbose_name='Товар')

@@ -29,29 +29,39 @@ class BusinessRuOrderClient(BusinessRuAPIClient):
     def request(self, method: str, model: str, params: dict | None = None) -> dict:
         params = dict(params or {})
         params["app_id"] = self.app_id
-        hashed = self.get_hash(params=params, token=self.token)
         url = f"{self.base_url}/{model}.json"
-        body = {**params, "app_psw": hashed}
         method_l = method.lower()
-        if method_l == "get":
-            response = requests.get(url, params=body, timeout=30)
-        elif method_l == "put":
-            response = requests.put(url, data=body, timeout=30)
-        elif method_l == "delete":
-            response = requests.delete(url, data=body, timeout=30)
-        else:
-            response = requests.post(url, data=body, timeout=30)
-        try:
-            data = response.json()
-        except ValueError as exc:
-            raise BusinessRuOrderError(f"{model} {method}: не JSON ({response.status_code}) {response.text}") from exc
-        if not response.ok:
-            raise BusinessRuOrderError(f"{model} {method}: HTTP {response.status_code} {data}")
-        if isinstance(data, dict) and data.get("status") == "error":
-            raise BusinessRuOrderError(
-                f"{model} {method}: {data.get('error_text') or data.get('error_code') or data}"
-            )
-        return data
+        last_error = None
+        for attempt in range(2):
+            hashed = self.get_hash(params=params, token=self.token)
+            body = {**params, "app_psw": hashed}
+            if method_l == "get":
+                response = requests.get(url, params=body, timeout=30)
+            elif method_l == "put":
+                response = requests.put(url, data=body, timeout=30)
+            elif method_l == "delete":
+                response = requests.delete(url, data=body, timeout=30)
+            else:
+                response = requests.post(url, data=body, timeout=30)
+            text = response.text or ""
+            if response.status_code == 401 or "Invalid app_psw" in text:
+                last_error = BusinessRuOrderError(f"{model} {method}: не JSON ({response.status_code}) {text}")
+                self.set_token()
+                continue
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise BusinessRuOrderError(
+                    f"{model} {method}: не JSON ({response.status_code}) {text}"
+                ) from exc
+            if not response.ok:
+                raise BusinessRuOrderError(f"{model} {method}: HTTP {response.status_code} {data}")
+            if isinstance(data, dict) and data.get("status") == "error":
+                raise BusinessRuOrderError(
+                    f"{model} {method}: {data.get('error_text') or data.get('error_code') or data}"
+                )
+            return data
+        raise last_error or BusinessRuOrderError(f"{model} {method}: Invalid app_psw")
 
     def find_by_name(self, model: str, name: str, name_field: str = "name"):
         wanted = (name or "").strip().lower()
