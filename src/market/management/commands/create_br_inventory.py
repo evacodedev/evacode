@@ -9,7 +9,7 @@ from market.br_stock_inventory import (
 
 class Command(BaseCommand):
     help = (
-        "Создать инвентаризацию Business.Ru по складу BUSINESS_RU_INVENTORY_STORE_ID: "
+        "Создать инвентаризацию Business.Ru по складу 936507: "
         "остатки склада + факт из CRM stock API"
     )
 
