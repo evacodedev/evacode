@@ -20,7 +20,12 @@ from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
 from .pagination import CustomPagination, AllObjectPagination
 from .auth import PartnerApiKeyAuthentication
-from .utils import BusinessRuBarcodeLookup, BusinessRuService, serialize_business_ru_good
+from .utils import (
+    BusinessRuBarcodeLookup,
+    BusinessRuGoodPricesLookup,
+    BusinessRuService,
+    serialize_business_ru_good,
+)
 from rest_framework import generics, status
 from rest_framework.viewsets import ModelViewSet
 from .models import CheckoutSettings, GoodsModel, GroupOfGoods
@@ -80,6 +85,29 @@ class GoodsByBarcodeView(APIView):
             return Response({"detail": "Товар не найден"}, status=status.HTTP_404_NOT_FOUND)
         results = [serialize_business_ru_good(good, barcode) for good in goods]
         return Response({"count": len(results), "results": results})
+
+
+class GoodsKrwPricesView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [PartnerApiKeyAuthentication]
+
+    def get(self, request, good_id=None):
+        raw_id = good_id if good_id is not None else request.query_params.get("id")
+        try:
+            wanted = int(str(raw_id or "").strip())
+        except (TypeError, ValueError):
+            return Response({"detail": "Укажите id товара"}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            payload = BusinessRuGoodPricesLookup().get(wanted)
+        except Exception:
+            logger.exception("Цены товара %s в Business.Ru не удалось получить", wanted)
+            return Response(
+                {"detail": "Не удалось запросить товар в Business.Ru"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        if not payload:
+            return Response({"detail": "Товар не найден"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(payload)
 
 
 class GroupListAPIView(generics.ListAPIView):

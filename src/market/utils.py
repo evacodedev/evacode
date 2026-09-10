@@ -20,7 +20,8 @@ def load_evacode_env():
     src_dir = Path(__file__).resolve().parents[1]
     root_dir = Path(__file__).resolve().parents[2]
     load_dotenv(src_dir / ".env", override=False)
-    load_dotenv(root_dir / ".env", override=False)
+    if not (os.getenv("APP_ID") or "").strip() or not (os.getenv("API_SECRET") or "").strip():
+        load_dotenv(root_dir / ".env", override=True)
 
 
 load_evacode_env()
@@ -212,6 +213,169 @@ def serialize_business_ru_good(good: dict, scanned_barcode: str = "") -> dict:
         "weight": parse_weight_grams(good.get("weight")),
         "unit": unit or "",
     }
+
+
+def _norm_price_name(value) -> str:
+    return " ".join(str(value or "").lower().replace("ё", "е").replace(".", " ").split())
+
+
+KRW_PRICE_NAMES = {
+    "закупочная цена": "purchase_price",
+    "официальная цена": "official_price",
+    "розничная цена": "retail_price",
+    "мелкий опт": "small_wholesale_price",
+    "средний опт": "medium_wholesale_price",
+    "крупный опт": "large_wholesale_price",
+}
+
+
+def _price_amount(value):
+    if value in (None, ""):
+        return None
+    try:
+        amount = float(value)
+    except (TypeError, ValueError):
+        return None
+    if amount != amount:
+        return None
+    rounded = round(amount)
+    if abs(amount - rounded) < 1e-9:
+        return int(rounded)
+    return amount
+
+
+def _price_currency_text(price_type: dict) -> str:
+    currency = price_type.get("currency") if isinstance(price_type.get("currency"), dict) else {}
+    chunks = [
+        currency.get("id"),
+        currency.get("name"),
+        currency.get("short_name"),
+        currency.get("code"),
+        currency.get("iso"),
+        currency.get("symbol"),
+        currency.get("abbreviation"),
+        price_type.get("currency_id"),
+        price_type.get("currency_name"),
+        price_type.get("currency_short_name"),
+    ]
+    return " ".join(str(item or "") for item in chunks).lower()
+
+
+def _accept_krw_price(price_type: dict) -> bool:
+    text = _price_currency_text(price_type)
+    if any(token in text for token in ("krw", "вон", "₩", "won")):
+        return True
+    if any(token in text for token in ("kzt", "тенге", "₸", "rub", "руб", "₽", "rur")):
+        return False
+    return True
+
+
+def serialize_krw_prices(good: dict) -> dict:
+    payload = {
+        "id": good.get("id"),
+        "purchase_price": None,
+        "official_price": None,
+        "recommended_price": None,
+        "retail_price": None,
+        "small_wholesale_price": None,
+        "medium_wholesale_price": None,
+        "large_wholesale_price": None,
+    }
+    try:
+        payload["id"] = int(good.get("id"))
+    except (TypeError, ValueError):
+        pass
+    for item in good.get("prices") or []:
+        if not isinstance(item, dict):
+            continue
+        price_type = item.get("price_type") if isinstance(item.get("price_type"), dict) else {}
+        if not _accept_krw_price(price_type):
+            continue
+        field = KRW_PRICE_NAMES.get(_norm_price_name(price_type.get("name")))
+        if not field or payload.get(field) is not None:
+            continue
+        amount = _price_amount(item.get("price"))
+        if amount is None:
+            continue
+        payload[field] = amount
+    return payload
+
+
+def apply_current_prices(payload: dict, rows: list, type_id_to_field: dict) -> dict:
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        field = type_id_to_field.get(str(row.get("price_type_id") or ""))
+        if not field or payload.get(field) is not None:
+            continue
+        amount = _price_amount(row.get("price"))
+        if amount is None:
+            continue
+        payload[field] = amount
+    return payload
+
+
+def buy_price_type_fields(types: list) -> dict:
+    mapping = {}
+    for item in types:
+        if not isinstance(item, dict):
+            continue
+        field = KRW_PRICE_NAMES.get(_norm_price_name(item.get("name")))
+        if not field:
+            continue
+        type_id = item.get("id")
+        if type_id in (None, ""):
+            continue
+        mapping[str(type_id)] = field
+    return mapping
+
+
+class BusinessRuGoodPricesLookup:
+    def __init__(self, api_client=None):
+        self.api_client = api_client or BusinessRuAPIClient()
+
+    def get(self, good_id) -> dict | None:
+        try:
+            wanted = int(good_id)
+        except (TypeError, ValueError):
+            return None
+        items = _payload_list(
+            self._payload(
+                "goods",
+                {
+                    "id": wanted,
+                    "with_prices": 1,
+                },
+            )
+        )
+        good = next(
+            (item for item in items if isinstance(item, dict) and str(item.get("id")) == str(wanted)),
+            None,
+        )
+        if not good:
+            return None
+        payload = serialize_krw_prices(good)
+        self._fill_buy_prices(payload, wanted)
+        return payload
+
+    def _fill_buy_prices(self, payload: dict, wanted: int) -> None:
+        try:
+            types = _payload_list(self.api_client.get_json("buypricetypes", {}))
+            rows = _payload_list(
+                self.api_client.get_json("currentprices", {"good_id": wanted})
+            )
+        except ValueError:
+            return
+        apply_current_prices(payload, rows, buy_price_type_fields(types))
+
+    def _payload(self, model: str, extra: dict) -> dict:
+        try:
+            return self.api_client.get_json(model, extra)
+        except ValueError as extra_err:
+            text = str(extra_err).lower()
+            if any(token in text for token in ("unknown model", "не найден", "not found", "does not exist")):
+                return {"result": []}
+            raise
 
 
 class BusinessRuBarcodeLookup:

@@ -6,7 +6,13 @@ from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
 from market.models import GoodsModel, GroupOfGoods, ImageModel, PartnerApiKey
-from market.utils import BusinessRuBarcodeLookup, BusinessRuService, parse_weight_grams
+from market.utils import (
+    BusinessRuBarcodeLookup,
+    BusinessRuGoodPricesLookup,
+    BusinessRuService,
+    parse_weight_grams,
+    serialize_krw_prices,
+)
 
 
 class GoodsFilterApiTests(TestCase):
@@ -586,3 +592,167 @@ class AdminAppListTests(TestCase):
         self.assertRegex(html, r">SETTINGS</")
         self.assertIn("Токены API партнёров", html)
         self.assertIn("Направления EMS", html)
+
+
+def _krw_price(name, amount, symbol="₩"):
+    return {
+        "price": amount,
+        "price_type": {"name": name, "currency": {"symbol": symbol, "code": "KRW" if symbol == "₩" else ""}},
+    }
+
+
+class KrwPricesTests(TestCase):
+    def test_serialize_keeps_only_won_types(self):
+        payload = serialize_krw_prices(
+            {
+                "id": "943196",
+                "prices": [
+                    _krw_price("Крупный опт", "38000"),
+                    _krw_price("Средний опт", "42000"),
+                    _krw_price("Мелкий опт", "48000"),
+                    _krw_price("Розничная Цена", "61000"),
+                    {
+                        "price": "82500",
+                        "price_type": {"name": "С. Каз Офиц цена", "currency": {"symbol": "₸", "code": "KZT"}},
+                    },
+                    _krw_price("Официальная Цена", "220000"),
+                    {
+                        "price": "12338",
+                        "price_type": {"name": "KZ закупка", "currency": {"symbol": "₸", "code": "KZT"}},
+                    },
+                    _krw_price("Закупочная Цена", "28260"),
+                    {
+                        "price": "1681",
+                        "price_type": {"name": "Рос закуп", "currency": {"symbol": "₽", "code": "RUB"}},
+                    },
+                ],
+            }
+        )
+        self.assertEqual(
+            payload,
+            {
+                "id": 943196,
+                "purchase_price": 28260,
+                "official_price": 220000,
+                "recommended_price": None,
+                "retail_price": 61000,
+                "small_wholesale_price": 48000,
+                "medium_wholesale_price": 42000,
+                "large_wholesale_price": 38000,
+            },
+        )
+
+    def test_lookup_returns_archived_by_id(self):
+        client = FakeBarcodeClient(
+            {
+                "goods": {
+                    "result": [
+                        {
+                            "id": "11",
+                            "archive": 1,
+                            "prices": [_krw_price("Розничная Цена", "1000")],
+                        }
+                    ]
+                }
+            }
+        )
+        payload = BusinessRuGoodPricesLookup(api_client=client).get(11)
+        self.assertEqual(payload["id"], 11)
+        self.assertEqual(payload["retail_price"], 1000)
+
+    def test_lookup_fills_purchase_from_currentprices(self):
+        client = FakeBarcodeClient(
+            {
+                "goods": {
+                    "result": [
+                        {
+                            "id": "11",
+                            "prices": [_krw_price("Розничная Цена", "61000")],
+                        }
+                    ]
+                },
+                "buypricetypes": {
+                    "result": [
+                        {"id": "75622", "name": "Закупочная Цена", "currency": "14"},
+                        {"id": "936485", "name": "KZ закупка", "currency": "7"},
+                    ]
+                },
+                "currentprices": {
+                    "result": [
+                        {"good_id": "11", "price_type_id": "75622", "price": "28260"},
+                        {"good_id": "11", "price_type_id": "936485", "price": "12338"},
+                    ]
+                },
+            }
+        )
+        payload = BusinessRuGoodPricesLookup(api_client=client).get(11)
+        self.assertEqual(payload["purchase_price"], 28260)
+        self.assertEqual(payload["retail_price"], 61000)
+
+    def test_lookup_requires_matching_id(self):
+        client = FakeBarcodeClient(
+            {
+                "goods": {
+                    "result": [
+                        {
+                            "id": "99",
+                            "prices": [_krw_price("Розничная Цена", "1000")],
+                        }
+                    ]
+                }
+            }
+        )
+        self.assertIsNone(BusinessRuGoodPricesLookup(api_client=client).get(11))
+
+
+class GoodsKrwPricesApiTests(TestCase):
+    def setUp(self):
+        self.key = PartnerApiKey.objects.create(name="Тест", token="test-partner-token")
+        self.auth = {"HTTP_X_API_KEY": self.key.token}
+
+    def test_requires_token(self):
+        response = self.client.get("/api/market/goods/11/prices/")
+        self.assertEqual(response.status_code, 401)
+
+    def test_catalog_detail_stays_public(self):
+        category = GroupOfGoods.objects.create(
+            id=10,
+            default_order="1",
+            deleted=False,
+            name="Кремы",
+            updated="2024-01-01T00:00:00Z",
+        )
+        GoodsModel.objects.create(
+            id=11,
+            title="Whoo",
+            category=category,
+            type="goods",
+            stock=2,
+            retail_price=61000,
+        )
+        response = self.client.get("/api/market/goods/11/")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("purchase_price", response.json())
+
+    def test_returns_krw_prices(self):
+        with patch("market.views.BusinessRuGoodPricesLookup") as lookup_cls:
+            lookup_cls.return_value.get.return_value = {
+                "id": 11,
+                "purchase_price": 28260,
+                "official_price": 220000,
+                "recommended_price": None,
+                "retail_price": 61000,
+                "small_wholesale_price": 48000,
+                "medium_wholesale_price": 42000,
+                "large_wholesale_price": 38000,
+            }
+            response = self.client.get("/api/market/goods/11/prices/", **self.auth)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["purchase_price"], 28260)
+        self.assertIsNone(response.json()["recommended_price"])
+
+    def test_not_found(self):
+        with patch("market.views.BusinessRuGoodPricesLookup") as lookup_cls:
+            lookup_cls.return_value.get.return_value = None
+            response = self.client.get("/api/market/goods/11/prices/", **self.auth)
+        self.assertEqual(response.status_code, 404)
