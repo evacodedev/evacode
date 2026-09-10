@@ -26,7 +26,7 @@ from .shipping import (
     METHOD_PICKUP,
     active_shipping_destinations,
     cart_weight_grams,
-    chargeable_weight_grams,
+    parcel_weights,
     parse_cart_lines,
     quote_shipping,
 )
@@ -266,7 +266,7 @@ class CreateSiteOrderView(APIView):
             shipping_destination=quote["destination"],
             shipping_krw=quote["shipping_krw"],
             goods_krw=goods_krw,
-            weight_grams=quote["weight_grams"] or None,
+            weight_grams=((quote["weight_grams"] or 0) + (quote.get("packing_grams") or 0)) or None,
             amount_krw=total_krw,
             amount_usd=amount_usd,
             usd_rate_snapshot=usd_snapshot,
@@ -341,10 +341,7 @@ class ShippingQuoteView(APIView):
         method = str(shipping.get("method") or "").strip()
         destination = str(shipping.get("destination") or "").strip()
         weight, _weight_error = cart_weight_grams(parsed[0])
-        weight_payload = {
-            "weight_grams": weight or 0,
-            "chargeable_weight_grams": chargeable_weight_grams(weight or 0),
-        }
+        weight_payload = parcel_weights(weight or 0)
         if not method or (method == METHOD_EMS and not destination):
             return JsonResponse({**weight_payload, "shipping_krw": None})
         quote, shipping_error = quote_shipping(method, destination, parsed[0])

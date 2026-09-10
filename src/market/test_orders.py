@@ -150,12 +150,13 @@ class SiteOrderApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 200, response.content)
         data = response.json()
-        self.assertEqual(data["shipping_krw"], 39500)
+        self.assertEqual(data["shipping_krw"], 57000)
         self.assertEqual(data["weight_grams"], 800)
-        self.assertEqual(data["chargeable_weight_grams"], 800)
+        self.assertEqual(data["packing_grams"], 500)
+        self.assertEqual(data["chargeable_weight_grams"], 1300)
 
     @patch("market.order_views.create_order")
-    @patch("market.order_views.krw_to_usd", return_value=(Decimal("37.19"), Decimal("1600")))
+    @patch("market.order_views.krw_to_usd", return_value=(Decimal("48.13"), Decimal("1600")))
     def test_create_order_includes_ems_in_total(self, _rate, create_order_mock):
         from io import BytesIO
 
@@ -174,9 +175,10 @@ class SiteOrderApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         order = SiteOrder.objects.get(public_id=response.json()["id"])
         self.assertEqual(order.goods_krw, 20000)
-        self.assertEqual(order.shipping_krw, 39500)
-        self.assertEqual(order.amount_krw, 59500)
-        self.assertEqual(create_order_mock.call_args.kwargs["amount_usd"], Decimal("37.19"))
+        self.assertEqual(order.shipping_krw, 57000)
+        self.assertEqual(order.amount_krw, 77000)
+        self.assertEqual(order.weight_grams, 1300)
+        self.assertEqual(create_order_mock.call_args.kwargs["amount_usd"], Decimal("48.13"))
 
     def test_destinations_skip_korea(self):
         response = self.client.get("/api/market/shipping/destinations/")
@@ -196,6 +198,8 @@ class SiteOrderApiTests(TestCase):
         self.assertEqual(response.status_code, 200, response.content)
         data = response.json()
         self.assertEqual(data["weight_grams"], 800)
+        self.assertEqual(data["packing_grams"], 500)
+        self.assertEqual(data["chargeable_weight_grams"], 1300)
         self.assertIsNone(data["shipping_krw"])
 
     def test_checkout_settings_are_public(self):

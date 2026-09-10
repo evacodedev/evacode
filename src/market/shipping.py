@@ -12,6 +12,29 @@ def chargeable_weight_grams(weight_grams: int) -> int:
     return ((int(weight_grams) + 99) // 100) * 100
 
 
+def packing_weight_grams(goods_grams: int) -> int:
+    if goods_grams is None or goods_grams <= 0:
+        return 0
+    if goods_grams <= 2000:
+        return 500
+    if goods_grams <= 5000:
+        return 800
+    if goods_grams <= 10000:
+        return 1300
+    return 2000
+
+
+def parcel_weights(goods_grams: int) -> dict:
+    goods = int(goods_grams or 0)
+    packing = packing_weight_grams(goods)
+    billed = chargeable_weight_grams(goods + packing) if goods else 0
+    return {
+        "weight_grams": goods,
+        "packing_grams": packing,
+        "chargeable_weight_grams": billed,
+    }
+
+
 def active_shipping_destinations():
     return [
         {
@@ -65,12 +88,12 @@ def quote_shipping(method, destination_code, prepared):
 
     if method == METHOD_PICKUP:
         weight, _weight_error = cart_weight_grams(prepared)
+        weights = parcel_weights(weight or 0)
         return {
             "method": METHOD_PICKUP,
             "destination": "KR",
             "destination_name": "Самовывоз",
-            "weight_grams": weight or 0,
-            "chargeable_weight_grams": 0,
+            **weights,
             "shipping_krw": 0,
         }, None
 
@@ -83,15 +106,14 @@ def quote_shipping(method, destination_code, prepared):
     weight, weight_error = cart_weight_grams(prepared)
     if weight_error:
         return None, weight_error
-    billed = chargeable_weight_grams(weight)
-    price = ems_price_krw(destination.code, billed)
+    weights = parcel_weights(weight)
+    price = ems_price_krw(destination.code, weights["chargeable_weight_grams"])
     if price is None:
         return None, "Для этого веса нет тарифа EMS"
     return {
         "method": METHOD_EMS,
         "destination": destination.code,
         "destination_name": destination.name,
-        "weight_grams": weight,
-        "chargeable_weight_grams": billed,
+        **weights,
         "shipping_krw": price,
     }, None

@@ -249,6 +249,14 @@
               <dd>{{ packageWeightLabel }}</dd>
             </div>
             <div>
+              <dt>Упаковка</dt>
+              <dd>{{ packingWeightLabel }}</dd>
+            </div>
+            <div>
+              <dt>Общий вес</dt>
+              <dd>{{ totalWeightLabel }}</dd>
+            </div>
+            <div>
               <dt>Доставка</dt>
               <dd>{{ shippingLine }}</dd>
             </div>
@@ -336,18 +344,29 @@ export default {
       }, 0)
     },
     packageWeightLabel() {
-      const grams = this.packageWeightGrams
-      if (!grams) {
-        return '—'
+      return this.formatWeightGrams(this.packageWeightGrams)
+    },
+    packingGrams() {
+      if (this.quotedPackingGrams != null) {
+        return this.quotedPackingGrams
       }
-      if (grams >= 1000) {
-        const kg = (grams / 1000).toLocaleString('ru-RU', {
-          maximumFractionDigits: 2,
-          minimumFractionDigits: grams % 1000 === 0 ? 0 : 2,
-        })
-        return `${kg} кг`
+      return this.packingFromGoods(this.packageWeightGrams)
+    },
+    packingWeightLabel() {
+      return this.formatWeightGrams(this.packingGrams)
+    },
+    totalWeightGrams() {
+      if (this.quotedChargeableGrams != null) {
+        return this.quotedChargeableGrams
       }
-      return `${grams.toLocaleString('ru-RU')} г`
+      const goods = this.packageWeightGrams
+      if (!goods) {
+        return 0
+      }
+      return this.roundUp100(goods + this.packingGrams)
+    },
+    totalWeightLabel() {
+      return this.formatWeightGrams(this.totalWeightGrams)
     },
     ctaLabel() {
       if (!this.settingsLoaded) {
@@ -416,6 +435,8 @@ export default {
       destinations: [],
       shippingKrw: null,
       quotedWeightGrams: null,
+      quotedPackingGrams: null,
+      quotedChargeableGrams: null,
       shippingLoading: false,
       shippingError: '',
       quoteTimer: null,
@@ -490,6 +511,40 @@ export default {
   methods: {
     itemImage(item) {
       return item.images?.[0]?.url || item.image || ''
+    },
+    packingFromGoods(grams) {
+      if (!grams) {
+        return 0
+      }
+      if (grams <= 2000) {
+        return 500
+      }
+      if (grams <= 5000) {
+        return 800
+      }
+      if (grams <= 10000) {
+        return 1300
+      }
+      return 2000
+    },
+    roundUp100(grams) {
+      if (!grams) {
+        return 0
+      }
+      return Math.ceil(grams / 100) * 100
+    },
+    formatWeightGrams(grams) {
+      if (!grams) {
+        return '—'
+      }
+      if (grams >= 1000) {
+        const kg = (grams / 1000).toLocaleString('ru-RU', {
+          maximumFractionDigits: 2,
+          minimumFractionDigits: grams % 1000 === 0 ? 0 : 2,
+        })
+        return `${kg} кг`
+      }
+      return `${grams.toLocaleString('ru-RU')} г`
     },
     userValues() {
       const firstName = [this.user.firstName.value, this.user.lastName.value]
@@ -651,10 +706,23 @@ export default {
           },
         })
         this.quotedWeightGrams = data.weight_grams || 0
+        this.quotedPackingGrams = data.packing_grams ?? this.packingFromGoods(this.quotedWeightGrams)
+        this.quotedChargeableGrams = data.chargeable_weight_grams
+          ?? this.roundUp100(this.quotedWeightGrams + this.quotedPackingGrams)
         this.shippingKrw = waitingForCountry ? null : data.shipping_krw
       } catch (error) {
         if (error?.data?.weight_grams) {
           this.quotedWeightGrams = error.data.weight_grams
+        }
+        if (error?.data?.packing_grams != null) {
+          this.quotedPackingGrams = error.data.packing_grams
+        }
+        if (error?.data?.chargeable_weight_grams != null) {
+          this.quotedChargeableGrams = error.data.chargeable_weight_grams
+        } else if (this.quotedWeightGrams) {
+          this.quotedChargeableGrams = this.roundUp100(
+            this.quotedWeightGrams + (this.quotedPackingGrams || this.packingFromGoods(this.quotedWeightGrams)),
+          )
         }
         this.shippingKrw = null
         if (!waitingForCountry) {
