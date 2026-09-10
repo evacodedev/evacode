@@ -179,6 +179,17 @@ class GoodsListPrefetchTests(TestCase):
         self.assertEqual(payload["description"], "текст")
         self.assertIn("wholesale_price", payload)
         self.assertEqual(len(payload["images"]), 2)
+        self.assertIn("content_blocks", payload)
+        self.assertEqual(payload["content_blocks"], [])
+        self.assertIsNone(payload["content_brand"])
+        self.assertIsNone(payload["content_kind"])
+
+    def test_list_omits_pdp_content_fields(self):
+        response = self.client.get("/api/market/goods/", {"page_size": 12})
+        item = response.json()["results"][0]
+        self.assertNotIn("content_blocks", item)
+        self.assertNotIn("content_brand", item)
+        self.assertNotIn("content_kind", item)
 
 
 class GoodsPageSizeCapTests(TestCase):

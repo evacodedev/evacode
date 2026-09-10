@@ -51,13 +51,24 @@ keyboard = types.InlineKeyboardMarkup().add(InlineKeyboardButton(text='Обра�
 
 
 class GoodsAPIView(ModelViewSet):
-    queryset = GoodsModel.objects.filter(stock__gt=0).distinct().prefetch_related("images")
+    queryset = GoodsModel.objects.filter(stock__gt=0).distinct()
     serializer_class = GoodsSerializer
     pagination_class = CustomPagination
     filter_backends = (filters.DjangoFilterBackend, GoodsOrderingFilter)
     filterset_class = GoodsFilter
     ordering_fields = ["retail_price", "title"]
     ordering = ["title"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if getattr(self, "action", None) == "list":
+            return qs.prefetch_related("images")
+        return qs.select_related("content_brand", "content_kind", "pdp_content").prefetch_related(
+            "images",
+            "content_brand__translations",
+            "content_kind__translations",
+            "pdp_content__blocks__translations",
+        )
 
     def get_serializer_class(self):
         if self.action == "list":
