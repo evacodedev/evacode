@@ -202,7 +202,17 @@
   .cart-drawer-slide-leave-active,
   .product-skeleton .img-wrapper,
   .product-skeleton .skeleton-line,
-  .skeleton-block {
+  .skeleton-block,
+  .product-pdp.is-ready .product-pdp__acc-panel,
+  .product-pdp__photo,
+  .product-pdp__thumb,
+  .product-pdp__cta,
+  .product-pdp__acc-head,
+  .product-pdp__acc-title::after,
+  .product-pdp__acc-icon::before,
+  .product-pdp__acc-icon::after,
+  .product-pdp__acc-inner,
+  .product-pdp__qty-box button {
     animation: none !important;
     transition: none !important;
     transform: none !important;

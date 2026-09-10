@@ -22,9 +22,9 @@
             </div>
         </div>
     </div>
-    <div v-else class="product-pdp">
+    <div v-else class="product-pdp" :class="{ 'is-ready': motionReady }">
         <div class="container product-pdp__layout">
-            <div class="product-pdp__gallery">
+            <div class="product-pdp__gallery motion-appear" style="--i: 0">
                 <div v-if="productImages.length > 1" class="product-pdp__thumbs">
                     <button
                         v-for="(image, index) in productImages"
@@ -52,13 +52,14 @@
                                 :class="{ 'is-loaded': loadedImages[index] }"
                                 :alt="product.title"
                                 @load="markImageLoaded(index)"
+                                @error="markImageLoaded(index)"
                             />
                         </SwiperSlide>
                     </Swiper>
                     <div v-else class="skeleton-block product-pdp__hero-skel"></div>
                 </div>
             </div>
-            <div class="product-pdp__buy">
+            <div class="product-pdp__buy motion-appear" style="--i: 2">
                 <p v-if="brandName" class="product-pdp__brand">{{ brandName }}</p>
                 <h1 class="product-pdp__title">{{ product.title }}</h1>
                 <p v-if="metaLine" class="product-pdp__meta">{{ metaLine }}</p>
@@ -88,7 +89,7 @@
                 </button>
                 <p class="product-pdp__avail">{{ outOfStock ? 'Нет в наличии' : 'В наличии' }}</p>
             </div>
-            <div v-if="accordionItems.length" class="product-pdp__accordion">
+            <div v-if="accordionItems.length" class="product-pdp__accordion motion-appear" style="--i: 5">
                 <div
                     v-for="item in accordionItems"
                     :key="item.kind"
@@ -103,13 +104,15 @@
                         @click="toggleAccordion(item.kind)"
                     >
                         <span class="product-pdp__acc-title">{{ item.heading }}</span>
-                        <span class="product-pdp__acc-icon" aria-hidden="true">{{ isAccordionOpen(item.kind) ? '−' : '+' }}</span>
+                        <span class="product-pdp__acc-icon" aria-hidden="true"></span>
                     </button>
                     <div
-                        v-if="isAccordionOpen(item.kind)"
                         :id="'pdp-acc-' + item.kind"
-                        class="product-pdp__acc-inner"
+                        class="product-pdp__acc-panel"
+                        :class="{ 'is-open': isAccordionOpen(item.kind) }"
+                        :inert="!isAccordionOpen(item.kind)"
                     >
+                        <div class="product-pdp__acc-inner">
                         <p v-if="item.body" class="product-pdp__body">{{ item.body }}</p>
                         <ul v-if="isStringList(item)" class="product-pdp__list">
                             <li v-for="(row, i) in item.items" :key="i">{{ row }}</li>
@@ -125,6 +128,7 @@
                             class="product-pdp__html is-open"
                             v-html="item.html"
                         ></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -173,6 +177,7 @@ const slideId = ref(0);
 const counter = ref(1);
 const swiper = ref({});
 const openKinds = ref({ description: true });
+const motionReady = ref(false);
 const productId = String(route.params.id);
 
 const { data: productResponse, pending, status, error } = await useAsyncData(
@@ -265,6 +270,12 @@ const markImageLoaded = (index) => {
 const onSwiper = (_swiper) => {
     swiper.value = _swiper;
 };
+
+onMounted(() => {
+    requestAnimationFrame(() => {
+        motionReady.value = true;
+    });
+});
 
 const addToCart = (item, qty) => {
     const payload = {

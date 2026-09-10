@@ -833,8 +833,9 @@
     .product-pdp__thumbs {
         order: 2;
         flex-direction: row;
+        flex-wrap: wrap;
         max-height: none;
-        overflow: auto;
+        overflow: visible;
     }
 
     .product-pdp__stage {
