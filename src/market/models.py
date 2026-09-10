@@ -15,6 +15,84 @@ def generate_partner_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+CONTENT_LANGUAGES = (
+    ("ru", "Русский"),
+    ("en", "English"),
+    ("ko", "한국어"),
+)
+
+CONTENT_BLOCK_KINDS = (
+    ("lead", "Лид"),
+    ("about", "О товаре"),
+    ("benefits", "Преимущества"),
+    ("ingredients", "Компоненты"),
+    ("texture", "Текстура"),
+    ("how_to_use", "Применение"),
+    ("suitable_for", "Подходит для"),
+    ("volume", "Объём"),
+    ("weight", "Вес"),
+    ("rest", "Остаток"),
+)
+
+
+class ProductBrand(models.Model):
+    slug = models.SlugField(max_length=160, unique=True, allow_unicode=True, verbose_name="Код")
+
+    class Meta:
+        verbose_name = "Бренд"
+        verbose_name_plural = "Бренды"
+        ordering = ("slug",)
+
+    def __str__(self):
+        ru = self.translations.filter(language="ru").first()
+        return (ru.name if ru else "") or self.slug
+
+
+class ProductBrandI18n(models.Model):
+    brand = models.ForeignKey(ProductBrand, on_delete=models.CASCADE, related_name="translations")
+    language = models.CharField(max_length=8, choices=CONTENT_LANGUAGES, verbose_name="Язык")
+    name = models.CharField(max_length=256, verbose_name="Название")
+
+    class Meta:
+        verbose_name = "Перевод бренда"
+        verbose_name_plural = "Переводы брендов"
+        constraints = [
+            models.UniqueConstraint(fields=("brand", "language"), name="market_brand_i18n_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.language}: {self.name}"
+
+
+class ProductKind(models.Model):
+    slug = models.SlugField(max_length=160, unique=True, verbose_name="Код")
+
+    class Meta:
+        verbose_name = "Тип товара"
+        verbose_name_plural = "Типы товаров"
+        ordering = ("slug",)
+
+    def __str__(self):
+        ru = self.translations.filter(language="ru").first()
+        return (ru.name if ru else "") or self.slug
+
+
+class ProductKindI18n(models.Model):
+    kind = models.ForeignKey(ProductKind, on_delete=models.CASCADE, related_name="translations")
+    language = models.CharField(max_length=8, choices=CONTENT_LANGUAGES, verbose_name="Язык")
+    name = models.CharField(max_length=256, verbose_name="Название")
+
+    class Meta:
+        verbose_name = "Перевод типа товара"
+        verbose_name_plural = "Переводы типов товаров"
+        constraints = [
+            models.UniqueConstraint(fields=("kind", "language"), name="market_kind_i18n_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.language}: {self.name}"
+
+
 class GroupOfGoods(models.Model):
     default_order = models.CharField(max_length=128)
     site_order = models.IntegerField(blank=True, null=True, verbose_name='Порядок на сайте')
@@ -39,6 +117,25 @@ class GoodsModel(models.Model):
     large_wholesale_price = models.PositiveIntegerField(blank=True, null=True, verbose_name='Крупный опт')
     weight = models.PositiveIntegerField(blank=True, null=True, verbose_name='Вес, г')
     queue = models.IntegerField(blank=True, null=True, verbose_name='Очередь в списке')
+    content_brand = models.ForeignKey(
+        ProductBrand,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="goods",
+        verbose_name="Бренд (контент)",
+    )
+    content_kind = models.ForeignKey(
+        ProductKind,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="goods",
+        verbose_name="Тип (контент)",
+    )
+
+    def __str__(self):
+        return self.title or str(self.id)
 
 
 class EmsRateColumn(models.Model):
@@ -331,6 +428,68 @@ class ApiKzSyncSettings(models.Model):
             defaults={"enabled": False, "weekdays": "", "run_time": dt_time(3, 0)},
         )
         return obj
+
+
+class ProductContent(models.Model):
+    good = models.OneToOneField(
+        GoodsModel,
+        on_delete=models.CASCADE,
+        related_name="pdp_content",
+        verbose_name="Товар",
+    )
+    parsed_at = models.DateTimeField(auto_now=True, verbose_name="Разобрано")
+
+    class Meta:
+        verbose_name = "Контент карточки"
+        verbose_name_plural = "Контент карточек"
+
+    def __str__(self):
+        return f"Контент {self.good_id}"
+
+
+class ProductContentBlock(models.Model):
+    content = models.ForeignKey(
+        ProductContent,
+        on_delete=models.CASCADE,
+        related_name="blocks",
+        verbose_name="Контент",
+    )
+    kind = models.CharField(max_length=32, choices=CONTENT_BLOCK_KINDS, verbose_name="Секция")
+    sort = models.PositiveSmallIntegerField(default=0, verbose_name="Порядок")
+
+    class Meta:
+        verbose_name = "Секция карточки"
+        verbose_name_plural = "Секции карточек"
+        ordering = ("sort", "id")
+        constraints = [
+            models.UniqueConstraint(fields=("content", "kind"), name="market_pdp_block_kind_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.content_id}:{self.kind}"
+
+
+class ProductContentBlockI18n(models.Model):
+    block = models.ForeignKey(
+        ProductContentBlock,
+        on_delete=models.CASCADE,
+        related_name="translations",
+        verbose_name="Секция",
+    )
+    language = models.CharField(max_length=8, choices=CONTENT_LANGUAGES, verbose_name="Язык")
+    heading = models.CharField(max_length=256, blank=True, verbose_name="Заголовок")
+    body = models.TextField(blank=True, verbose_name="Текст")
+    items = models.JSONField(default=list, blank=True, verbose_name="Пункты")
+
+    class Meta:
+        verbose_name = "Перевод секции"
+        verbose_name_plural = "Переводы секций"
+        constraints = [
+            models.UniqueConstraint(fields=("block", "language"), name="market_pdp_block_i18n_uniq"),
+        ]
+
+    def __str__(self):
+        return f"{self.block_id}:{self.language}"
 
 
 class ImageModel(models.Model):

@@ -19,10 +19,18 @@ from .models import (
     GoodsModel,
     GroupOfGoods,
     PartnerApiKey,
+    ProductBrand,
+    ProductBrandI18n,
+    ProductContent,
+    ProductContentBlock,
+    ProductContentBlockI18n,
+    ProductKind,
+    ProductKindI18n,
     SiteOrder,
     SiteOrderItem,
     CheckoutSettings,
 )
+from .product_content import apply_product_content
 
 
 @admin.register(CheckoutSettings)
@@ -198,12 +206,101 @@ class GroupOfGoodsAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
+class ProductBrandI18nInline(admin.TabularInline):
+    model = ProductBrandI18n
+    extra = 1
+
+
+@admin.register(ProductBrand)
+class ProductBrandAdmin(admin.ModelAdmin):
+    list_display = ("slug",)
+    search_fields = ("slug", "translations__name")
+    inlines = (ProductBrandI18nInline,)
+
+
+class ProductKindI18nInline(admin.TabularInline):
+    model = ProductKindI18n
+    extra = 1
+
+
+@admin.register(ProductKind)
+class ProductKindAdmin(admin.ModelAdmin):
+    list_display = ("slug",)
+    search_fields = ("slug", "translations__name")
+    inlines = (ProductKindI18nInline,)
+
+
+class ProductContentBlockI18nInline(admin.TabularInline):
+    model = ProductContentBlockI18n
+    extra = 0
+
+
+@admin.register(ProductContentBlock)
+class ProductContentBlockAdmin(admin.ModelAdmin):
+    list_display = ("id", "content", "kind", "sort")
+    list_filter = ("kind",)
+    search_fields = ("content__good__title",)
+    inlines = (ProductContentBlockI18nInline,)
+
+
+class ProductContentBlockInline(admin.TabularInline):
+    model = ProductContentBlock
+    extra = 0
+    show_change_link = True
+
+
+@admin.register(ProductContent)
+class ProductContentAdmin(admin.ModelAdmin):
+    list_display = ("good", "parsed_at")
+    search_fields = ("good__title", "good_id")
+    inlines = (ProductContentBlockInline,)
+
+
 @admin.register(GoodsModel)
 class GoodsModelAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "stock", "queue", "weight", "retail_price")
+    list_display = ("id", "title", "content_brand", "content_kind", "stock", "queue", "weight", "retail_price")
     list_editable = ("queue",)
+    list_filter = ("content_brand", "content_kind")
     search_fields = ("title", "id")
     list_per_page = 50
+    autocomplete_fields = ("content_brand", "content_kind")
+    actions = ("parse_product_content_action",)
+    change_form_template = "admin/market/goodsmodel/change_form.html"
+    readonly_fields = ("has_pdp_content",)
+
+    @admin.display(boolean=True, description="Контент")
+    def has_pdp_content(self, obj):
+        return hasattr(obj, "pdp_content")
+
+    @admin.action(description="Создать контент и распарсить описание")
+    def parse_product_content_action(self, request, queryset):
+        parsed = 0
+        for good in queryset:
+            apply_product_content(good, force=True)
+            parsed += 1
+        self.message_user(request, f"Разобрано товаров: {parsed}", messages.SUCCESS)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "<path:object_id>/parse-content/",
+                self.admin_site.admin_view(self.parse_content_view),
+                name="market_goodsmodel_parse_content",
+            ),
+        ]
+        return extra + urls
+
+    def parse_content_view(self, request, object_id):
+        if request.method != "POST":
+            return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
+        good = GoodsModel.objects.filter(pk=object_id).first()
+        if not good:
+            messages.error(request, "Товар не найден")
+            return redirect(reverse("admin:market_goodsmodel_changelist"))
+        apply_product_content(good, force=True)
+        messages.success(request, "Контент создан, описание разобрано")
+        return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
 
 
 @admin.register(EmsRateColumn)

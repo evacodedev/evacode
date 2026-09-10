@@ -1,0 +1,14 @@
+{% extends "admin/change_form.html" %}
+{% block object-tools-items %}
+{% if original %}
+<li>
+    <form method="post" action="{% url 'admin:market_goodsmodel_parse_content' original.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="historylink" style="background:none;border:0;padding:0;color:inherit;cursor:pointer">
+            Создать контент и распарсить описание
+        </button>
+    </form>
+</li>
+{% endif %}
+{{ block.super }}
+{% endblock %}

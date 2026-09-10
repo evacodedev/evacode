@@ -599,6 +599,10 @@ class BusinessRuService:
                         defaults=defaults,
                     )
                     self._sync_good_images(good_id, good.get("images"))
+                    if created:
+                        from .product_content import apply_product_content
+
+                        apply_product_content(_obj, force=False)
                     active_ids.add(good_id)
                     if created:
                         created_count += 1
