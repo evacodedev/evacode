@@ -251,26 +251,52 @@ class ProductContentBlockInline(admin.TabularInline):
 
 @admin.register(ProductContent)
 class ProductContentAdmin(admin.ModelAdmin):
-    list_display = ("good", "parsed_at")
+    list_display = ("good", "enrichment_status", "parsed_at")
+    list_filter = ("enrichment_status",)
     search_fields = ("good__title", "good_id")
+    readonly_fields = ("enrichment_status", "enrichment_reasons", "parsed_at")
     inlines = (ProductContentBlockInline,)
 
 
 @admin.register(GoodsModel)
 class GoodsModelAdmin(admin.ModelAdmin):
-    list_display = ("id", "title", "content_brand", "content_kind", "stock", "queue", "weight", "retail_price")
+    list_display = (
+        "id",
+        "title",
+        "content_brand",
+        "content_kind",
+        "enrichment_label",
+        "stock",
+        "queue",
+        "weight",
+        "retail_price",
+    )
     list_editable = ("queue",)
-    list_filter = ("content_brand", "content_kind")
+    list_filter = ("content_brand", "content_kind", "pdp_content__enrichment_status")
     search_fields = ("title", "id")
     list_per_page = 50
     autocomplete_fields = ("content_brand", "content_kind")
     actions = ("parse_product_content_action",)
     change_form_template = "admin/market/goodsmodel/change_form.html"
-    readonly_fields = ("has_pdp_content",)
+    readonly_fields = ("has_pdp_content", "enrichment_label")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("pdp_content")
 
     @admin.display(boolean=True, description="Контент")
     def has_pdp_content(self, obj):
         return hasattr(obj, "pdp_content")
+
+    @admin.display(description="Описание BR")
+    def enrichment_label(self, obj):
+        try:
+            content = obj.pdp_content
+        except ProductContent.DoesNotExist:
+            return "нет"
+        if content.enrichment_status == "ok":
+            return "достаточно"
+        reasons = ", ".join(content.enrichment_reasons or [])
+        return f"нужно обогащение ({reasons})" if reasons else "нужно обогащение"
 
     @admin.action(description="Создать контент и распарсить описание")
     def parse_product_content_action(self, request, queryset):

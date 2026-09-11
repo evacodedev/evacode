@@ -9,7 +9,6 @@ from django.utils.text import slugify
 from .models import (
     GoodsModel,
     ProductBrand,
-    ProductBrandI18n,
     ProductContent,
     ProductContentBlock,
     ProductContentBlockI18n,
@@ -19,16 +18,38 @@ from .models import (
 
 HEADING_TO_KIND = (
     (re.compile(r"^преимущества\s*:?\s*$", re.IGNORECASE), "benefits", "Преимущества"),
+    (re.compile(r"^3\s*free\s*:?\s*$", re.IGNORECASE), "benefits", "Преимущества"),
     (re.compile(r"^основные компоненты\s*:?\s*$", re.IGNORECASE), "ingredients", "Основные компоненты"),
+    (re.compile(r"^особенности\b.*экстракт", re.IGNORECASE), "ingredients", "Основные компоненты"),
+    (re.compile(r"^эффекты ухода за кожей\s+(.+)$", re.IGNORECASE), "ingredients", "Основные компоненты"),
     (re.compile(r"^текстура(?:\s+и\s+финиш)?\s*:?\s*$", re.IGNORECASE), "texture", "Текстура и финиш"),
     (re.compile(r"^способ применения\s*:?\s*$", re.IGNORECASE), "how_to_use", "Способ применения"),
+    (re.compile(r"^рекомендуемый порядок применения\s*:?\s*$", re.IGNORECASE), "how_to_use", "Способ применения"),
     (re.compile(r"^подходит для\s*:?\s*$", re.IGNORECASE), "suitable_for", "Подходит для"),
+    (re.compile(r"^что такое\b", re.IGNORECASE), "about", ""),
+    (
+        re.compile(r"^(в набор входит|состав набора|комплектация|состав линии)\s*:?\s*$", re.IGNORECASE),
+        "set_contents",
+        "Состав набора",
+    ),
 )
 
 INLINE_VOLUME = re.compile(r"^объ[её]м\s*:\s*(.+)$", re.IGNORECASE)
 INLINE_WEIGHT = re.compile(r"^вес\s*:\s*(.+)$", re.IGNORECASE)
+INLINE_HOW_TO = re.compile(r"^способ применения\s*:\s+(.+)$", re.IGNORECASE)
+SET_ITEM_RE = re.compile(r"^(\d{1,2})\.\s+(.+)$")
+EFFECTS_INGREDIENT_RE = re.compile(r"^эффекты ухода за кожей\s+(.+)$", re.IGNORECASE)
+BAD_LEAD_RE = re.compile(
+    r"минеральн\w*\s+масл|парабен|триэтаноламин|\btea\b|нитрозамин",
+    re.IGNORECASE,
+)
+SUITABLE_LINE_RE = re.compile(
+    r"подходит для тех|подходящ\w{0,10} для чувствительн",
+    re.IGNORECASE,
+)
 
 KIND_KEYWORDS = (
+    ("set", "набор", ("special set", "6pcs", "pcs set", "набор", "комплект")),
     ("lipstick", "губная помада", ("губная помада", "помада")),
     ("eye_cream", "крем для глаз", ("крем для глаз", "для глаз")),
     ("sunscreen", "солнцезащита", ("солнцезащит", "санскрин", "spf")),
@@ -55,6 +76,7 @@ SECTION_HEADINGS_RU = {
     "suitable_for": "Подходит для",
     "volume": "Объём",
     "weight": "Вес",
+    "set_contents": "Состав набора",
     "rest": "",
 }
 
@@ -119,7 +141,69 @@ def _heading_kind(line: str):
     return None, ""
 
 
+def _looks_like_set_item(line: str) -> bool:
+    match = SET_ITEM_RE.match(line.strip())
+    if not match:
+        return False
+    payload = match.group(2)
+    if re.search(r"[A-Za-z]{3,}", payload) and re.search(r"[—–(-]| - ", payload):
+        return True
+    return bool(
+        re.search(
+            r"(тоник|тонер|крем|сыворотк|эмульси|ампул|эссенц|маска|набор)",
+            payload,
+            re.IGNORECASE,
+        )
+    )
+
+
+def _append_item_text(item: dict, extra: str) -> None:
+    extra = (extra or "").strip()
+    if not extra:
+        return
+    current = (item.get("text") or "").strip()
+    if not current:
+        item["text"] = extra
+        return
+    if extra.lower() in current.lower():
+        return
+    item["text"] = f"{current.rstrip('.')} . {extra}".replace(" . ", ". ")
+
+
+def _split_set_items(lines: list[str]) -> list:
+    items: list[dict] = []
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        numbered = SET_ITEM_RE.match(line)
+        if numbered:
+            payload = numbered.group(2).strip()
+            parts = re.split(r"\s+[—–-]\s+", payload, maxsplit=1)
+            items.append(
+                {
+                    "name": re.sub(r"\s+", " ", parts[0]).strip(),
+                    "text": re.sub(r"\s+", " ", parts[1]).strip() if len(parts) == 2 else "",
+                }
+            )
+            continue
+        if not items:
+            continue
+        how = INLINE_HOW_TO.match(line)
+        if how:
+            _append_item_text(items[-1], how.group(1).strip())
+            continue
+        volume = INLINE_VOLUME.match(line)
+        if volume:
+            _append_item_text(items[-1], volume.group(1).strip())
+            continue
+        _append_item_text(items[-1], line)
+    return items
+
+
 def _split_items(kind: str, lines: list[str]) -> tuple[str, list]:
+    if kind == "set_contents":
+        return "", _split_set_items(lines)
     cleaned = [line.lstrip("•*-–— ").strip() for line in lines if line.strip()]
     if kind == "ingredients":
         items = []
@@ -130,7 +214,16 @@ def _split_items(kind: str, lines: list[str]) -> tuple[str, list]:
             else:
                 items.append({"name": line, "text": ""})
         return "", items
-    if kind in {"benefits", "how_to_use"}:
+    if kind == "benefits":
+        items = []
+        overflow = []
+        for line in cleaned:
+            if re.match(r"^(без|не содержит)\b", line, re.IGNORECASE) or len(line) <= 90:
+                items.append(line)
+            else:
+                overflow.append(line)
+        return "\n".join(overflow), items
+    if kind == "how_to_use":
         return "", cleaned
     return "\n".join(cleaned), []
 
@@ -143,7 +236,32 @@ def _brand_from_title(title: str) -> str:
         head, _tail = text.split(". ", 1)
         if 1 < len(head) <= 48:
             return head.strip()
+    token = re.match(r"^([A-Za-z][A-Za-z0-9&'’.-]{2,40})\b", text)
+    if token and token.group(1).lower() not in {"the", "for", "and"}:
+        return token.group(1)
     return ""
+
+
+def _pick_lead(title: str, intro_lines: list[str]) -> str:
+    product_hint = title.split(". ", 1)[-1] if ". " in title else title
+    hint = product_hint[:24].lower() if product_hint else ""
+    hint_matches = []
+    story_matches = []
+    usable = []
+    for line in intro_lines:
+        if BAD_LEAD_RE.search(line):
+            continue
+        lowered = line.lower()
+        usable.append(line)
+        if hint and len(hint) >= 8 and hint in lowered:
+            hint_matches.append(line)
+        if "представляет собой" in lowered or " это " in f" {lowered}":
+            story_matches.append(line)
+    return (
+        (hint_matches[-1] if hint_matches else "")
+        or (story_matches[0] if story_matches else "")
+        or (usable[0] if usable else "")
+    )
 
 
 def _kind_from_text(blob: str) -> tuple[str, str]:
@@ -161,37 +279,83 @@ def parse_product_description(title: str, description: str) -> dict:
     buckets: dict[str, list[str]] = {}
     current = "intro"
     buckets[current] = []
+    pending_ingredient = ""
     for line in lines:
+        how = INLINE_HOW_TO.match(line)
+        if how:
+            if pending_ingredient:
+                buckets.setdefault("ingredients", []).append(pending_ingredient)
+                pending_ingredient = ""
+            if current == "set_contents":
+                buckets.setdefault(current, []).append(line)
+            else:
+                buckets.setdefault("how_to_use", []).append(how.group(1).strip())
+            continue
         volume = INLINE_VOLUME.match(line)
         if volume:
-            buckets.setdefault("volume", []).append(volume.group(1).strip())
+            if pending_ingredient:
+                buckets.setdefault("ingredients", []).append(pending_ingredient)
+                pending_ingredient = ""
+            if current == "set_contents":
+                buckets.setdefault(current, []).append(line)
+            else:
+                buckets.setdefault("volume", []).append(volume.group(1).strip())
             continue
         weight = INLINE_WEIGHT.match(line)
         if weight:
+            if pending_ingredient:
+                buckets.setdefault("ingredients", []).append(pending_ingredient)
+                pending_ingredient = ""
             buckets.setdefault("weight", []).append(weight.group(1).strip())
+            continue
+        effect = EFFECTS_INGREDIENT_RE.match(line)
+        if effect:
+            if pending_ingredient:
+                buckets.setdefault("ingredients", []).append(pending_ingredient)
+            current = "ingredients"
+            buckets.setdefault(current, [])
+            pending_ingredient = effect.group(1).strip()
             continue
         kind, _heading = _heading_kind(line)
         if kind:
+            if pending_ingredient:
+                buckets.setdefault("ingredients", []).append(pending_ingredient)
+                pending_ingredient = ""
             current = kind
             buckets.setdefault(current, [])
+            if kind == "about":
+                buckets[current].append(line)
+            continue
+        if _looks_like_set_item(line):
+            if pending_ingredient:
+                buckets.setdefault("ingredients", []).append(pending_ingredient)
+                pending_ingredient = ""
+            current = "set_contents"
+            buckets.setdefault(current, []).append(line)
+            continue
+        if pending_ingredient:
+            buckets.setdefault("ingredients", []).append(f"{pending_ingredient} — {line}")
+            pending_ingredient = ""
             continue
         buckets.setdefault(current, []).append(line)
+    if pending_ingredient:
+        buckets.setdefault("ingredients", []).append(pending_ingredient)
 
     intro_lines = buckets.pop("intro", [])
-    product_hint = title.split(". ", 1)[-1] if ". " in title else title
-    hint_matches = []
-    eto_matches = []
-    hint = product_hint[:24].lower() if product_hint else ""
+    extra_about = buckets.pop("about", [])
+    suitable_from_intro = []
+    kept_intro = []
     for line in intro_lines:
-        lowered = line.lower()
-        if hint and len(hint) >= 8 and hint in lowered:
-            hint_matches.append(line)
-        elif " это " in f" {lowered}":
-            eto_matches.append(line)
-    lead_line = (hint_matches[-1] if hint_matches else "") or (eto_matches[-1] if eto_matches else "")
-    if not lead_line and intro_lines:
-        lead_line = intro_lines[0]
-    about_lines = list(intro_lines)
+        if SUITABLE_LINE_RE.search(line):
+            suitable_from_intro.append(line)
+        else:
+            kept_intro.append(line)
+    if suitable_from_intro:
+        buckets.setdefault("suitable_for", [])
+        buckets["suitable_for"] = suitable_from_intro + buckets["suitable_for"]
+
+    lead_line = _pick_lead(title, kept_intro)
+    about_lines = list(kept_intro) + extra_about
 
     blocks = []
     if lead_line:
@@ -212,6 +376,7 @@ def parse_product_description(title: str, description: str) -> dict:
         "texture",
         "how_to_use",
         "suitable_for",
+        "set_contents",
         "volume",
         "weight",
         "rest",
@@ -222,9 +387,16 @@ def parse_product_description(title: str, description: str) -> dict:
         if not lines_for:
             continue
         body, items = _split_items(kind, lines_for)
+        if kind == "benefits" and body:
+            buckets.setdefault("rest", []).append(body)
+            body = ""
+        if kind not in SECTION_HEADINGS_RU:
+            kind = "rest"
+        if not body and not items:
+            continue
         blocks.append(
             {
-                "kind": kind if kind in SECTION_HEADINGS_RU else "rest",
+                "kind": kind,
                 "heading": SECTION_HEADINGS_RU.get(kind, ""),
                 "body": body,
                 "items": items,
@@ -246,22 +418,69 @@ def parse_product_description(title: str, description: str) -> dict:
         "kind_slug": kind_slug,
         "kind_name": kind_name,
         "blocks": blocks,
+        "plain": plain,
     }
 
 
-def _ensure_brand(name: str) -> ProductBrand | None:
+SHORT_COPY_CHARS = 250
+EDITORIAL_KINDS = frozenset(
+    {"benefits", "ingredients", "how_to_use", "texture", "suitable_for"}
+)
+ENRICHMENT_OK = "ok"
+ENRICHMENT_NEEDED = "needs_enrichment"
+
+
+def _has_ingredients(blocks: list) -> bool:
+    for block in blocks:
+        if block.get("kind") != "ingredients":
+            continue
+        items = block.get("items") or []
+        body = (block.get("body") or "").strip()
+        if items or body:
+            return True
+    return False
+
+
+def assess_product_copy(title: str, description: str, parsed: dict | None = None) -> dict:
+    parsed = parsed if parsed is not None else parse_product_description(title, description)
+    plain = parsed.get("plain")
+    if plain is None:
+        plain = strip_html(description)
+    kinds = {block.get("kind") for block in parsed.get("blocks") or []}
+    reasons = []
+    chars = len(plain)
+    if chars == 0:
+        reasons.append("empty")
+    elif chars < SHORT_COPY_CHARS:
+        reasons.append("short")
+    if not (kinds & EDITORIAL_KINDS):
+        reasons.append("no_sections")
+    if not _has_ingredients(parsed.get("blocks") or []):
+        reasons.append("no_ingredients")
+    status = ENRICHMENT_NEEDED if reasons else ENRICHMENT_OK
+    return {
+        "status": status,
+        "reasons": reasons,
+        "char_count": chars,
+        "section_kinds": sorted(kinds),
+    }
+
+
+def _lookup_brand(name: str) -> ProductBrand | None:
     name = (name or "").strip()
     if not name:
         return None
-    slug = slugify(name, allow_unicode=True) or slugify(name) or "brand"
-    brand, created = ProductBrand.objects.get_or_create(slug=slug)
-    if created or not brand.translations.filter(language="ru").exists():
-        ProductBrandI18n.objects.get_or_create(
-            brand=brand,
-            language="ru",
-            defaults={"name": name},
-        )
-    return brand
+    slug = slugify(name, allow_unicode=True) or slugify(name)
+    if slug:
+        by_slug = ProductBrand.objects.filter(slug=slug).first()
+        if by_slug:
+            return by_slug
+    matches = list(
+        ProductBrand.objects.filter(translations__name__iexact=name).distinct()[:2]
+    )
+    if len(matches) == 1:
+        return matches[0]
+    return None
 
 
 def _ensure_kind(slug: str, name_ru: str) -> ProductKind | None:
@@ -281,13 +500,17 @@ def apply_product_content(good: GoodsModel, *, force: bool = False) -> str:
     if not force and ProductContent.objects.filter(good=good).exists():
         return "skipped"
     parsed = parse_product_description(good.title, good.description or "")
+    assessment = assess_product_copy(good.title, good.description or "", parsed=parsed)
     content, _created = ProductContent.objects.get_or_create(good=good)
-    brand = _ensure_brand(parsed["brand_name"])
+    content.enrichment_status = assessment["status"]
+    content.enrichment_reasons = assessment["reasons"]
     kind = _ensure_kind(parsed["kind_slug"], parsed["kind_name"])
     update_fields = []
-    if brand is not None and good.content_brand_id != brand.id:
-        good.content_brand = brand
-        update_fields.append("content_brand")
+    if not good.content_brand_id:
+        brand = _lookup_brand(parsed["brand_name"])
+        if brand is not None:
+            good.content_brand = brand
+            update_fields.append("content_brand")
     if kind is not None and good.content_kind_id != kind.id:
         good.content_kind = kind
         update_fields.append("content_kind")
@@ -319,16 +542,41 @@ def apply_product_content(good: GoodsModel, *, force: bool = False) -> str:
         else:
             block.delete()
     content.save()
-    return "parsed"
+    return "parsed" if assessment["status"] == ENRICHMENT_OK else ENRICHMENT_NEEDED
 
 
-def parse_goods_queryset(queryset, *, force: bool = False) -> dict:
+def refresh_enrichment_status(good: GoodsModel) -> dict:
+    parsed = parse_product_description(good.title, good.description or "")
+    assessment = assess_product_copy(good.title, good.description or "", parsed=parsed)
+    content, _created = ProductContent.objects.get_or_create(good=good)
+    content.enrichment_status = assessment["status"]
+    content.enrichment_reasons = assessment["reasons"]
+    content.save(update_fields=["enrichment_status", "enrichment_reasons"])
+    return assessment
+
+
+def parse_goods_queryset(queryset, *, force: bool = False, assess_only: bool = False) -> dict:
     parsed = 0
     skipped = 0
+    assessed = 0
+    needed = 0
     for good in queryset.iterator():
+        if assess_only:
+            assessment = refresh_enrichment_status(good)
+            assessed += 1
+            if assessment["status"] == ENRICHMENT_NEEDED:
+                needed += 1
+            continue
         result = apply_product_content(good, force=force)
         if result == "skipped":
             skipped += 1
         else:
             parsed += 1
-    return {"parsed": parsed, "skipped": skipped}
+            if result == ENRICHMENT_NEEDED:
+                needed += 1
+    return {
+        "parsed": parsed,
+        "skipped": skipped,
+        "assessed": assessed,
+        "needed": needed,
+    }

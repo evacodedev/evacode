@@ -6,6 +6,8 @@ from django.urls import reverse
 from market.models import (
     GoodsModel,
     GroupOfGoods,
+    ProductBrand,
+    ProductBrandI18n,
     ProductContent,
     ProductContentBlockI18n,
 )
@@ -68,6 +70,117 @@ class ProductContentParserTests(TestCase):
         self.assertEqual(by_kind["weight"]["body"], "80 гр")
         self.assertGreaterEqual(len(by_kind["benefits"]["items"]), 2)
         self.assertEqual(by_kind["ingredients"]["items"][0]["name"], "CICA Water Base")
+        self.assertNotIn("минеральное масло", by_kind["lead"]["body"].lower())
+
+
+OSHIAREE_TITLE = "OSHIAREE PST-CELL Skin Care 6pcs Special Set (Box 10) (1220 g)"
+OSHIAREE_HTML = """
+<p>Линия продуктов OSHIAREE PST-CELL представляет собой инновационный уход за кожей, основанный на экстрактах растительных стволовых клеток.</p>
+<p>Линия OSHIAREE PST-CELL подходит для тех, кто ищет эффективный уход за зрелой кожей. Отсутствие агрессивных химических компонентов делает эти продукты подходящими для чувствительной кожи.</p>
+<p><strong>Что такое PST-cell™?</strong><br>Основным ингредиентом PST-cell™ является неразбавленная сыворотка из растительных стволовых клеток.</p>
+<p><strong>Эффекты ухода за кожей ацетилгексапептида-8</strong><br>Ацетилгексапептид-8 называют ботокс-пептидом.</p>
+<p><strong>3 Free</strong><br>-Без парабенов (Paraben Free)<br>Парабены накапливаются в организме и это длинное пояснение которое не должно стать лидом карточки.<br>-Без химических минеральных масел (Chemical Mineral Oil Free)<br>Химическое минеральное масло — это смягчающее средство, которое обычно добавляют в косметику.<br>-Не содержит Триэтаноламин (ТЭА) (Triethanolamine (TEA) Free)</p>
+<p><strong>Особенности других экстрактов</strong><br>- Экстракт цветков жимолости - Успокаивает и увлажняет кожу<br>- Экстракт пиона - Успокаивает кожу</p>
+<p>Рекомендуемый порядок применения<br>Утро: Тонер → Сыворотка → Эмульсия → Крем.<br>Вечер: Тонер → Сыворотка → Эмульсия → Ампула.</p>
+<p>1. OSHIAREE PST-CELL Hydrogen Essence Skin (Soothing & Moisturizing) - тоник с увлажняющим эффектом.<br>Способ применения: Нанести на кожу после умывания.<br>Объем: 120 мл</p>
+<p>2. OSHIAREE PST-CELL Hydrogen Age Emulsion (Anti-Wrinkle) - эмульсия с антивозрастным действием<br>Способ применения: Нанести на кожу массажными движениями.<br>Объем: 120 мл</p>
+<p>Вес: 1220 гр</p>
+"""
+
+
+class OshiareeSetParserTests(TestCase):
+    def test_maps_freeform_copy_to_same_block_kinds(self):
+        parsed = parse_product_description(OSHIAREE_TITLE, OSHIAREE_HTML)
+        by_kind = {block["kind"]: block for block in parsed["blocks"]}
+        self.assertEqual(parsed["kind_slug"], "set")
+        self.assertEqual(parsed["brand_name"], "OSHIAREE")
+        self.assertIn("представляет собой", by_kind["lead"]["body"])
+        self.assertNotIn("минеральное масло", by_kind["lead"]["body"].lower())
+        self.assertIn("PST-cell", by_kind["about"]["body"])
+        self.assertTrue(any("парабен" in item.lower() for item in by_kind["benefits"]["items"]))
+        names = [item["name"] for item in by_kind["ingredients"]["items"]]
+        self.assertTrue(any("жимолости" in name for name in names))
+        self.assertTrue(any("ацетилгексапептид" in name.lower() for name in names))
+        self.assertLess(len(names[0]), 80)
+        self.assertGreaterEqual(len(by_kind["how_to_use"]["items"]), 2)
+        self.assertIn("чувствительной", by_kind["suitable_for"]["body"])
+        self.assertEqual(len(by_kind["set_contents"]["items"]), 2)
+        self.assertIn("120 мл", by_kind["set_contents"]["items"][0]["text"])
+        self.assertEqual(by_kind["weight"]["body"], "1220 гр")
+        self.assertNotIn("volume", by_kind)
+
+
+class ProductCopyDetectorTests(TestCase):
+    def test_sample_is_enough(self):
+        from market.product_content import assess_product_copy
+
+        assessment = assess_product_copy(SAMPLE_TITLE, SAMPLE_HTML)
+        self.assertEqual(assessment["status"], "ok")
+        self.assertEqual(assessment["reasons"], [])
+
+    def test_empty_needs_enrichment(self):
+        from market.product_content import assess_product_copy
+
+        assessment = assess_product_copy("Товар", "")
+        self.assertEqual(assessment["status"], "needs_enrichment")
+        self.assertIn("empty", assessment["reasons"])
+        self.assertIn("no_sections", assessment["reasons"])
+        self.assertIn("no_ingredients", assessment["reasons"])
+
+    def test_short_needs_enrichment(self):
+        from market.product_content import assess_product_copy
+
+        assessment = assess_product_copy("Товар", "<p>Мягкий пилинг 100 ml</p>")
+        self.assertEqual(assessment["status"], "needs_enrichment")
+        self.assertIn("short", assessment["reasons"])
+
+    def test_wall_of_text_without_sections(self):
+        from market.product_content import assess_product_copy
+
+        text = "<p>" + ("Люксовый уход за кожей лица. " * 40) + "</p>"
+        assessment = assess_product_copy("Whoo. Cream", text)
+        self.assertEqual(assessment["status"], "needs_enrichment")
+        self.assertIn("no_sections", assessment["reasons"])
+        self.assertIn("no_ingredients", assessment["reasons"])
+        self.assertNotIn("short", assessment["reasons"])
+
+    def test_assess_only_does_not_rewrite_blocks(self):
+        from market.product_content import assess_product_copy, refresh_enrichment_status
+
+        category = GroupOfGoods.objects.create(
+            id=10,
+            default_order="1",
+            deleted=False,
+            name="Маски",
+            updated="2024-01-01T00:00:00Z",
+        )
+        good = GoodsModel.objects.create(
+            id=901,
+            title=SAMPLE_TITLE,
+            description=SAMPLE_HTML,
+            category=category,
+            type="goods",
+            stock=1,
+            weight=80,
+        )
+        apply_product_content(good, force=True)
+        ProductContentBlockI18n.objects.filter(
+            block__content__good=good,
+            language="ru",
+            block__kind="lead",
+        ).update(body="ручная правка")
+        good.description = ""
+        good.save(update_fields=["description"])
+        assessment = refresh_enrichment_status(good)
+        self.assertEqual(assessment["status"], "needs_enrichment")
+        self.assertIn("empty", assessment["reasons"])
+        lead = ProductContentBlockI18n.objects.get(
+            block__content__good=good,
+            language="ru",
+            block__kind="lead",
+        )
+        self.assertEqual(lead.body, "ручная правка")
+        self.assertEqual(assess_product_copy(good.title, good.description)["status"], "needs_enrichment")
 
 
 class ProductContentSaveTests(TestCase):
@@ -94,7 +207,8 @@ class ProductContentSaveTests(TestCase):
         self.good.refresh_from_db()
         self.assertEqual(self.good.weight, 90)
         self.assertIn("<p>Преимущества:", self.good.description)
-        self.assertEqual(self.good.content_brand.slug, "23-skin-lab")
+        self.assertIsNone(self.good.content_brand_id)
+        self.assertEqual(ProductBrand.objects.count(), 0)
         self.assertEqual(self.good.content_kind.slug, "mask")
         ru = ProductContentBlockI18n.objects.filter(
             block__content__good=self.good,
@@ -102,9 +216,12 @@ class ProductContentSaveTests(TestCase):
             block__kind="volume",
         ).get()
         self.assertEqual(ru.body, "50 мл")
+        self.good.pdp_content.refresh_from_db()
+        self.assertEqual(self.good.pdp_content.enrichment_status, "ok")
+        self.assertEqual(self.good.pdp_content.enrichment_reasons, [])
 
     def test_second_apply_without_force_skips(self):
-        apply_product_content(self.good, force=True)
+        self.assertEqual(apply_product_content(self.good, force=True), "parsed")
         ProductContentBlockI18n.objects.filter(
             block__content__good=self.good,
             language="ru",
@@ -145,6 +262,36 @@ class ProductContentSaveTests(TestCase):
         self.assertEqual(volume.body, "30 мл")
         self.good.refresh_from_db()
         self.assertEqual(self.good.content_kind.slug, "cream")
+        self.good.pdp_content.refresh_from_db()
+        self.assertEqual(self.good.pdp_content.enrichment_status, "needs_enrichment")
+        self.assertIn("no_ingredients", self.good.pdp_content.enrichment_reasons)
+        self.assertIsNone(self.good.content_brand_id)
+        self.assertFalse(ProductBrand.objects.exists())
+
+    def test_parse_does_not_create_brand(self):
+        apply_product_content(self.good, force=True)
+        self.good.refresh_from_db()
+        self.assertIsNone(self.good.content_brand_id)
+        self.assertEqual(ProductBrand.objects.count(), 0)
+
+    def test_parse_links_existing_brand_when_empty(self):
+        brand = ProductBrand.objects.create(slug="23-skin-lab")
+        ProductBrandI18n.objects.create(brand=brand, language="ru", name="23 Skin Lab")
+        apply_product_content(self.good, force=True)
+        self.good.refresh_from_db()
+        self.assertEqual(self.good.content_brand_id, brand.id)
+        self.assertEqual(ProductBrand.objects.count(), 1)
+
+    def test_parse_keeps_existing_brand(self):
+        kept = ProductBrand.objects.create(slug="ohui")
+        ProductBrandI18n.objects.create(brand=kept, language="ru", name="O HUI")
+        other = ProductBrand.objects.create(slug="23-skin-lab")
+        ProductBrandI18n.objects.create(brand=other, language="ru", name="23 Skin Lab")
+        self.good.content_brand = kept
+        self.good.save(update_fields=["content_brand"])
+        apply_product_content(self.good, force=True)
+        self.good.refresh_from_db()
+        self.assertEqual(self.good.content_brand_id, kept.id)
 
 
 class ParseProductContentCommandTests(TestCase):
@@ -171,6 +318,25 @@ class ParseProductContentCommandTests(TestCase):
         call_command("parse_product_content", ids="601,602")
         self.assertEqual(ProductContent.objects.filter(good_id__in=[601, 602, 603]).count(), 2)
         self.assertFalse(ProductContent.objects.filter(good_id=603).exists())
+
+    def test_command_assess_only(self):
+        call_command("parse_product_content", ids="601")
+        ProductContentBlockI18n.objects.filter(
+            block__content__good_id=601,
+            language="ru",
+            block__kind="lead",
+        ).update(body="не трогать")
+        call_command("parse_product_content", ids="601", assess_only=True)
+        content = ProductContent.objects.get(good_id=601)
+        self.assertEqual(content.enrichment_status, "needs_enrichment")
+        self.assertEqual(
+            ProductContentBlockI18n.objects.get(
+                block__content__good_id=601,
+                language="ru",
+                block__kind="lead",
+            ).body,
+            "не трогать",
+        )
 
 
 class ProductContentSyncTests(TestCase):
@@ -257,6 +423,8 @@ class GoodsRetrieveContentApiTests(TestCase):
             official_price=115000,
             retail_price=34000,
         )
+        brand = ProductBrand.objects.create(slug="23-skin-lab")
+        ProductBrandI18n.objects.create(brand=brand, language="ru", name="23 Skin Lab")
         apply_product_content(self.good, force=True)
 
     def test_retrieve_keeps_legacy_fields_and_adds_blocks(self):

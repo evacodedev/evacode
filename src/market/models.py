@@ -31,6 +31,7 @@ CONTENT_BLOCK_KINDS = (
     ("suitable_for", "Подходит для"),
     ("volume", "Объём"),
     ("weight", "Вес"),
+    ("set_contents", "Состав набора"),
     ("rest", "Остаток"),
 )
 
@@ -438,6 +439,17 @@ class ProductContent(models.Model):
         verbose_name="Товар",
     )
     parsed_at = models.DateTimeField(auto_now=True, verbose_name="Разобрано")
+    enrichment_status = models.CharField(
+        max_length=32,
+        choices=(
+            ("ok", "Достаточно"),
+            ("needs_enrichment", "Нужно обогащение"),
+        ),
+        default="needs_enrichment",
+        db_index=True,
+        verbose_name="Оценка описания",
+    )
+    enrichment_reasons = models.JSONField(default=list, blank=True, verbose_name="Причины")
 
     class Meta:
         verbose_name = "Контент карточки"

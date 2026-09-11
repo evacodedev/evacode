@@ -166,6 +166,7 @@ const FALLBACK_HEADINGS = {
     suitable_for: 'Подходит для',
     volume: 'Объём',
     weight: 'Вес',
+    set_contents: 'Состав набора',
     rest: '',
 };
 
