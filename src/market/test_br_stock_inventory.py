@@ -1,7 +1,9 @@
 from datetime import datetime, time as dt_time
+from unittest.mock import MagicMock
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, override_settings
 
+from market.business_ru_orders import _put_feed_comment
 from market.br_stock_inventory import (
     BusinessRuOrderError,
     apply_kz_sale_prices,
@@ -323,3 +325,27 @@ class BrStockInventoryTests(SimpleTestCase):
     def test_sync_result_text_names_skipped_kits(self):
         text = sync_result_text({"skipped_unknown_ids": [11, 22], "store_id": "936507"})
         self.assertIn("пропущены комплекты id [11, 22]", text)
+
+
+@override_settings(BUSINESS_RU_EMPLOYEE_ID="44224")
+class BusinessRuDocumentCommentTests(SimpleTestCase):
+    def test_put_feed_comment_posts_br_schema(self):
+        client = MagicMock()
+        client.request.return_value = {"result": []}
+        body = "Заказ с сайта evacode.org abc-123"
+        _put_feed_comment(client, "customerorders", "2825388", body, "abc-123")
+        client.request.assert_any_call(
+            "get",
+            "comments",
+            {"document_id": "2825388", "model_name": "customerorders"},
+        )
+        client.request.assert_any_call(
+            "post",
+            "comments",
+            {
+                "document_id": "2825388",
+                "model_name": "customerorders",
+                "employee_id": "44224",
+                "note": body,
+            },
+        )

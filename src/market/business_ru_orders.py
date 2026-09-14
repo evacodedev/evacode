@@ -466,11 +466,6 @@ def _document_comment(order) -> str:
 
 
 _NOTE_LIMIT = 240
-_COMMENT_OWNER_CLASS = {
-    "customerorders": "CustomerOrder",
-    "paymentin": "PaymentIn",
-    "reservations": "Reservation",
-}
 
 
 def _document_note(order) -> str:
@@ -492,31 +487,30 @@ def _put_note(client: BusinessRuOrderClient, model: str, record_id, note: str) -
         logger.exception("Не удалось обновить примечание %s %s", model, record_id)
 
 
-def _comment_payloads(model: str, record_id, text: str, employee_id: str) -> list[dict]:
-    owner_class = _COMMENT_OWNER_CLASS.get(model, model)
-    base = {"owner_id": record_id, "comment": text}
-    if employee_id:
-        base["employee_id"] = employee_id
-        base["author_employee_id"] = employee_id
-    return [
-        {**base, "owner_class": owner_class},
-        {**base, "owner_class": model},
-        {**base, "model": model},
-    ]
+def _comment_note_text(item: dict) -> str:
+    return str(item.get("note") or item.get("comment") or "")
 
 
-def _find_site_feed_comment(client: BusinessRuOrderClient, record_id, public_id: str):
+def _find_site_feed_comment(
+    client: BusinessRuOrderClient, model: str, record_id, public_id: str
+):
     marker = f"evacode.org {public_id}"
     try:
-        payload = client.request("get", "comments", {"owner_id": record_id})
+        payload = client.request(
+            "get",
+            "comments",
+            {"document_id": record_id, "model_name": model},
+        )
     except BusinessRuOrderError:
         return None
     for item in payload.get("result") or []:
         if not isinstance(item, dict):
             continue
-        if str(item.get("owner_id") or "") != str(record_id):
+        if str(item.get("document_id") or item.get("owner_id") or "") != str(record_id):
             continue
-        if marker in str(item.get("comment") or ""):
+        if str(item.get("model_name") or item.get("owner_class") or "") not in ("", model):
+            continue
+        if marker in _comment_note_text(item):
             return item
     return None
 
@@ -525,22 +519,42 @@ def _put_feed_comment(client: BusinessRuOrderClient, model: str, record_id, text
     if not record_id or not text:
         return
     employee_id = str(getattr(settings, "BUSINESS_RU_EMPLOYEE_ID", "") or "").strip()
-    existing = _find_site_feed_comment(client, record_id, public_id)
+    if not employee_id:
+        logger.warning(
+            "Комментарий %s %s не записан: не задан BUSINESS_RU_EMPLOYEE_ID",
+            model,
+            record_id,
+        )
+        return
+    existing = _find_site_feed_comment(client, model, record_id, public_id)
     if existing and existing.get("id"):
         try:
-            client.request("put", "comments", {"id": existing["id"], "comment": text})
+            client.request(
+                "put",
+                "comments",
+                {
+                    "id": existing["id"],
+                    "model_name": model,
+                    "document_id": record_id,
+                    "note": text,
+                },
+            )
             return
         except BusinessRuOrderError:
             logger.exception("Не удалось обновить комментарий %s", existing.get("id"))
-    last_error = None
-    for params in _comment_payloads(model, record_id, text, employee_id):
-        try:
-            client.request("post", "comments", params)
-            return
-        except BusinessRuOrderError as exc:
-            last_error = exc
-    if last_error:
-        logger.warning("Комментарий %s %s не записан: %s", model, record_id, last_error)
+    try:
+        client.request(
+            "post",
+            "comments",
+            {
+                "document_id": record_id,
+                "model_name": model,
+                "employee_id": employee_id,
+                "note": text,
+            },
+        )
+    except BusinessRuOrderError as exc:
+        logger.warning("Комментарий %s %s не записан: %s", model, record_id, exc)
 
 
 def _sync_document_comments(client: BusinessRuOrderClient, order) -> None:
