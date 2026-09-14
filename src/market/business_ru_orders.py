@@ -1,5 +1,6 @@
 from decimal import Decimal, ROUND_HALF_UP
 import json
+import logging
 import re
 
 import requests
@@ -7,6 +8,8 @@ from django.conf import settings
 
 from .paypal import receipt_url
 from .utils import BusinessRuAPIClient
+
+logger = logging.getLogger(__name__)
 
 
 class BusinessRuOrderError(Exception):
@@ -459,35 +462,100 @@ def _document_comment(order) -> str:
         "\n".join(line for line in paypal if line),
         "\n".join(line for line in buyer if line),
     ]
-    return "\n\n".join(block for block in blocks if block).strip()[:2000]
+    return "\n\n".join(block for block in blocks if block).strip()[:4000]
 
 
-def _payment_comment(order) -> str:
-    return _document_comment(order)
+_NOTE_LIMIT = 240
+_COMMENT_OWNER_CLASS = {
+    "customerorders": "CustomerOrder",
+    "paymentin": "PaymentIn",
+    "reservations": "Reservation",
+}
 
 
-def _customer_order_comment(order) -> str:
-    return _document_comment(order)
+def _document_note(order) -> str:
+    delivery = _delivery_text(order)
+    parts = [f"Сайт {order.public_id}"]
+    if delivery:
+        parts.append(delivery)
+    if order.comment:
+        parts.append(order.comment.strip())
+    return " · ".join(part for part in parts if part)[:_NOTE_LIMIT]
 
 
-def _reservation_comment(order) -> str:
-    return _document_comment(order)
-
-
-def _put_comment(client: BusinessRuOrderClient, model: str, record_id, comment: str) -> None:
-    if not record_id or not comment:
+def _put_note(client: BusinessRuOrderClient, model: str, record_id, note: str) -> None:
+    if not record_id:
         return
     try:
-        client.request("put", model, {"id": record_id, "comment": comment})
+        client.request("put", model, {"id": record_id, "comment": note or ""})
     except BusinessRuOrderError:
+        logger.exception("Не удалось обновить примечание %s %s", model, record_id)
+
+
+def _comment_payloads(model: str, record_id, text: str, employee_id: str) -> list[dict]:
+    owner_class = _COMMENT_OWNER_CLASS.get(model, model)
+    base = {"owner_id": record_id, "comment": text}
+    if employee_id:
+        base["employee_id"] = employee_id
+        base["author_employee_id"] = employee_id
+    return [
+        {**base, "owner_class": owner_class},
+        {**base, "owner_class": model},
+        {**base, "model": model},
+    ]
+
+
+def _find_site_feed_comment(client: BusinessRuOrderClient, record_id, public_id: str):
+    marker = f"evacode.org {public_id}"
+    try:
+        payload = client.request("get", "comments", {"owner_id": record_id})
+    except BusinessRuOrderError:
+        return None
+    for item in payload.get("result") or []:
+        if not isinstance(item, dict):
+            continue
+        if str(item.get("owner_id") or "") != str(record_id):
+            continue
+        if marker in str(item.get("comment") or ""):
+            return item
+    return None
+
+
+def _put_feed_comment(client: BusinessRuOrderClient, model: str, record_id, text: str, public_id: str) -> None:
+    if not record_id or not text:
         return
+    employee_id = str(getattr(settings, "BUSINESS_RU_EMPLOYEE_ID", "") or "").strip()
+    existing = _find_site_feed_comment(client, record_id, public_id)
+    if existing and existing.get("id"):
+        try:
+            client.request("put", "comments", {"id": existing["id"], "comment": text})
+            return
+        except BusinessRuOrderError:
+            logger.exception("Не удалось обновить комментарий %s", existing.get("id"))
+    last_error = None
+    for params in _comment_payloads(model, record_id, text, employee_id):
+        try:
+            client.request("post", "comments", params)
+            return
+        except BusinessRuOrderError as exc:
+            last_error = exc
+    if last_error:
+        logger.warning("Комментарий %s %s не записан: %s", model, record_id, last_error)
 
 
 def _sync_document_comments(client: BusinessRuOrderClient, order) -> None:
     _ensure_document_numbers(client, order)
-    _put_comment(client, "customerorders", order.business_ru_order_id, _customer_order_comment(order))
-    _put_comment(client, "paymentin", getattr(order, "business_ru_payment_id", ""), _payment_comment(order))
-    _put_comment(client, "reservations", getattr(order, "business_ru_reservation_id", ""), _reservation_comment(order))
+    note = _document_note(order)
+    details = _document_comment(order)
+    public_id = str(order.public_id)
+    mapping = (
+        ("customerorders", order.business_ru_order_id),
+        ("paymentin", getattr(order, "business_ru_payment_id", "")),
+        ("reservations", getattr(order, "business_ru_reservation_id", "")),
+    )
+    for model, record_id in mapping:
+        _put_note(client, model, record_id, note)
+        _put_feed_comment(client, model, record_id, details, public_id)
 
 
 def _payment_is_linked(client: BusinessRuOrderClient, payment_id, order_id) -> bool:
@@ -582,7 +650,7 @@ def _export_payment(client: BusinessRuOrderClient, order, partner_id, org_id: st
         "operation_id": operation_id,
         "sum": _money_str(payment_sum),
         "held": 1,
-        "comment": _payment_comment(order),
+        "comment": _document_note(order),
         **_payment_account_params(client, account_id),
     }
     if account.get("currency_id"):
@@ -651,7 +719,7 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
             "store_id": store_id,
             "sync_with_order": 0,
             "held": 1,
-            "comment": _reservation_comment(order),
+            "comment": _document_note(order),
         },
     )
     reservation_id = str(_result_id(created) or "")
@@ -739,7 +807,7 @@ def export_paid_order(order) -> None:
             "author_employee_id": employee_id,
             "responsible_employee_id": employee_id,
             "status_id": status_id,
-            "comment": _customer_order_comment(order),
+            "comment": _document_note(order),
             "delivery_address": _delivery_text(order)[:500],
         }
         created_order = client.request("post", "customerorders", order_params)

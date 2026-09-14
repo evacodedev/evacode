@@ -128,8 +128,6 @@ def _order_payload(order: SiteOrder) -> dict:
         "weight_grams": order.weight_grams,
         "amount_krw": order.amount_krw,
         "amount_usd": str(order.amount_usd),
-        "paypal_capture_id": order.paypal_capture_id,
-        "paypal_receipt_url": order.paypal_receipt_url,
         "items": items,
     }
 

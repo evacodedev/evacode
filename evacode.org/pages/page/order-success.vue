@@ -24,10 +24,6 @@
               <p v-if="isPaypalPaid">
                 Оплата прошла, заказ сохранён. Номер заказа: {{ paidOrder.id }}
               </p>
-              <p v-if="isPaypalPaid && paidOrder.paypal_receipt_url">
-                <a :href="paidOrder.paypal_receipt_url" target="_blank" rel="noopener">Открыть чек PayPal</a>
-                <span> — сохраните ссылку, письмо с квитанцией также приходит на email PayPal.</span>
-              </p>
               <p v-else>Ваш заказ успешно отправлен нашим консультантам. <br/> В ближайшее время с Вами свяжутся для подтверждения заказа!</p>
             </div>
           </div>
