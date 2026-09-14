@@ -601,8 +601,15 @@ class AdminAppListTests(TestCase):
         html = response.content.decode()
         self.assertRegex(html, r">EMS</")
         self.assertRegex(html, r">SETTINGS</")
+        self.assertRegex(html, r">Оплаты</")
         self.assertIn("Токены API партнёров", html)
         self.assertIn("Направления EMS", html)
+        self.assertIn("Заказы с сайта", html)
+        self.assertIn("Оплата на сайте", html)
+        payments_pos = html.find(">Оплаты</")
+        orders_pos = html.find("Заказы с сайта")
+        self.assertGreater(payments_pos, 0)
+        self.assertGreater(orders_pos, payments_pos)
 
 
 def _krw_price(name, amount, symbol="₩"):

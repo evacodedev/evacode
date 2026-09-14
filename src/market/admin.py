@@ -490,6 +490,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
 _EMS_MODELS = {"emsratecolumn", "emsrate", "emsdestination"}
 _SETTINGS_MODELS = {"partnerapikey"}
 _API_KZ_MODELS = {"apikzsync", "apikzsyncsettings"}
+_PAYMENTS_MODELS = ("siteorder", "checkoutsettings")
 
 _original_get_app_list = admin.site.get_app_list
 
@@ -511,6 +512,7 @@ def get_app_list(request, app_label=None):
     ems_models = []
     settings_models = []
     api_kz_models = []
+    payments_by_name = {}
     for app in app_list:
         if app.get("app_label") != "market":
             continue
@@ -523,15 +525,21 @@ def get_app_list(request, app_label=None):
                 settings_models.append(model)
             elif object_name in _API_KZ_MODELS:
                 api_kz_models.append(model)
+            elif object_name in _PAYMENTS_MODELS:
+                payments_by_name[object_name] = model
             else:
                 remaining.append(model)
         app["models"] = remaining
 
+    payments_models = [
+        payments_by_name[name] for name in _PAYMENTS_MODELS if name in payments_by_name
+    ]
     extras = [
         group
         for group in (
             _app_group("API KZ", "api_kz", api_kz_models),
             _app_group("EMS", "ems", ems_models),
+            _app_group("Оплаты", "payments", payments_models),
             _app_group("SETTINGS", "settings", settings_models),
         )
         if group
@@ -549,7 +557,7 @@ def get_app_list(request, app_label=None):
     if not inserted:
         result.extend(extras)
 
-    if app_label in {"ems", "settings", "api_kz"}:
+    if app_label in {"ems", "settings", "api_kz", "payments"}:
         return [app for app in result if app.get("app_label") == app_label]
     return result
 
