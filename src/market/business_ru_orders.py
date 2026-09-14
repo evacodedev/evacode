@@ -621,17 +621,24 @@ def _store_record(client: BusinessRuOrderClient):
     return store
 
 
-def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id: str, employee_id: str, store) -> None:
+def _reservation_store_id(client: BusinessRuOrderClient) -> str:
+    store_id = str(getattr(settings, "BUSINESS_RU_RESERVATION_STORE_ID", "") or "").strip()
+    if not store_id:
+        raise BusinessRuOrderError("Не задан BUSINESS_RU_RESERVATION_STORE_ID")
+    store = _get_by_id(client, "stores", store_id)
+    if not store or str(store.get("id")) != str(store_id):
+        raise BusinessRuOrderError(f"Склад id={store_id} не найден")
+    return str(store["id"])
+
+
+def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id: str, employee_id: str) -> None:
     reservation_id = str(getattr(order, "business_ru_reservation_id", "") or "").strip()
     if reservation_id:
         return
     order_id = str(order.business_ru_order_id or "").strip()
     if not order_id:
         raise BusinessRuOrderError("Нет заказа покупателя для резерва")
-    store_id = (store or {}).get("id") if isinstance(store, dict) else None
-    if not store_id:
-        store = _store_record(client)
-        store_id = store.get("id")
+    store_id = _reservation_store_id(client)
     created = client.request(
         "post",
         "reservations",
@@ -641,6 +648,7 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
             "author_employee_id": employee_id,
             "responsible_employee_id": employee_id,
             "customer_order_id": order_id,
+            "store_id": store_id,
             "sync_with_order": 0,
             "held": 1,
             "comment": _reservation_comment(order),
@@ -677,7 +685,7 @@ def export_paid_order(order) -> None:
 
     client = BusinessRuOrderClient()
     store = None
-    if not order.business_ru_order_id or not getattr(order, "business_ru_reservation_id", ""):
+    if not order.business_ru_order_id:
         store = _store_record(client)
     if not order.business_ru_order_id:
         status_id = str(getattr(settings, "BUSINESS_RU_STATUS_ID", "") or "").strip()
@@ -771,7 +779,7 @@ def export_paid_order(order) -> None:
         _ensure_order_goods_krw(client, order)
 
     try:
-        _export_reservation(client, order, partner_id, org_id, employee_id, store)
+        _export_reservation(client, order, partner_id, org_id, employee_id)
         if (order.business_ru_error or "").startswith("Заказ создан, резерв не выгружен"):
             order.business_ru_error = ""
             order.save(update_fields=["business_ru_error", "updated_at"])
