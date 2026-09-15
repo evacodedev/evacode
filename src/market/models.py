@@ -455,6 +455,9 @@ class ProductContent(models.Model):
         verbose_name="Оценка описания",
     )
     enrichment_reasons = models.JSONField(default=list, blank=True, verbose_name="Причины")
+    agent_draft = models.JSONField(blank=True, null=True, verbose_name="Черновик агента")
+    agent_error = models.TextField(blank=True, verbose_name="Ошибка агента")
+    agent_run_at = models.DateTimeField(blank=True, null=True, verbose_name="Агент запускался")
 
     class Meta:
         verbose_name = "Контент карточки"
@@ -462,6 +465,46 @@ class ProductContent(models.Model):
 
     def __str__(self):
         return f"Контент {self.good_id}"
+
+
+class ProductContentAgentSettings(models.Model):
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Агент включён",
+        help_text="Выключен — кнопки и команда не ходят в LLM. Промпт можно править заранее.",
+    )
+    model = models.CharField(
+        max_length=64,
+        default="gpt-4.1-mini",
+        verbose_name="Модель",
+        help_text="Имя модели у провайдера, например gpt-4.1-mini",
+    )
+    prompt = models.TextField(verbose_name="Промпт / правила")
+
+    class Meta:
+        verbose_name = "Агент контента"
+        verbose_name_plural = "Агент контента"
+
+    def __str__(self):
+        return "Агент контента"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        from .product_content_prompt import DEFAULT_AGENT_PROMPT
+
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={
+                "enabled": False,
+                "model": "gpt-4.1-mini",
+                "prompt": DEFAULT_AGENT_PROMPT,
+            },
+        )
+        return obj
 
 
 class ProductContentBlock(models.Model):

@@ -23,6 +23,7 @@ from .models import (
     ProductBrand,
     ProductBrandI18n,
     ProductContent,
+    ProductContentAgentSettings,
     ProductContentBlock,
     ProductContentBlockI18n,
     ProductKind,
@@ -32,6 +33,13 @@ from .models import (
     CheckoutSettings,
 )
 from .product_content import apply_product_content
+from .product_content_agent import (
+    AgentConfigError,
+    AgentRunError,
+    accept_agent_draft,
+    run_content_agent,
+    save_agent_draft,
+)
 
 
 @admin.register(CheckoutSettings)
@@ -250,13 +258,48 @@ class ProductContentBlockInline(admin.TabularInline):
     show_change_link = True
 
 
+@admin.register(ProductContentAgentSettings)
+class ProductContentAgentSettingsAdmin(admin.ModelAdmin):
+    list_display = ("enabled", "model")
+    fields = ("enabled", "model", "prompt")
+
+    def has_add_permission(self, request):
+        try:
+            return not ProductContentAgentSettings.objects.exists()
+        except (ProgrammingError, OperationalError):
+            return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
 @admin.register(ProductContent)
 class ProductContentAdmin(admin.ModelAdmin):
-    list_display = ("good", "enrichment_status", "parsed_at")
+    list_display = ("good", "enrichment_status", "agent_run_at", "parsed_at")
     list_filter = ("enrichment_status",)
     search_fields = ("good__title", "good_id")
-    readonly_fields = ("enrichment_status", "enrichment_reasons", "parsed_at")
+    readonly_fields = (
+        "enrichment_status",
+        "enrichment_reasons",
+        "parsed_at",
+        "agent_run_at",
+        "agent_error",
+        "agent_draft",
+    )
     inlines = (ProductContentBlockInline,)
+    actions = ("accept_agent_draft_action",)
+
+    @admin.action(description="Принять черновик агента в секции ru")
+    def accept_agent_draft_action(self, request, queryset):
+        ok = 0
+        for content in queryset:
+            try:
+                accept_agent_draft(content.good)
+                ok += 1
+            except AgentRunError as extra:
+                self.message_user(request, f"{content.good_id}: {extra}", messages.ERROR)
+        if ok:
+            self.message_user(request, f"Принято черновиков: {ok}", messages.SUCCESS)
 
 
 @admin.register(GoodsModel)
@@ -277,7 +320,7 @@ class GoodsModelAdmin(admin.ModelAdmin):
     search_fields = ("title", "id")
     list_per_page = 50
     autocomplete_fields = ("content_brand", "content_kind")
-    actions = ("parse_product_content_action",)
+    actions = ("parse_product_content_action", "enrich_product_content_action")
     change_form_template = "admin/market/goodsmodel/change_form.html"
     readonly_fields = ("has_pdp_content", "enrichment_label")
 
@@ -307,6 +350,19 @@ class GoodsModelAdmin(admin.ModelAdmin):
             parsed += 1
         self.message_user(request, f"Разобрано товаров: {parsed}", messages.SUCCESS)
 
+    @admin.action(description="Агент: найти факты и записать черновик")
+    def enrich_product_content_action(self, request, queryset):
+        ok = 0
+        for good in queryset:
+            try:
+                run_content_agent(good)
+                ok += 1
+            except (AgentConfigError, AgentRunError) as extra:
+                save_agent_draft(good, None, error=str(extra))
+                self.message_user(request, f"{good.id}: {extra}", messages.ERROR)
+        if ok:
+            self.message_user(request, f"Черновиков: {ok}", messages.SUCCESS)
+
     def get_urls(self):
         urls = super().get_urls()
         extra = [
@@ -314,6 +370,16 @@ class GoodsModelAdmin(admin.ModelAdmin):
                 "<path:object_id>/parse-content/",
                 self.admin_site.admin_view(self.parse_content_view),
                 name="market_goodsmodel_parse_content",
+            ),
+            path(
+                "<path:object_id>/enrich-content/",
+                self.admin_site.admin_view(self.enrich_content_view),
+                name="market_goodsmodel_enrich_content",
+            ),
+            path(
+                "<path:object_id>/accept-agent-draft/",
+                self.admin_site.admin_view(self.accept_agent_draft_view),
+                name="market_goodsmodel_accept_agent_draft",
             ),
         ]
         return extra + urls
@@ -327,6 +393,35 @@ class GoodsModelAdmin(admin.ModelAdmin):
             return redirect(reverse("admin:market_goodsmodel_changelist"))
         apply_product_content(good, force=True)
         messages.success(request, "Контент создан, описание разобрано")
+        return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
+
+    def enrich_content_view(self, request, object_id):
+        if request.method != "POST":
+            return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
+        good = GoodsModel.objects.filter(pk=object_id).first()
+        if not good:
+            messages.error(request, "Товар не найден")
+            return redirect(reverse("admin:market_goodsmodel_changelist"))
+        try:
+            run_content_agent(good)
+            messages.success(request, "Черновик агента записан. Проверьте и нажмите «Принять черновик».")
+        except (AgentConfigError, AgentRunError) as extra:
+            save_agent_draft(good, None, error=str(extra))
+            messages.error(request, str(extra))
+        return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
+
+    def accept_agent_draft_view(self, request, object_id):
+        if request.method != "POST":
+            return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
+        good = GoodsModel.objects.filter(pk=object_id).first()
+        if not good:
+            messages.error(request, "Товар не найден")
+            return redirect(reverse("admin:market_goodsmodel_changelist"))
+        try:
+            written = accept_agent_draft(good)
+            messages.success(request, f"Принято секций: {written}")
+        except AgentRunError as extra:
+            messages.error(request, str(extra))
         return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
 
 

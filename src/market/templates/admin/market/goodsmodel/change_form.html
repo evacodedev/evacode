@@ -9,6 +9,22 @@
         </button>
     </form>
 </li>
+<li>
+    <form method="post" action="{% url 'admin:market_goodsmodel_enrich_content' original.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="historylink" style="background:none;border:0;padding:0;color:inherit;cursor:pointer">
+            Агент: найти факты
+        </button>
+    </form>
+</li>
+<li>
+    <form method="post" action="{% url 'admin:market_goodsmodel_accept_agent_draft' original.pk %}" style="display:inline">
+        {% csrf_token %}
+        <button type="submit" class="historylink" style="background:none;border:0;padding:0;color:inherit;cursor:pointer">
+            Принять черновик агента
+        </button>
+    </form>
+</li>
 {% endif %}
 {{ block.super }}
 {% endblock %}
