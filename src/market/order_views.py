@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 from urllib.parse import urljoin, urlencode
 
 from .business_ru_orders import export_paid_order
+from .order_email import send_order_confirmation_email
 from .currency import krw_to_usd
 from .models import CheckoutSettings, SiteOrder, SiteOrderItem
 from .paypal import PayPalError, capture_id_from_payload, capture_order, create_order, receipt_url
@@ -182,6 +183,11 @@ def _export_paid_side_effects(order_id: int) -> None:
                 logger.exception("Выгрузка заказа %s в Business.Ru не удалась", order.public_id)
                 order.business_ru_error = str(exc)[:4000]
                 order.save(update_fields=["business_ru_error", "updated_at"])
+        if order.business_ru_order_id or order.business_ru_order_number:
+            try:
+                send_order_confirmation_email(order)
+            except Exception:
+                logger.exception("Письмо по заказу %s не отправлено", order.public_id)
         _notify_telegram(order)
     finally:
         close_old_connections()

@@ -2,6 +2,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from market.business_ru_orders import export_paid_order
 from market.models import SiteOrder
+from market.order_email import send_order_confirmation_email
 
 
 class Command(BaseCommand):
@@ -18,8 +19,10 @@ class Command(BaseCommand):
             raise CommandError(f"Заказ не оплачен: {order.status}")
         export_paid_order(order)
         order.refresh_from_db()
+        emailed = send_order_confirmation_email(order)
         self.stdout.write(self.style.SUCCESS(
             f"Business.Ru заказ № {order.business_ru_order_number or order.business_ru_order_id}, "
             f"оплата № {order.business_ru_payment_number or order.business_ru_payment_id}, "
             f"резерв № {order.business_ru_reservation_number or order.business_ru_reservation_id}"
+            + (", письмо отправлено" if emailed else "")
         ))

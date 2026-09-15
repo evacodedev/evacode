@@ -5,7 +5,7 @@ from unittest.mock import patch
 from django.test import TestCase, override_settings
 
 from core.models import Currency
-from market.models import CheckoutSettings, GoodsModel, GroupOfGoods, SiteOrder
+from market.models import CheckoutSettings, GoodsModel, GroupOfGoods, SiteOrder, SiteOrderItem
 
 
 @override_settings(
@@ -226,3 +226,55 @@ class SiteOrderApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertFalse(SiteOrder.objects.exists())
+
+
+@override_settings(
+    EMAIL_HOST_USER="orders@evacode.org",
+    DEFAULT_FROM_EMAIL="Evacode <orders@evacode.org>",
+    PICKUP_ADDRESS="경기 안산시 단원구 별망로 555, 4층 №420",
+)
+class OrderConfirmationEmailTests(TestCase):
+    def setUp(self):
+        self.order = SiteOrder.objects.create(
+            status=SiteOrder.Status.PAID,
+            first_name="Ivan",
+            phone="+821011122233",
+            phone_digits="821011122233",
+            email="ivan@example.com",
+            country="Korea",
+            city="Seoul",
+            address="",
+            postal_code="",
+            shipping_method="pickup",
+            amount_krw=20000,
+            amount_usd=Decimal("12.50"),
+            goods_krw=20000,
+            business_ru_order_id="2825388",
+            business_ru_order_number="ЗП-100",
+        )
+        SiteOrderItem.objects.create(
+            order=self.order,
+            good_id_snapshot=101,
+            title="Тестовый крем",
+            quantity=2,
+            price_krw=10000,
+            line_total_krw=20000,
+        )
+
+    def test_sends_pickup_confirmation_once(self):
+        from django.core import mail
+
+        from market.order_email import send_order_confirmation_email
+
+        self.assertTrue(send_order_confirmation_email(self.order))
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertIn("ЗП-100", message.subject)
+        self.assertIn("ЗП-100", message.body)
+        self.assertIn("Самовывоз", message.body)
+        self.assertIn("별망로 555", message.body)
+        self.assertIn("Тестовый крем", message.body)
+        self.order.refresh_from_db()
+        self.assertIsNotNone(self.order.confirmation_email_sent_at)
+        self.assertFalse(send_order_confirmation_email(self.order))
+        self.assertEqual(len(mail.outbox), 1)

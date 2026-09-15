@@ -246,6 +246,11 @@ class SiteOrder(models.Model):
     business_ru_reservation_id = models.CharField(max_length=32, blank=True, verbose_name="ID резерва Business.Ru")
     business_ru_reservation_number = models.CharField(max_length=32, blank=True, verbose_name="№ резерва")
     business_ru_error = models.TextField(blank=True)
+    confirmation_email_sent_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Письмо клиенту отправлено",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     paid_at = models.DateTimeField(blank=True, null=True)

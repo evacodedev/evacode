@@ -9,6 +9,7 @@ from django.utils import timezone
 
 from .br_stock_inventory import execute_kz_stock_sync
 from .business_ru_orders import export_paid_order
+from .order_email import send_order_confirmation_email
 from .ems_tariffs import import_ems_xlsx
 from .models import (
     ApiKzSync,
@@ -457,6 +458,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_payment_number",
         "business_ru_reservation_number",
         "business_ru_error",
+        "confirmation_email_sent_at",
         "created_at",
         "updated_at",
         "paid_at",
@@ -478,9 +480,11 @@ class SiteOrderAdmin(admin.ModelAdmin):
             try:
                 export_paid_order(order)
                 order.refresh_from_db()
+                emailed = send_order_confirmation_email(order)
+                mail_note = ", письмо отправлено" if emailed else ""
                 self.message_user(
                     request,
-                    f"{order.public_id}: заказ № {order.business_ru_order_number or order.business_ru_order_id}",
+                    f"{order.public_id}: заказ № {order.business_ru_order_number or order.business_ru_order_id}{mail_note}",
                     level=messages.SUCCESS,
                 )
             except Exception as extra:
