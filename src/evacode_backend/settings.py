@@ -303,10 +303,6 @@ DEFAULT_FROM_EMAIL = os.getenv(
     "DEFAULT_FROM_EMAIL",
     f"Evacode <{EMAIL_HOST_USER}>" if EMAIL_HOST_USER else "Evacode <orders@evacode.org>",
 ).strip()
-PICKUP_ADDRESS = os.getenv(
-    "PICKUP_ADDRESS",
-    "경기 안산시 단원구 별망로 555, 4층 №420",
-).strip()
 DATE_INPUT_FORMATS = [
     "%m.%d.%y",
     "%m:%d:%y %H:%M",

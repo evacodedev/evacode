@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from core.models import Currency
+from core.models import Currency, Contacts
 from market.models import CheckoutSettings, GoodsModel, GroupOfGoods, SiteOrder, SiteOrderItem
 
 
@@ -231,10 +231,22 @@ class SiteOrderApiTests(TestCase):
 @override_settings(
     EMAIL_HOST_USER="orders@evacode.org",
     DEFAULT_FROM_EMAIL="Evacode <orders@evacode.org>",
-    PICKUP_ADDRESS="경기 안산시 단원구 별망로 555, 4층 №420",
 )
 class OrderConfirmationEmailTests(TestCase):
     def setUp(self):
+        Contacts.objects.create(
+            telegram="https://t.me/test",
+            instagram="https://instagram.com/test",
+            facebook="https://facebook.com/test",
+            address=(
+                "경기 안산시 단원구 별망로 555 4 этаж №420"
+                "<br>"
+                "Gyeonggi-do, Ansan-si, Danwon-gu, Byeolmang-ro 555, 4th Floor, No. 420"
+            ),
+            phone="+821000000000",
+            email="orders@evacode.org",
+            tiktok="",
+        )
         self.order = SiteOrder.objects.create(
             status=SiteOrder.Status.PAID,
             first_name="Ivan",

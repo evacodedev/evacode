@@ -1,9 +1,12 @@
 import logging
+import re
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
-from django.utils.html import escape
+from django.utils.html import escape, strip_tags
+
+from core.models import Contacts
 
 from .shipping import METHOD_PICKUP
 
@@ -25,7 +28,13 @@ def _format_krw(value) -> str:
 
 
 def _pickup_address() -> str:
-    return (getattr(settings, "PICKUP_ADDRESS", "") or "").strip()
+    raw = Contacts.objects.values_list("address", flat=True).first() or ""
+    text = re.sub(r"<br\s*/?>", "\n", str(raw), flags=re.I)
+    return strip_tags(text).strip()
+
+
+def _address_html(text: str) -> str:
+    return "<br>".join(escape(line) for line in text.splitlines() if line.strip())
 
 
 def build_order_confirmation_bodies(order) -> tuple[str, str]:
@@ -95,7 +104,7 @@ def build_order_confirmation_bodies(order) -> tuple[str, str]:
         if pickup:
             shipping_html += (
                 f"<p style=\"margin:0 0 8px;font-size:14px;color:#1A1917;line-height:1.5;\">"
-                f"{escape(pickup)}</p>"
+                f"{_address_html(pickup)}</p>"
             )
         if br_number:
             shipping_html += (
