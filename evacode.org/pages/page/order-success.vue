@@ -25,6 +25,9 @@
                 Оплата прошла, заказ сохранён. Номер заказа: {{ paidOrder.id }}
               </p>
               <p v-else>Ваш заказ успешно отправлен нашим консультантам. <br/> В ближайшее время с Вами свяжутся для подтверждения заказа!</p>
+              <p v-if="orderEmail" class="order-email-hint">
+                Проверьте почту <strong>{{ orderEmail }}</strong> — туда отправлено письмо с подтверждением заказа.
+              </p>
             </div>
           </div>
         </div>
@@ -99,6 +102,9 @@ export default {
     },
     isPaypalPaid() {
       return this.$route.query.paypal === '1' && this.paidOrder;
+    },
+    orderEmail() {
+      return (this.paidOrder?.email || '').trim();
     },
     hasOrder() {
       return Boolean(this.paidOrder || (this.order && this.order !== ''));
