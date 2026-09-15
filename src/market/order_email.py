@@ -180,7 +180,7 @@ def build_order_confirmation_bodies(order) -> tuple[str, str]:
                 {shipping_html}
               </div>
               <p style="margin:0;font-size:13px;color:#8A8680;line-height:1.5;">
-                Вопросы: <a href="mailto:orders@evacode.org" style="color:#B89254;text-decoration:none;">orders@evacode.org</a>
+                Вопросы: <a href="mailto:orders@evacode.co.kr" style="color:#B89254;text-decoration:none;">orders@evacode.co.kr</a>
               </p>
             </td>
           </tr>

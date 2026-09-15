@@ -229,8 +229,8 @@ class SiteOrderApiTests(TestCase):
 
 
 @override_settings(
-    EMAIL_HOST_USER="orders@evacode.org",
-    DEFAULT_FROM_EMAIL="Evacode <orders@evacode.org>",
+    EMAIL_HOST_USER="orders@evacode.co.kr",
+    DEFAULT_FROM_EMAIL="Evacode <orders@evacode.co.kr>",
 )
 class OrderConfirmationEmailTests(TestCase):
     def setUp(self):
@@ -244,7 +244,7 @@ class OrderConfirmationEmailTests(TestCase):
                 "Gyeonggi-do, Ansan-si, Danwon-gu, Byeolmang-ro 555, 4th Floor, No. 420"
             ),
             phone="+821000000000",
-            email="orders@evacode.org",
+            email="orders@evacode.co.kr",
             tiktok="",
         )
         self.order = SiteOrder.objects.create(
