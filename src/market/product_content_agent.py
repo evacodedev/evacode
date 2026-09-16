@@ -98,7 +98,9 @@ def call_content_llm(system_prompt: str, user_payload: str, model: str) -> str:
     key = _api_key()
     if not key:
         raise AgentConfigError("Нет OPENAI_API_KEY в окружении")
-    response = requests.post(
+    session = requests.Session()
+    session.trust_env = False
+    response = session.post(
         "https://api.openai.com/v1/responses",
         headers={
             "Authorization": f"Bearer {key}",
@@ -114,7 +116,6 @@ def call_content_llm(system_prompt: str, user_payload: str, model: str) -> str:
         },
         timeout=180,
         proxies=_agent_proxies(),
-        trust_env=False,
     )
     if response.status_code >= 400:
         _raise_openai_error(response)
