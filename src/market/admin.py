@@ -481,7 +481,7 @@ class GoodsModelAdmin(admin.ModelAdmin):
                 run_content_agent(good)
                 ok += 1
             except (AgentConfigError, AgentRunError) as extra:
-                save_agent_draft(good, None, error=str(extra))
+                save_agent_draft(good, None, error=str(extra), recorded=False)
                 self.message_user(request, f"{good.id}: {extra}", messages.ERROR)
         if ok:
             self.message_user(request, f"Черновиков: {ok}", messages.SUCCESS)
@@ -529,7 +529,7 @@ class GoodsModelAdmin(admin.ModelAdmin):
             run_content_agent(good)
             messages.success(request, "Черновик агента записан. Проверьте и нажмите «Принять черновик».")
         except (AgentConfigError, AgentRunError) as extra:
-            save_agent_draft(good, None, error=str(extra))
+            save_agent_draft(good, None, error=str(extra), recorded=False)
             messages.error(request, str(extra))
         return redirect(reverse("admin:market_goodsmodel_change", args=[object_id]))
 

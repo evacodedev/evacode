@@ -12,7 +12,7 @@ from market.models import (
     ProductContent,
     ProductContentAgentSettings,
 )
-from market.product_content_prompt import official_site_for_text
+from market.product_content_prompt import extra_sites_for_text, official_site_for_text
 from market.product_content_agent import (
     AgentConfigError,
     AgentRunError,
@@ -39,10 +39,39 @@ class AgentJsonTests(TestCase):
         payload = extract_json_object('{"brand_name": "O HUI", "blocks": [],}')
         self.assertEqual(payload["brand_name"], "O HUI")
 
+    def test_repairs_inci_quotes_and_missing_commas(self):
+        payload = extract_json_object(
+            '{"brand_name":"","blocks":[{"kind":"ingredients","body":"","items":['
+            '{"name": "Ganoderma Lucidum ("Mushroom") Extract", "text": ""}\n'
+            '{"name": "Angelica Acutiloba Root Extract", "text": ""}'
+            '],"source_url":"https://a.test"}]}'
+        )
+        names = [item["name"] for item in payload["blocks"][0]["items"]]
+        self.assertIn("Mushroom", names[0])
+        self.assertIn("Angelica", names[1])
+
     def test_curacion_maps_to_91cosmedi(self):
         self.assertEqual(
             official_site_for_text("Curación LACTO AQUANIC CREAM MASK"),
             "https://91cosmedi.com/en/curacion/",
+        )
+
+    def test_whoo_detail_slugs(self):
+        from market.product_content_agent import WHOO_PREFIXES, _detail_slugs
+
+        slugs = _detail_slugs(
+            "The History of Whoo Hwanyu Imperial Youth Emulsion (BOX 18) (530 g)",
+            WHOO_PREFIXES,
+        )
+        self.assertIn("imperial-youth-emulsion", slugs)
+        self.assertIn("hwanyu-imperial-youth-emulsion", slugs)
+        self.assertEqual(
+            official_site_for_text("The history of Whoo Two way Pact 01"),
+            "https://whoo-hk.com/en/productdetail/",
+        )
+        self.assertEqual(
+            extra_sites_for_text("The History of Whoo Hwanyu Imperial Youth Emulsion"),
+            ["https://themonodist.com/"],
         )
 
     def test_allows_crlf_after_url_string(self):
@@ -84,6 +113,25 @@ class AgentJsonTests(TestCase):
         self.assertNotIn("Маска успокаивает кожу.", kinds["about"]["body"])
         self.assertIn("how_to_use", kinds)
         self.assertEqual(len(kinds["how_to_use"]["items"]), 2)
+
+    def test_keeps_catalog_source(self):
+        from market.product_content_agent import CATALOG_SOURCE, _sanitize_draft
+
+        draft = _sanitize_draft(
+            {
+                "brand_name": "",
+                "blocks": [
+                    {
+                        "kind": "lead",
+                        "body": "из каталога",
+                        "items": [],
+                        "source_url": CATALOG_SOURCE,
+                    }
+                ],
+            },
+            brand_locked=True,
+        )
+        self.assertEqual(draft["blocks"][0]["body"], "из каталога")
 
     def test_geo_block_message(self):
         from unittest.mock import Mock
@@ -175,7 +223,28 @@ class AgentDraftTests(TestCase):
         self.good.pdp_content.refresh_from_db()
         self.assertIsNotNone(self.good.pdp_content.agent_run_at)
 
-    def test_disabled_raises(self):
+    @patch("market.product_content_agent.call_content_llm")
+    def test_empty_llm_uses_catalog_description(self, mocked):
+        mocked.return_value = (
+            '{"notes": "нет на сайте", "blocks": [], "brand_name": "Curación", '
+            '"official_url": "https://91cosmedi.com/en/curacion/"}'
+        )
+        self.good.title = "CURACION Lacto Aquanic Cream Mask"
+        self.good.description = (
+            "<p>Крем увлажняет кожу.</p><p>Способ использования 1. Нанесите на лицо.</p>"
+        )
+        self.good.save(update_fields=["title", "description"])
+        draft = run_content_agent(self.good)
+        self.assertTrue(draft["blocks"])
+        self.assertIn("каталога", draft["notes"])
+
+    @patch("market.product_content_agent.call_content_llm")
+    def test_bad_json_falls_back_to_catalog(self, mocked):
+        mocked.return_value = '{"blocks":[{"kind":"ingredients","items":[{"name": "Ganoderma ("Mushroom") Extract"}]}'
+        self.good.description = "<p>Крем увлажняет кожу.</p>"
+        self.good.save(update_fields=["description"])
+        draft = run_content_agent(self.good)
+        self.assertTrue(draft["blocks"])
         ProductContentAgentSettings.objects.filter(pk=1).update(enabled=False)
         with self.assertRaises(AgentConfigError):
             run_content_agent(self.good)
@@ -183,6 +252,11 @@ class AgentDraftTests(TestCase):
     def test_pending_skips_already_run(self):
         save_agent_draft(self.good, {"blocks": []})
         self.assertFalse(pending_enrichment_queryset().filter(id=self.good.id).exists())
+
+    def test_failed_run_stays_pending(self):
+        save_agent_draft(self.good, None, error="Некорректный JSON", recorded=False)
+        self.assertTrue(pending_enrichment_queryset().filter(id=self.good.id).exists())
+        self.assertIsNone(self.good.pdp_content.agent_run_at)
 
 
 class AgentAdminButtonTests(TestCase):

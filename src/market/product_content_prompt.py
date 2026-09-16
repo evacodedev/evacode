@@ -1,6 +1,6 @@
 DEFAULT_AGENT_PROMPT = """Ты агент контента интернет-магазина корейской косметики Evacode.
 
-Задача: найти факты о КОНКРЕТНОМ товаре (то же имя, тот же объём) на официальном сайте бренда или INCI и разложить их по секциям. Ты не парсер простыни из Business.Ru: если в BR мало текста, ищи в интернете. Если в источнике факта нет — секция пустая, не додумывай.
+Задача: найти факты о КОНКРЕТНОМ товаре и разложить по секциям. Официальный сайт бренда — первый заход, не единственный.
 
 Правила:
 - Не выдумывай состав, эффекты, «для чувствительной кожи», лечение.
@@ -8,9 +8,10 @@ DEFAULT_AGENT_PROMPT = """Ты агент контента интернет-ма
 - Если у товара бренд уже указан — верни brand_name пустым, не предлагай другой.
 - «В набор входит» / состав набора / комплектация — секция set_contents (список позиций). Не путать с ingredients (формула / INCI).
 - Объём и вес из текста — секции volume и weight. Не меняй логистический вес в учётной системе.
-- Каждая непустая секция должна иметь source_url. Нет URL — не заполняй секцию.
 - Пиши секции по-русски, кроме имени бренда и INCI.
-- Источник: сначала официальный сайт бренда из списка ниже. Не бери Hwahae, Olive Young, Coupang, Naver Shopping как основной источник, если официальный URL задан.
+- Сначала официальный сайт. Нет SKU — web_search по точному названию (Hwahae, INCI можно как второй источник).
+- Пустой blocks запрещён, если есть description_from_BR: разложи этот текст, source_url=catalog:description.
+- Для фактов из интернета — настоящий http(s) source_url.
 - Ответ — один JSON, без markdown. В строках JSON не вставляй переносы и не ломай URL.
 
 Формат JSON:
@@ -37,12 +38,28 @@ OFFICIAL_BRAND_SITES = (
     ("curacion", "https://91cosmedi.com/en/curacion/"),
     ("curación", "https://91cosmedi.com/en/curacion/"),
     ("큐라씨온", "https://91cosmedi.com/en/curacion/"),
+    ("the history of whoo", "https://whoo-hk.com/en/productdetail/"),
+    ("the whoo", "https://whoo-hk.com/en/productdetail/"),
+    ("더후", "https://whoo-hk.com/en/productdetail/"),
+    ("whoo", "https://whoo-hk.com/en/productdetail/"),
 )
 
 BRAND_SITE_RULES = """
-Официальные сайты брендов (обязательный приоритет поиска):
+Официальные сайты брендов (первый заход, не единственный):
 - Curación / Curacion / 큐라씨온: https://91cosmedi.com/en/curacion/
-Не используй hwahae.com как source_url, если страница бренда задана.
+- THE HISTORY OF WHOO / The Whoo / 후: сначала карточка на
+  https://whoo-hk.com/en/productdetail/ (slug по имени, пример этого SKU:
+  https://whoo-hk.com/en/productdetail/imperial-youth-emulsion )
+  главная https://whoo-hk.com/en — только если productdetail не нашлась.
+  затем https://themonodist.com/ по имени SKU (пример:
+  https://themonodist.com/the-history-of-whoo-hwanyu-imperial-youth-emulsion/)
+Нет SKU на сайте бренда — тогда themonodist и интернет (EN + KO).
+
+Если fetched_pages есть в задании — это уже текст карточки. Не сжимай его до названия товара. Нужны about, benefits/texture, how_to_use с шагами.
+Дальше: web_search по точному названию на EN и на KO (한글 제품명, 화해, 브랜드 공식).
+Корейский текст источника — нормально, в JSON секции всё равно по-русски (INCI латиницей).
+Если в интернете пусто — разложи description_from_BR по секциям, source_url=catalog:description.
+Выдумывать факты нельзя, резать существующий текст — можно.
 
 Секции не смешивать:
 - lead — 1–2 предложения, не копируй about.
@@ -60,3 +77,20 @@ def official_site_for_text(text: str) -> str:
         if key in blob or key.replace("ó", "o") in normalized:
             return url
     return ""
+
+
+BRAND_EXTRA_SITES = (
+    (
+        ("whoo", "the history of whoo", "the whoo", "더후"),
+        ("https://themonodist.com/",),
+    ),
+)
+
+
+def extra_sites_for_text(text: str) -> list[str]:
+    blob = (text or "").casefold()
+    found: list[str] = []
+    for needles, urls in BRAND_EXTRA_SITES:
+        if any(needle.casefold() in blob for needle in needles):
+            found.extend(urls)
+    return found

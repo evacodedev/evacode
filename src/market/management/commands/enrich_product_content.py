@@ -50,7 +50,7 @@ class Command(BaseCommand):
                 ok += 1
                 self.stdout.write(self.style.SUCCESS(f"{good.id}: черновик записан"))
             except (AgentConfigError, AgentRunError) as extra:
-                save_agent_draft(good, None, error=str(extra))
+                save_agent_draft(good, None, error=str(extra), recorded=False)
                 failed += 1
                 self.stderr.write(f"{good.id}: {extra}")
         self.stdout.write(f"Готово: {ok}, ошибки: {failed}")
