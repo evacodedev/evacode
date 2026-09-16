@@ -1,6 +1,6 @@
 <template>
     <div class="cart-product" v-if="product && product.id">
-        <nuxt-link class="product-image-link" :to="{ path: '/product/sidebar/' + product.id }" @click="rememberProduct">
+        <nuxt-link class="product-image-link" :to="{ path: '/product/' + product.id }" @click="rememberProduct">
             <img :src="product.images[0].url" alt/>
         </nuxt-link>
         <table class="table cart-table table-responsive-xs">
@@ -16,7 +16,7 @@
             <tbody>
             <tr>
                 <td>
-                    <nuxt-link :to="{ path: '/product/sidebar/' + product.id }" @click="rememberProduct">{{
+                    <nuxt-link :to="{ path: '/product/' + product.id }" @click="rememberProduct">{{
                             product.title
                         }}
                     </nuxt-link>

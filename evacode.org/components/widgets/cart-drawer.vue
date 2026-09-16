@@ -37,7 +37,7 @@
               <li v-for="item in cart" :key="item.id" class="cart-drawer__item">
                 <nuxt-link
                   class="cart-drawer__thumb"
-                  :to="{ path: '/product/sidebar/' + item.id }"
+                  :to="{ path: '/product/' + item.id }"
                   @click="onProductClick(item)"
                 >
                   <img
@@ -50,7 +50,7 @@
                   <div class="cart-drawer__item-top">
                     <nuxt-link
                       class="cart-drawer__name"
-                      :to="{ path: '/product/sidebar/' + item.id }"
+                      :to="{ path: '/product/' + item.id }"
                       @click="onProductClick(item)"
                     >
                       {{ item.title }}

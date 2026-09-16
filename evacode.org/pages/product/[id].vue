@@ -88,6 +88,36 @@
                     Добавить в корзину
                 </button>
                 <p class="product-pdp__avail">{{ outOfStock ? 'Нет в наличии' : 'В наличии' }}</p>
+                <p
+                    class="product-pdp__notice"
+                    :class="{ 'is-on': addedNotice }"
+                    role="status"
+                    aria-live="polite"
+                >
+                    <span v-if="addedNotice">Добавлено в корзину</span>
+                </p>
+                <nuxt-link
+                    to="/page/account/cart/"
+                    class="product-pdp__checkout"
+                    :class="{ 'is-disabled': !cartHasItems }"
+                    :aria-disabled="!cartHasItems"
+                    :tabindex="cartHasItems ? 0 : -1"
+                    @click="onCheckoutClick"
+                >
+                    Оформить заказ
+                </nuxt-link>
+                <div class="product-pdp__help">
+                    <p class="product-pdp__help-label">Связаться</p>
+                    <a class="product-pdp__help-line" href="tel:+821076528595">+8210-7652-8595</a>
+                    <p class="product-pdp__help-note">WhatsApp</p>
+                    <a
+                        class="product-pdp__help-line"
+                        href="https://wa.me/821076528595"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >Написать в WhatsApp</a>
+                    <a class="product-pdp__help-line" href="mailto:sales@evacode.org">sales@evacode.org</a>
+                </div>
             </div>
             <div v-if="accordionItems.length" class="product-pdp__accordion motion-appear" style="--i: 5">
                 <div
@@ -183,7 +213,11 @@ const counter = ref(1);
 const swiper = ref({});
 const openKinds = ref({ description: true });
 const motionReady = ref(false);
+const addedNotice = ref(false);
+let addedNoticeTimer;
 const productId = String(route.params.id);
+const cartStore = useCartStore();
+const cartHasItems = computed(() => cartStore.cart.length > 0);
 
 const { data: productResponse, pending, status, error } = await useAsyncData(
     `goods-pdp-${productId}`,
@@ -308,6 +342,22 @@ onMounted(() => {
     });
 });
 
+onBeforeUnmount(() => {
+    if (addedNoticeTimer) {
+        clearTimeout(addedNoticeTimer);
+    }
+});
+
+const showAddedNotice = () => {
+    addedNotice.value = true;
+    if (addedNoticeTimer) {
+        clearTimeout(addedNoticeTimer);
+    }
+    addedNoticeTimer = setTimeout(() => {
+        addedNotice.value = false;
+    }, 4000);
+};
+
 const addToCart = (item, qty) => {
     const payload = {
         id: item.id,
@@ -318,7 +368,14 @@ const addToCart = (item, qty) => {
         images: item.images,
         quantity: qty || 1,
     };
-    useCartStore().addToCart(payload);
+    cartStore.addToCart(payload);
+    showAddedNotice();
+};
+
+const onCheckoutClick = (event) => {
+    if (!cartHasItems.value) {
+        event.preventDefault();
+    }
 };
 
 const getPrice = (price) => useProductStore().getPrice(price);
