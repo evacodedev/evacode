@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import CONTENT_LANGUAGES, GoodsModel, ImageModel, GroupOfGoods
+from .product_content_agent import _normalize_section_blocks
 
 CONTENT_LANG_CODES = tuple(code for code, _ in CONTENT_LANGUAGES)
 
@@ -90,7 +91,7 @@ class GoodsSerializer(serializers.ModelSerializer):
                     "items": list(translation.items) if translation and translation.items else [],
                 }
             )
-        return blocks
+        return _normalize_section_blocks(blocks)
 
 
 class GoodsListSerializer(serializers.ModelSerializer):

@@ -12,7 +12,7 @@ from market.models import (
     ProductContent,
     ProductContentAgentSettings,
 )
-from market.product_content import apply_product_content
+from market.product_content_prompt import official_site_for_text
 from market.product_content_agent import (
     AgentConfigError,
     AgentRunError,
@@ -28,6 +28,62 @@ class AgentJsonTests(TestCase):
     def test_extracts_fenced_json(self):
         payload = extract_json_object('note\n```json\n{"brand_name": "O HUI", "blocks": []}\n```')
         self.assertEqual(payload["brand_name"], "O HUI")
+
+    def test_extracts_nested_fenced_json(self):
+        payload = extract_json_object(
+            '```json\n{"brand_name": "O HUI", "blocks": [{"kind": "lead", "body": "x"}]}\n```'
+        )
+        self.assertEqual(payload["blocks"][0]["kind"], "lead")
+
+    def test_repairs_trailing_comma(self):
+        payload = extract_json_object('{"brand_name": "O HUI", "blocks": [],}')
+        self.assertEqual(payload["brand_name"], "O HUI")
+
+    def test_curacion_maps_to_91cosmedi(self):
+        self.assertEqual(
+            official_site_for_text("Curación LACTO AQUANIC CREAM MASK"),
+            "https://91cosmedi.com/en/curacion/",
+        )
+
+    def test_allows_crlf_after_url_string(self):
+        payload = extract_json_object(
+            '{"brand_name":"","blocks":[{"kind":"lead","body":"x","items":[],'
+            '"source_url":"https://www.hwahae.com/en/products/curaci%C3%B3n-MASK/1"\r\n }]}'
+        )
+        self.assertIn("hwahae.com", payload["blocks"][0]["source_url"])
+
+    def test_splits_usage_out_of_about(self):
+        from market.product_content_agent import _sanitize_draft
+
+        draft = _sanitize_draft(
+            {
+                "brand_name": "",
+                "blocks": [
+                    {
+                        "kind": "lead",
+                        "body": "Маска успокаивает кожу.",
+                        "items": [],
+                        "source_url": "https://91cosmedi.com/en/curacion/",
+                    },
+                    {
+                        "kind": "about",
+                        "body": (
+                            "Маска успокаивает кожу.\n"
+                            "Крем можно использовать как маску.\n"
+                            "Способ использования 1. Нанесите на лицо.\n"
+                            "Способ использования 2. Оставьте на ночь."
+                        ),
+                        "items": [],
+                        "source_url": "https://91cosmedi.com/en/curacion/",
+                    },
+                ],
+            },
+            brand_locked=True,
+        )
+        kinds = {block["kind"]: block for block in draft["blocks"]}
+        self.assertNotIn("Маска успокаивает кожу.", kinds["about"]["body"])
+        self.assertIn("how_to_use", kinds)
+        self.assertEqual(len(kinds["how_to_use"]["items"]), 2)
 
     def test_geo_block_message(self):
         from unittest.mock import Mock

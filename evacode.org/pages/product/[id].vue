@@ -217,25 +217,35 @@ const accordionItems = computed(() => {
         }
         return Boolean(block.body || (block.items && block.items.length));
     });
+    const items = [];
+    const seen = new Set();
+    const pushBlock = (block, kind, heading) => {
+        if (!block || seen.has(kind)) {
+            return;
+        }
+        const hasText = Boolean(block.body || (block.items && block.items.length) || block.html);
+        if (!hasText) {
+            return;
+        }
+        seen.add(kind);
+        items.push({ ...block, kind, heading });
+    };
     const lead = blocks.find((block) => block.kind === 'lead');
     const about = blocks.find((block) => block.kind === 'about');
-    const rest = blocks.filter((block) => block.kind !== 'lead' && block.kind !== 'about');
-    const descriptionBody = [lead?.body, about?.body].filter(Boolean).join('\n\n');
-    const items = [];
-    if (descriptionBody || (about?.items && about.items.length)) {
-        items.push({
-            kind: 'description',
-            heading: 'Описание',
-            body: descriptionBody,
-            items: about?.items || [],
-        });
+    pushBlock(lead, 'description', 'Описание');
+    if (about && about.body && lead?.body && about.body.trim() === lead.body.trim()) {
+        // skip duplicate about
+    } else {
+        pushBlock(about, 'about', blockHeading(about || { kind: 'about', heading: '' }));
     }
-    rest.forEach((block) => {
-        const heading = blockHeading(block);
-        if (heading) {
-            items.push({ ...block, heading });
-        }
-    });
+    blocks
+        .filter((block) => block.kind !== 'lead' && block.kind !== 'about')
+        .forEach((block) => {
+            const heading = blockHeading(block);
+            if (heading) {
+                pushBlock(block, block.kind, heading);
+            }
+        });
     if (!items.length && product.value?.description) {
         return [{ kind: 'description', heading: 'Описание', html: product.value.description, items: [] }];
     }

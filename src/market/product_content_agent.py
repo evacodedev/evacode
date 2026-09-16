@@ -18,7 +18,7 @@ from .models import (
     ProductContentBlockI18n,
 )
 from .product_content import _lookup_brand
-from .product_content_prompt import DEFAULT_AGENT_PROMPT
+from .product_content_prompt import BRAND_SITE_RULES, DEFAULT_AGENT_PROMPT, official_site_for_text
 
 ALLOWED_KINDS = {
     "lead",
@@ -67,20 +67,36 @@ def _raise_openai_error(response: requests.Response) -> None:
 
 def extract_json_object(text: str) -> dict:
     raw = (text or "").strip()
-    fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
-    if fenced:
-        raw = fenced.group(1)
+    raw = re.sub(r"^```(?:json)?\s*", "", raw, flags=re.I)
+    raw = re.sub(r"\s*```\s*$", "", raw)
     start = raw.find("{")
     end = raw.rfind("}")
     if start < 0 or end <= start:
         raise AgentRunError("Модель не вернула JSON")
+    blob = raw[start : end + 1].replace("\r\n", "\n").replace("\r", "\n")
     try:
-        data = json.loads(raw[start : end + 1])
-    except json.JSONDecodeError as extra:
-        raise AgentRunError(f"Некорректный JSON от модели: {extra}") from extra
+        data = json.loads(blob, strict=False)
+    except json.JSONDecodeError:
+        try:
+            data = json.loads(_repair_json(blob), strict=False)
+        except json.JSONDecodeError as extra:
+            snippet = blob[max(0, extra.pos - 80) : extra.pos + 80] if extra.pos is not None else blob[:160]
+            raise AgentRunError(
+                f"Некорректный JSON от модели: {extra}. Фрагмент: {snippet!r}"
+            ) from extra
     if not isinstance(data, dict):
         raise AgentRunError("JSON агента должен быть объектом")
     return data
+
+
+def _repair_json(blob: str) -> str:
+    fixed = (
+        blob.replace("\u201c", '"')
+        .replace("\u201d", '"')
+        .replace("\u2018", "'")
+        .replace("\u2019", "'")
+    )
+    return re.sub(r",(\s*[}\]])", r"\1", fixed)
 
 
 def _output_text(payload: dict) -> str:
@@ -110,7 +126,10 @@ def call_content_llm(system_prompt: str, user_payload: str, model: str) -> str:
             "model": model or "gpt-4.1-mini",
             "tools": [{"type": "web_search"}],
             "input": [
-                {"role": "developer", "content": system_prompt or DEFAULT_AGENT_PROMPT},
+                {
+                    "role": "developer",
+                    "content": f"{system_prompt or DEFAULT_AGENT_PROMPT}\n\n{BRAND_SITE_RULES}",
+                },
                 {"role": "user", "content": user_payload},
             ],
         },
@@ -130,14 +149,101 @@ def _user_payload(good: GoodsModel) -> str:
     brand = ""
     if good.content_brand_id:
         brand = str(good.content_brand)
+    hint = official_site_for_text(f"{good.title} {brand}")
+    official_line = (
+        f"preferred_official_url: {hint}\n"
+        "Ищи этот товар на этом сайте. Hwahae / Olive Young / Coupang — не основной источник.\n"
+        if hint
+        else ""
+    )
     return (
         f"id: {good.id}\n"
         f"title: {good.title}\n"
         f"brand_already_set: {brand or '(пусто — можно предложить каноническое имя)'}\n"
         f"kind: {good.content_kind or ''}\n"
         f"weight_grams_from_catalog: {good.weight}\n"
+        f"{official_line}"
         f"description_from_BR:\n{good.description or ''}\n"
     )
+
+
+USAGE_SPLIT_RE = re.compile(
+    r"(?:^|\n)\s*(Способ\s+(?:использования|применения)[\s\S]*)",
+    re.IGNORECASE,
+)
+USAGE_STEP_RE = re.compile(r"(?=Способ\s+использования\s+\d)", re.IGNORECASE)
+
+
+def _peel_usage(body: str) -> tuple[str, str]:
+    text = (body or "").strip()
+    match = USAGE_SPLIT_RE.search(text)
+    if not match:
+        return text, ""
+    return text[: match.start()].strip(), match.group(1).strip()
+
+
+def _usage_items(text: str) -> list:
+    chunks = [part.strip() for part in USAGE_STEP_RE.split(text or "") if part.strip()]
+    return chunks if len(chunks) > 1 else []
+
+
+def _normalize_section_blocks(blocks: list) -> list:
+    by_kind = {}
+    order = []
+    for item in blocks or []:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").strip()
+        if kind not in ALLOWED_KINDS:
+            continue
+        if kind not in by_kind:
+            order.append(kind)
+        by_kind[kind] = dict(item)
+        by_kind[kind]["kind"] = kind
+        by_kind[kind]["body"] = str(item.get("body") or "").strip()
+        by_kind[kind]["heading"] = str(item.get("heading") or "").strip()
+        items = item.get("items") if isinstance(item.get("items"), list) else []
+        by_kind[kind]["items"] = items
+        if "source_url" in item:
+            by_kind[kind]["source_url"] = item.get("source_url") or ""
+
+    lead_body = (by_kind.get("lead") or {}).get("body") or ""
+    about = by_kind.get("about")
+    if about:
+        about_body, peeled = _peel_usage(about.get("body") or "")
+        if lead_body and about_body.startswith(lead_body):
+            about_body = about_body[len(lead_body) :].strip()
+        about["body"] = about_body
+        if peeled:
+            usage = by_kind.get("how_to_use") or {"kind": "how_to_use", "heading": "", "body": "", "items": []}
+            if not usage.get("body") and not usage.get("items"):
+                steps = _usage_items(peeled)
+                usage["body"] = "" if steps else peeled
+                usage["items"] = steps or usage.get("items") or []
+                usage["source_url"] = usage.get("source_url") or about.get("source_url") or ""
+                by_kind["how_to_use"] = usage
+                if "how_to_use" not in order:
+                    order.append("how_to_use")
+        if not about["body"] and not about.get("items"):
+            by_kind.pop("about", None)
+            order = [kind for kind in order if kind != "about"]
+
+    lead = by_kind.get("lead")
+    if lead:
+        lead_body, peeled = _peel_usage(lead.get("body") or "")
+        lead["body"] = lead_body
+        if peeled and "how_to_use" not in by_kind:
+            steps = _usage_items(peeled)
+            by_kind["how_to_use"] = {
+                "kind": "how_to_use",
+                "heading": "",
+                "body": "" if steps else peeled,
+                "items": steps,
+                "source_url": lead.get("source_url") or "",
+            }
+            order.append("how_to_use")
+
+    return [by_kind[kind] for kind in order if kind in by_kind]
 
 
 def _sanitize_draft(raw: dict, *, brand_locked: bool) -> dict:
@@ -166,6 +272,7 @@ def _sanitize_draft(raw: dict, *, brand_locked: bool) -> dict:
                 "source_url": source,
             }
         )
+    blocks = _normalize_section_blocks(blocks)
     return {
         "brand_name": brand_name,
         "official_url": str(raw.get("official_url") or "").strip(),
