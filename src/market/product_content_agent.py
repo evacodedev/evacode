@@ -47,6 +47,24 @@ def _api_key() -> str:
     return (os.getenv("OPENAI_API_KEY") or os.getenv("CONTENT_AGENT_OPENAI_KEY") or "").strip()
 
 
+def _agent_proxies() -> dict | None:
+    url = (os.getenv("CONTENT_AGENT_PROXY") or "").strip()
+    if not url:
+        return None
+    return {"http": url, "https": url}
+
+
+def _raise_openai_error(response: requests.Response) -> None:
+    body = (response.text or "")[:500]
+    if response.status_code == 403 and "unsupported_country_region_territory" in body:
+        raise AgentRunError(
+            "OpenAI отклонил IP сервера (страна не поддерживается). "
+            "Нужен CONTENT_AGENT_PROXY в поддерживаемом регионе; "
+            "не ставьте HTTPS_PROXY на весь контейнер server."
+        )
+    raise AgentRunError(f"OpenAI {response.status_code}: {body}")
+
+
 def extract_json_object(text: str) -> dict:
     raw = (text or "").strip()
     fenced = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", raw, re.DOTALL)
@@ -95,9 +113,11 @@ def call_content_llm(system_prompt: str, user_payload: str, model: str) -> str:
             ],
         },
         timeout=180,
+        proxies=_agent_proxies(),
+        trust_env=False,
     )
     if response.status_code >= 400:
-        raise AgentRunError(f"OpenAI {response.status_code}: {response.text[:500]}")
+        _raise_openai_error(response)
     data = response.json()
     text = _output_text(data)
     if not text.strip():

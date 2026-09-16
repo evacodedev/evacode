@@ -15,6 +15,7 @@ from market.models import (
 from market.product_content import apply_product_content
 from market.product_content_agent import (
     AgentConfigError,
+    AgentRunError,
     accept_agent_draft,
     extract_json_object,
     pending_enrichment_queryset,
@@ -27,6 +28,18 @@ class AgentJsonTests(TestCase):
     def test_extracts_fenced_json(self):
         payload = extract_json_object('note\n```json\n{"brand_name": "O HUI", "blocks": []}\n```')
         self.assertEqual(payload["brand_name"], "O HUI")
+
+    def test_geo_block_message(self):
+        from unittest.mock import Mock
+
+        from market.product_content_agent import _raise_openai_error
+
+        response = Mock()
+        response.status_code = 403
+        response.text = '{"error":{"code":"unsupported_country_region_territory"}}'
+        with self.assertRaises(AgentRunError) as raised:
+            _raise_openai_error(response)
+        self.assertIn("CONTENT_AGENT_PROXY", str(raised.exception))
 
 
 class AgentDraftTests(TestCase):
