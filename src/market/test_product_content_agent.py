@@ -154,3 +154,30 @@ class AgentAdminButtonTests(TestCase):
         url = reverse("admin:market_goodsmodel_enrich_content", args=[self.good.pk])
         response = self.client.post(url)
         self.assertEqual(response.status_code, 302)
+
+    def test_goods_change_has_action_table(self):
+        apply_product_content(self.good, force=True)
+        self.client.force_login(self.user)
+        url = reverse("admin:market_goodsmodel_change", args=[self.good.pk])
+        response = self.client.get(url)
+        self.assertContains(response, "Контент карточки")
+        self.assertContains(response, "Запуск")
+        self.assertContains(response, "Секции контента")
+
+    def test_productcontent_search_by_title_does_not_500(self):
+        apply_product_content(self.good, force=True)
+        self.client.force_login(self.user)
+        url = reverse("admin:market_productcontent_changelist")
+        response = self.client.get(url, {"q": "The history of Whoo Two way Pact"})
+        self.assertEqual(response.status_code, 200)
+
+    def test_productcontent_change_has_sections_and_accept(self):
+        apply_product_content(self.good, force=True)
+        content = self.good.pdp_content
+        content.agent_draft = {"blocks": [{"kind": "lead", "body": "x", "source_url": "https://a.test"}]}
+        content.save(update_fields=["agent_draft"])
+        self.client.force_login(self.user)
+        url = reverse("admin:market_productcontent_change", args=[content.pk])
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Принять черновик")

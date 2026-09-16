@@ -2,16 +2,19 @@ from datetime import time as dt_time
 
 from django import forms
 from django.contrib import admin, messages
+from django.db.models import Q
 from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from .br_stock_inventory import execute_kz_stock_sync
 from .business_ru_orders import export_paid_order
 from .order_email import send_order_confirmation_email
 from .ems_tariffs import import_ems_xlsx
 from .models import (
+    CONTENT_BLOCK_KINDS,
     ApiKzSync,
     ApiKzSyncSettings,
     EmsDestination,
@@ -40,6 +43,41 @@ from .product_content_agent import (
     run_content_agent,
     save_agent_draft,
 )
+
+
+def _admin_text_or_id_search(queryset, search_term, *, text_lookups, id_lookup):
+    term = (search_term or "").strip()
+    if not term:
+        return queryset, False
+    if term.isdigit():
+        return queryset.filter(**{id_lookup: int(term)}), False
+    query = Q()
+    for lookup in text_lookups:
+        query |= Q(**{lookup: term})
+    return queryset.filter(query), False
+
+
+def _section_rows(content):
+    labels = dict(CONTENT_BLOCK_KINDS)
+    rows = []
+    if not content:
+        return rows
+    blocks = content.blocks.prefetch_related("translations").order_by("sort", "id")
+    for block in blocks:
+        ru = next((item for item in block.translations.all() if item.language == "ru"), None)
+        preview = ""
+        if ru:
+            preview = (ru.heading or ru.body or "").strip()
+            if not preview and ru.items:
+                preview = str(ru.items)[:180]
+        rows.append(
+            {
+                "kind": block.kind,
+                "label": labels.get(block.kind, block.kind),
+                "preview": preview[:180],
+            }
+        )
+    return rows
 
 
 @admin.register(CheckoutSettings)
@@ -275,10 +313,25 @@ class ProductContentAgentSettingsAdmin(admin.ModelAdmin):
 
 @admin.register(ProductContent)
 class ProductContentAdmin(admin.ModelAdmin):
-    list_display = ("good", "enrichment_status", "agent_run_at", "parsed_at")
+    list_display = ("id", "good", "good_id", "enrichment_status", "agent_run_at", "parsed_at")
     list_filter = ("enrichment_status",)
-    search_fields = ("good__title", "good_id")
+    search_fields = ("good__title",)
+    change_form_template = "admin/market/productcontent/change_form.html"
     readonly_fields = (
+        "good",
+        "enrichment_status",
+        "enrichment_reasons",
+        "parsed_at",
+        "agent_run_at",
+        "agent_error",
+        "agent_draft",
+        "open_good_link",
+    )
+    inlines = (ProductContentBlockInline,)
+    actions = ("accept_agent_draft_action",)
+    fields = (
+        "open_good_link",
+        "good",
         "enrichment_status",
         "enrichment_reasons",
         "parsed_at",
@@ -286,8 +339,56 @@ class ProductContentAdmin(admin.ModelAdmin):
         "agent_error",
         "agent_draft",
     )
-    inlines = (ProductContentBlockInline,)
-    actions = ("accept_agent_draft_action",)
+
+    def get_search_results(self, request, queryset, search_term):
+        return _admin_text_or_id_search(
+            queryset,
+            search_term,
+            text_lookups=("good__title__icontains",),
+            id_lookup="good_id",
+        )
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("good")
+
+    @admin.display(description="Товар")
+    def open_good_link(self, obj):
+        if not obj or not obj.good_id:
+            return "—"
+        url = reverse("admin:market_goodsmodel_change", args=[obj.good_id])
+        return format_html('<a href="{}">Карточка товара {}</a>', url, obj.good_id)
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        content = self.get_object(request, object_id)
+        extra_context["content_sections"] = _section_rows(content)
+        extra_context["has_agent_draft"] = bool(content and content.agent_draft)
+        return super().change_view(request, object_id, form_url, extra_context)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "<path:object_id>/accept-agent-draft/",
+                self.admin_site.admin_view(self.accept_agent_draft_view),
+                name="market_productcontent_accept_agent_draft",
+            ),
+        ]
+        return extra + urls
+
+    def accept_agent_draft_view(self, request, object_id):
+        if request.method != "POST":
+            return redirect(reverse("admin:market_productcontent_change", args=[object_id]))
+        content = ProductContent.objects.filter(pk=object_id).select_related("good").first()
+        if not content:
+            messages.error(request, "Контент не найден")
+            return redirect(reverse("admin:market_productcontent_changelist"))
+        try:
+            written = accept_agent_draft(content.good)
+            messages.success(request, f"Принято секций: {written}")
+        except AgentRunError as extra:
+            messages.error(request, str(extra))
+        return redirect(reverse("admin:market_productcontent_change", args=[object_id]))
 
     @admin.action(description="Принять черновик агента в секции ru")
     def accept_agent_draft_action(self, request, queryset):
@@ -317,12 +418,34 @@ class GoodsModelAdmin(admin.ModelAdmin):
     )
     list_editable = ("queue",)
     list_filter = ("content_brand", "content_kind", "pdp_content__enrichment_status")
-    search_fields = ("title", "id")
+    search_fields = ("title",)
     list_per_page = 50
     autocomplete_fields = ("content_brand", "content_kind")
     actions = ("parse_product_content_action", "enrich_product_content_action")
     change_form_template = "admin/market/goodsmodel/change_form.html"
     readonly_fields = ("has_pdp_content", "enrichment_label")
+
+    def get_search_results(self, request, queryset, search_term):
+        return _admin_text_or_id_search(
+            queryset,
+            search_term,
+            text_lookups=("title__icontains",),
+            id_lookup="id",
+        )
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        good = self.get_object(request, object_id)
+        content = None
+        if good:
+            try:
+                content = good.pdp_content
+            except ProductContent.DoesNotExist:
+                content = None
+        extra_context["pdp_content"] = content
+        extra_context["content_sections"] = _section_rows(content)
+        extra_context["has_agent_draft"] = bool(content and content.agent_draft)
+        return super().change_view(request, object_id, form_url, extra_context)
 
     def get_queryset(self, request):
         return super().get_queryset(request).select_related("pdp_content")

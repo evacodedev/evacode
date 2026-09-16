@@ -1,30 +1,78 @@
 {% extends "admin/change_form.html" %}
-{% block object-tools-items %}
-{% if original %}
-<li>
-    <form method="post" action="{% url 'admin:market_goodsmodel_parse_content' original.pk %}" style="display:inline">
-        {% csrf_token %}
-        <button type="submit" class="historylink" style="background:none;border:0;padding:0;color:inherit;cursor:pointer">
-            Создать контент и распарсить описание
-        </button>
-    </form>
-</li>
-<li>
-    <form method="post" action="{% url 'admin:market_goodsmodel_enrich_content' original.pk %}" style="display:inline">
-        {% csrf_token %}
-        <button type="submit" class="historylink" style="background:none;border:0;padding:0;color:inherit;cursor:pointer">
-            Агент: найти факты
-        </button>
-    </form>
-</li>
-<li>
-    <form method="post" action="{% url 'admin:market_goodsmodel_accept_agent_draft' original.pk %}" style="display:inline">
-        {% csrf_token %}
-        <button type="submit" class="historylink" style="background:none;border:0;padding:0;color:inherit;cursor:pointer">
-            Принять черновик агента
-        </button>
-    </form>
-</li>
-{% endif %}
+{% block object-tools-items %}{{ block.super }}{% endblock %}
+{% block after_field_sets %}
 {{ block.super }}
+<div class="module aligned">
+    <h2>Контент карточки</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Действие</th>
+                <th>Запуск</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Создать контент и распарсить описание</td>
+                <td>
+                    <form method="post" action="{% url 'admin:market_goodsmodel_parse_content' original.pk %}">
+                        {% csrf_token %}
+                        <input type="submit" value="Запуск" class="default">
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <td>Агент: найти факты (черновик)</td>
+                <td>
+                    <form method="post" action="{% url 'admin:market_goodsmodel_enrich_content' original.pk %}">
+                        {% csrf_token %}
+                        <input type="submit" value="Запуск" class="default">
+                    </form>
+                </td>
+            </tr>
+            <tr>
+                <td>Принять черновик агента в секции</td>
+                <td>
+                    {% if has_agent_draft %}
+                    <form method="post" action="{% url 'admin:market_goodsmodel_accept_agent_draft' original.pk %}">
+                        {% csrf_token %}
+                        <input type="submit" value="Запуск" class="default">
+                    </form>
+                    {% else %}
+                    Нет черновика
+                    {% endif %}
+                </td>
+            </tr>
+            <tr>
+                <td>Секции контента</td>
+                <td>
+                    {% if pdp_content %}
+                    <a class="button" href="{% url 'admin:market_productcontent_change' pdp_content.pk %}">Открыть</a>
+                    {% else %}
+                    Сначала распарсите описание
+                    {% endif %}
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    {% if content_sections %}
+    <h2>Секции сейчас</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Секция</th>
+                <th>Фрагмент</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in content_sections %}
+            <tr>
+                <td>{{ row.label }}</td>
+                <td>{{ row.preview }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
 {% endblock %}
