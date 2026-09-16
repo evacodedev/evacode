@@ -12,6 +12,7 @@ from market.models import (
     ProductContent,
     ProductContentAgentSettings,
 )
+from market.product_content import apply_product_content
 from market.product_content_prompt import extra_sites_for_text, official_site_for_text
 from market.product_content_agent import (
     AgentConfigError,
@@ -113,6 +114,79 @@ class AgentJsonTests(TestCase):
         self.assertNotIn("Маска успокаивает кожу.", kinds["about"]["body"])
         self.assertIn("how_to_use", kinds)
         self.assertEqual(len(kinds["how_to_use"]["items"]), 2)
+
+    def test_splits_mixed_about_into_ingredients_and_usage(self):
+        from market.product_content_agent import _sanitize_draft
+
+        draft = _sanitize_draft(
+            {
+                "brand_name": "",
+                "blocks": [
+                    {
+                        "kind": "about",
+                        "body": (
+                            "ACFIT V-SANG GEL\n"
+                            "Содержит запатентованный ингредиент Soothing Cooler, а также экстракт звездчатого аниса.\n"
+                            "Полученный из плодов растения звездчатый анис, помогает успокоить и стабилизировать кожу.\n"
+                            "Содержит экстракт спарассиса курчавого (гриб) + бета-глюкан\n"
+                            "Экстракт спарассиса курчавого (гриб) - Обеспечивает увлажнение, помогая успокоить кожу.\n"
+                            "* Среди грибов наибольшее содержание бета-глюкана имеет спарассис курчавый.\n"
+                            "Бета-глюкан (B-глюкан) - Он помогает поддерживать кожу увлажненной.\n"
+                            "Содержит 5 видов гиалуроновой кислоты: Гиалуронат натрия. Вы почувствуете более глубокий увлажняющий эффект.\n"
+                            "- В случае если ваша кожа была подвержена агрессивному воздействию внешних факторов, "
+                            "то нанесите гель толстым слоем, оставьте на 15–20 минут."
+                        ),
+                        "items": [],
+                        "source_url": "catalog:description",
+                    }
+                ],
+            },
+            brand_locked=True,
+        )
+        kinds = {block["kind"]: block for block in draft["blocks"]}
+        self.assertIn("ingredients", kinds)
+        names = " ".join(item["name"] for item in kinds["ingredients"]["items"])
+        self.assertIn("Soothing Cooler", names)
+        self.assertIn("гиалуроновой", names.casefold() + kinds["ingredients"]["items"][-1]["name"].casefold())
+        self.assertIn("how_to_use", kinds)
+        usage = " ".join(kinds["how_to_use"]["items"] or [kinds["how_to_use"]["body"]])
+        self.assertIn("нанесите", usage.casefold())
+        about_body = (kinds.get("about") or {}).get("body") or ""
+        self.assertNotIn("нанесите гель толстым слоем", about_body.casefold())
+        self.assertNotIn("Содержит 5 видов", about_body)
+
+    def test_splits_benefits_joined_by_bullets(self):
+        from market.product_content_agent import _sanitize_draft
+
+        draft = _sanitize_draft(
+            {
+                "brand_name": "",
+                "blocks": [
+                    {
+                        "kind": "benefits",
+                        "body": "",
+                        "items": [
+                            "Глубокое увлажнение кожи• Успокоение и омоложение кожи",
+                            "Укрепление естественной силы кожи• Мягкое и бережное очищение",
+                            "Регулирование уровня pH и удаление омертвевших клеток",
+                        ],
+                        "source_url": "catalog:description",
+                    }
+                ],
+            },
+            brand_locked=True,
+        )
+        items = draft["blocks"][0]["items"]
+        self.assertEqual(
+            items,
+            [
+                "Глубокое увлажнение кожи",
+                "Успокоение и омоложение кожи",
+                "Укрепление естественной силы кожи",
+                "Мягкое и бережное очищение",
+                "Регулирование уровня pH и удаление омертвевших клеток",
+            ],
+        )
 
     def test_keeps_catalog_source(self):
         from market.product_content_agent import CATALOG_SOURCE, _sanitize_draft

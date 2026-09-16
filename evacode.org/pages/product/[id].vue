@@ -113,9 +113,13 @@
                         :inert="!isAccordionOpen(item.kind)"
                     >
                         <div class="product-pdp__acc-inner">
-                        <p v-if="item.body" class="product-pdp__body">{{ item.body }}</p>
+                        <p
+                            v-for="(para, paraIndex) in bodyParagraphs(item)"
+                            :key="item.kind + '-p-' + paraIndex"
+                            class="product-pdp__body"
+                        >{{ para }}</p>
                         <ul v-if="isStringList(item)" class="product-pdp__list">
-                            <li v-for="(row, i) in item.items" :key="i">{{ row }}</li>
+                            <li v-for="(row, i) in stringListItems(item)" :key="i">{{ row }}</li>
                         </ul>
                         <dl v-else-if="isNamedList(item)" class="product-pdp__ingredients">
                             <div v-for="(row, i) in item.items" :key="i">
@@ -269,10 +273,26 @@ const isStringList = (block) =>
     Array.isArray(block.items)
     && block.items.length
     && typeof block.items[0] === 'string';
+const stringListItems = (block) => {
+    if (!isStringList(block)) {
+        return [];
+    }
+    return block.items.flatMap((row) =>
+        String(row)
+            .split(/\s*[•●▪◦]\s*/)
+            .map((part) => part.trim())
+            .filter(Boolean),
+    );
+};
 const isNamedList = (block) =>
     Array.isArray(block.items)
     && block.items.length
     && typeof block.items[0] === 'object';
+const bodyParagraphs = (block) =>
+    String(block?.body || '')
+        .split(/\n\s*\n/)
+        .map((para) => para.trim())
+        .filter(Boolean);
 
 const loadedImages = ref({});
 const markImageLoaded = (index) => {

@@ -255,10 +255,33 @@ def _fetched_pages_block(pages: list | None) -> str:
 
 
 USAGE_SPLIT_RE = re.compile(
-    r"(?:^|\n)\s*(Способ\s+(?:использования|применения)[\s\S]*)",
+    r"(?:^|\n)\s*(?:"
+    r"способ\s+(?:использования|применения)"
+    r"|как\s+(?:использовать|наносить|применять)"
+    r"|рекомендуем(?:ый)?\s+(?:порядок|способ)"
+    r"|(?:[-•*]\s*)?в случае если"
+    r"|(?:[-•*]\s*)?нанесите\b"
+    r")[\s\S]*",
     re.IGNORECASE,
 )
 USAGE_STEP_RE = re.compile(r"(?=Способ\s+использования\s+\d)", re.IGNORECASE)
+INGREDIENT_HEAD_RE = re.compile(
+    r"^(?:[-•*]\s*)?(?:содержит\b|экстракт\b|бета-?глюкан|гиалурон)",
+    re.IGNORECASE,
+)
+NAME_DASH_RE = re.compile(r"^(.{2,90}?)\s[-—–]\s+(.+)$", re.DOTALL)
+TITLE_LINE_RE = re.compile(r"^[A-Z0-9][A-Z0-9 \-_.]{2,70}$")
+INGREDIENT_NAME_HINTS = (
+    "экстракт",
+    "глюкан",
+    "кислот",
+    "гиалурон",
+    "cooler",
+    "ингредиент",
+    "комплекс",
+    "пептид",
+    "масло",
+)
 BOX_NOTE_RE = re.compile(r"\([^)]*\)")
 WHOO_PREFIXES = ("the history of whoo", "the whoo", "whoo")
 
@@ -328,12 +351,189 @@ def _peel_usage(body: str) -> tuple[str, str]:
     match = USAGE_SPLIT_RE.search(text)
     if not match:
         return text, ""
-    return text[: match.start()].strip(), match.group(1).strip()
+    return text[: match.start()].strip(), match.group(0).strip()
 
 
 def _usage_items(text: str) -> list:
     chunks = [part.strip() for part in USAGE_STEP_RE.split(text or "") if part.strip()]
-    return chunks if len(chunks) > 1 else []
+    if len(chunks) > 1:
+        return chunks
+    parts = [
+        part.strip(" -•*")
+        for part in re.split(r"(?=\bДалее\s+нанесите\b)", text or "", flags=re.IGNORECASE)
+        if part.strip()
+    ]
+    return parts if len(parts) > 1 else []
+
+
+def _clean_usage_text(text: str) -> str:
+    return re.sub(r"^[-•*]+\s*", "", (text or "").strip())
+
+
+def _is_title_line(line: str) -> bool:
+    compact = re.sub(r"\s+", " ", (line or "").strip())
+    return bool(TITLE_LINE_RE.match(compact))
+
+
+def _looks_ingredient(chunk: str) -> bool:
+    text = (chunk or "").strip()
+    if INGREDIENT_HEAD_RE.match(text):
+        return True
+    match = NAME_DASH_RE.match(text)
+    if not match:
+        return False
+    left = match.group(1).casefold()
+    return any(hint in left for hint in INGREDIENT_NAME_HINTS)
+
+
+def _ingredient_item(chunk: str) -> dict:
+    text = re.sub(r"^[-•*]+\s*", "", (chunk or "").strip())
+    text = re.sub(r"^содержит\s+", "", text, flags=re.IGNORECASE).strip()
+    text = re.sub(r"^запатентованн\w*\s+ингредиент\s+", "", text, flags=re.IGNORECASE).strip()
+    match = NAME_DASH_RE.match(text)
+    if match:
+        item = {"name": match.group(1).strip(" :."), "text": match.group(2).strip()}
+    elif ":" in text[:120]:
+        name, rest = text.split(":", 1)
+        item = {"name": name.strip(" ."), "text": rest.strip()}
+    else:
+        sentence = re.split(r"(?<=[.!?])\s+", text, maxsplit=1)
+        if len(sentence) > 1:
+            item = {"name": sentence[0].strip(" ."), "text": sentence[1].strip()}
+        else:
+            item = {"name": text[:90].rstrip(" ."), "text": ""}
+    if (item.get("text") or "").casefold() == (item.get("name") or "").casefold():
+        item["text"] = ""
+    return item
+
+
+def _topic_chunks(text: str) -> list[str]:
+    raw = (text or "").replace("\r\n", "\n").strip()
+    if not raw:
+        return []
+    parts = [part.strip() for part in re.split(r"\n+", raw) if part.strip()]
+    if len(parts) == 1:
+        parts = [
+            part.strip()
+            for part in re.split(
+                r"(?<=[.!?])\s+(?=Содержит\b|Экстракт\b|Бета-?глюкан\b)",
+                parts[0],
+                flags=re.IGNORECASE,
+            )
+            if part.strip()
+        ]
+    return parts
+
+
+def _ensure_kind(by_kind: dict, order: list, kind: str, source: str) -> dict:
+    if kind not in by_kind:
+        by_kind[kind] = {
+            "kind": kind,
+            "heading": "",
+            "body": "",
+            "items": [],
+            "source_url": source or "",
+        }
+        order.append(kind)
+    return by_kind[kind]
+
+
+def _kind_weak(block: dict | None) -> bool:
+    if not block:
+        return True
+    items = block.get("items") or []
+    body = str(block.get("body") or "").strip()
+    return not items and len(body) < 80
+
+
+def _append_named_item(block: dict, item: dict) -> None:
+    items = block.setdefault("items", [])
+    name = (item.get("name") or "").casefold()
+    for existing in items:
+        if isinstance(existing, dict) and (existing.get("name") or "").casefold() == name:
+            if item.get("text") and not existing.get("text"):
+                existing["text"] = item["text"]
+            return
+    items.append(item)
+
+
+def _redistribute_about(by_kind: dict, order: list) -> None:
+    about = by_kind.get("about")
+    if not about:
+        return
+    chunks = _topic_chunks(about.get("body") or "")
+    if len(chunks) < 2 and not _looks_ingredient(about.get("body") or ""):
+        return
+    source = about.get("source_url") or ""
+    leftover = []
+    current_ing = None
+    for chunk in chunks:
+        if _is_title_line(chunk):
+            continue
+        peeled_only = ""
+        if USAGE_SPLIT_RE.match(chunk) or USAGE_SPLIT_RE.match(chunk.lstrip("-•* ")):
+            peeled_only = _clean_usage_text(chunk)
+        if peeled_only:
+            usage = _ensure_kind(by_kind, order, "how_to_use", source)
+            if _kind_weak(usage):
+                steps = _usage_items(peeled_only) or [peeled_only]
+                usage["items"] = list(usage.get("items") or []) + [step for step in steps if step]
+                usage["body"] = ""
+                usage["source_url"] = usage.get("source_url") or source
+            continue
+        if _looks_ingredient(chunk):
+            ingredients = _ensure_kind(by_kind, order, "ingredients", source)
+            item = _ingredient_item(chunk)
+            _append_named_item(ingredients, item)
+            current_ing = item
+            ingredients["source_url"] = ingredients.get("source_url") or source
+            continue
+        if current_ing and not _looks_ingredient(chunk):
+            extra = chunk.lstrip("*• ").strip()
+            if extra:
+                current_ing["text"] = f"{current_ing.get('text') or ''} {extra}".strip()
+            continue
+        leftover.append(chunk)
+        current_ing = None
+    about["body"] = "\n\n".join(leftover).strip()
+    if not about["body"] and not about.get("items"):
+        by_kind.pop("about", None)
+        if "about" in order:
+            order.remove("about")
+
+
+def _attach_usage(by_kind: dict, order: list, source_kind: str, peeled: str) -> None:
+    if not peeled:
+        return
+    source_block = by_kind.get(source_kind) or {}
+    usage = by_kind.get("how_to_use")
+    if usage and (usage.get("body") or usage.get("items")):
+        return
+    steps = _usage_items(peeled)
+    cleaned = _clean_usage_text(peeled)
+    by_kind["how_to_use"] = {
+        "kind": "how_to_use",
+        "heading": "",
+        "body": "" if (steps or cleaned) else peeled,
+        "items": steps or ([cleaned] if cleaned else []),
+        "source_url": source_block.get("source_url") or "",
+    }
+    if "how_to_use" not in order:
+        order.append("how_to_use")
+
+
+def _explode_bullet_items(items: list) -> list:
+    out = []
+    for item in items or []:
+        if not isinstance(item, str):
+            out.append(item)
+            continue
+        parts = [part.strip(" -–—") for part in re.split(r"\s*[•●▪◦]\s*", item) if part.strip()]
+        if len(parts) > 1:
+            out.extend(parts)
+        elif item.strip():
+            out.append(item.strip())
+    return out
 
 
 def _normalize_section_blocks(blocks: list) -> list:
@@ -352,7 +552,7 @@ def _normalize_section_blocks(blocks: list) -> list:
         by_kind[kind]["body"] = str(item.get("body") or "").strip()
         by_kind[kind]["heading"] = str(item.get("heading") or "").strip()
         items = item.get("items") if isinstance(item.get("items"), list) else []
-        by_kind[kind]["items"] = items
+        by_kind[kind]["items"] = _explode_bullet_items(items) if kind in {"benefits", "how_to_use"} else items
         if "source_url" in item:
             by_kind[kind]["source_url"] = item.get("source_url") or ""
 
@@ -363,16 +563,7 @@ def _normalize_section_blocks(blocks: list) -> list:
         if lead_body and about_body.startswith(lead_body):
             about_body = about_body[len(lead_body) :].strip()
         about["body"] = about_body
-        if peeled:
-            usage = by_kind.get("how_to_use") or {"kind": "how_to_use", "heading": "", "body": "", "items": []}
-            if not usage.get("body") and not usage.get("items"):
-                steps = _usage_items(peeled)
-                usage["body"] = "" if steps else peeled
-                usage["items"] = steps or usage.get("items") or []
-                usage["source_url"] = usage.get("source_url") or about.get("source_url") or ""
-                by_kind["how_to_use"] = usage
-                if "how_to_use" not in order:
-                    order.append("how_to_use")
+        _attach_usage(by_kind, order, "about", peeled)
         if not about["body"] and not about.get("items"):
             by_kind.pop("about", None)
             order = [kind for kind in order if kind != "about"]
@@ -381,16 +572,9 @@ def _normalize_section_blocks(blocks: list) -> list:
     if lead:
         lead_body, peeled = _peel_usage(lead.get("body") or "")
         lead["body"] = lead_body
-        if peeled and "how_to_use" not in by_kind:
-            steps = _usage_items(peeled)
-            by_kind["how_to_use"] = {
-                "kind": "how_to_use",
-                "heading": "",
-                "body": "" if steps else peeled,
-                "items": steps,
-                "source_url": lead.get("source_url") or "",
-            }
-            order.append("how_to_use")
+        _attach_usage(by_kind, order, "lead", peeled)
+
+    _redistribute_about(by_kind, order)
 
     return [by_kind[kind] for kind in order if kind in by_kind]
 
@@ -562,7 +746,7 @@ def _merge_section_blocks(primary: list, fallback: list) -> list:
         if existing and _block_chars(item) < 80 and _block_chars(existing) > 160:
             continue
         by_kind[kind] = item
-    return [by_kind[kind] for kind in SECTION_ORDER if kind in by_kind]
+    return _normalize_section_blocks([by_kind[kind] for kind in SECTION_ORDER if kind in by_kind])
 
 
 def run_content_agent(good: GoodsModel) -> dict:

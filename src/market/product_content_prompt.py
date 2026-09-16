@@ -12,7 +12,7 @@ DEFAULT_AGENT_PROMPT = """Ты агент контента интернет-ма
 - Сначала официальный сайт. Нет SKU — web_search по точному названию (Hwahae, INCI можно как второй источник).
 - Пустой blocks запрещён, если есть description_from_BR: разложи этот текст, source_url=catalog:description.
 - Для фактов из интернета — настоящий http(s) source_url.
-- Ответ — один JSON, без markdown. В строках JSON не вставляй переносы и не ломай URL.
+- Ответ — один JSON, без markdown. В about.body абзацы через \\n\\n; URL не ломай.
 
 Формат JSON:
 {
@@ -31,6 +31,7 @@ DEFAULT_AGENT_PROMPT = """Ты агент контента интернет-ма
 }
 Для benefits и how_to_use items — массив строк.
 Для ingredients и set_contents items — массив {"name": "", "text": ""}.
+about — только «что это», не состав и не нанесение.
 """
 
 # Всегда дописывается к промпту из админки. Новый бренд — строка сюда.
@@ -61,11 +62,14 @@ BRAND_SITE_RULES = """
 Если в интернете пусто — разложи description_from_BR по секциям, source_url=catalog:description.
 Выдумывать факты нельзя, резать существующий текст — можно.
 
-Секции не смешивать:
+Секции не смешивать и не сваливать всё в about:
 - lead — 1–2 предложения, не копируй about.
-- about — что это за средство, без способа нанесения.
+- about — 1–3 коротких абзаца «что это за средство», через \\n\\n. Без INCI, без «нанесите».
+- benefits — только items: массив коротких строк-эффектов, не простыня в body.
+- ingredients — items: [{"name": "ингредиент", "text": "зачем в формуле"}]. «Содержит X» сюда, не в about.
+- texture, suitable_for, volume, weight, set_contents — отдельные kind, если факт есть.
 - how_to_use — только применение, шаги в items, не дублируй в about.
-- benefits, ingredients, texture — отдельные kind.
+Заполняй все kind, для которых есть факты в источнике. Пустой about при полном составе в ingredients — нормально; пустые benefits при перечисленных эффектах — нет.
 """.strip()
 
 
