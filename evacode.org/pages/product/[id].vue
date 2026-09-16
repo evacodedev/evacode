@@ -109,13 +109,7 @@
                 <div class="product-pdp__help">
                     <p class="product-pdp__help-label">Связаться</p>
                     <a class="product-pdp__help-line" href="tel:+821076528595">+8210-7652-8595</a>
-                    <p class="product-pdp__help-note">WhatsApp</p>
-                    <a
-                        class="product-pdp__help-line"
-                        href="https://wa.me/821076528595"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                    >Написать в WhatsApp</a>
+                    <WidgetsMessengerLinks variant="pdp"/>
                     <a class="product-pdp__help-line" href="mailto:sales@evacode.org">sales@evacode.org</a>
                 </div>
             </div>

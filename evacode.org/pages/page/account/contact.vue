@@ -18,9 +18,8 @@
                             </p>
 
                             <h3 class="our-address social">Соц сети</h3>
-
+                            <WidgetsMessengerLinks variant="page"/>
                             <a target="_blank" :href="contacts.instagram" class="social-contact"><img src="/images/new_evacode/instagram.png" />Instagram</a>
-                            <a target="_blank" :href="contacts.telegram" class="social-contact"><img src="/images/new_evacode/telegram.png" />Telegram</a>
                             <a target="_blank" :href="contacts.tiktok" class="social-contact"><img src="/images/new_evacode/tiktok.png" />Tiktok</a>
                             <a target="_blank" :href="contacts.facebook" class="social-contact"><img src="/images/new_evacode/facebook.png" />Facebook</a>
                         </div>

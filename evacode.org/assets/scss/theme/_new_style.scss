@@ -2145,6 +2145,46 @@ html.cart-drawer-open body {
     color: #8a8680;
 }
 
+.shop-messengers__group {
+    margin: 0 0 12px;
+}
+
+.shop-messengers__label {
+    margin: 0 0 6px;
+    font-size: 11px;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: #8a8680;
+}
+
+.shop-messengers__link {
+    display: block;
+    margin: 0 0 4px;
+    color: #1a1917;
+    font-size: 14px;
+    line-height: 1.5;
+    text-decoration: none;
+    text-transform: none;
+    transition: color 240ms var(--motion-ease);
+
+    &:hover {
+        color: #b89254;
+        text-decoration: none;
+    }
+}
+
+.product-pdp__help .shop-messengers {
+    margin-top: 14px;
+}
+
+.contact-list__messengers {
+    display: block;
+}
+
+.contact-page .shop-messengers {
+    margin: 4px 0 18px;
+}
+
 .product-pdp__accordion {
     grid-area: details;
     margin-top: 8px;

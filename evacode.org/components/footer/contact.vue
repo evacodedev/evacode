@@ -2,8 +2,11 @@
   <ul v-if="contacts" class="contact-list">
     <li><i class="fa fa-map-marker"></i><div v-html="contacts.address"></div>
     </li>
-    <li><i class="fa fa-phone"></i>Телефон: <phone-link :phone="contacts.phone"/> (там WhatsApp)</li>
+    <li><i class="fa fa-phone"></i>Телефон: <phone-link :phone="contacts.phone"/></li>
     <li><i class="fa fa-envelope"></i>Email Us: <mail-link :email="contacts.email"/></li>
+    <li class="contact-list__messengers">
+      <WidgetsMessengerLinks variant="footer"/>
+    </li>
   </ul>
 </template>
 
