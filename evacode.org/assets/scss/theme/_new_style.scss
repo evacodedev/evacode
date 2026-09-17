@@ -2149,7 +2149,7 @@ html.cart-drawer-open body {
     object-fit: cover;
     object-position: center;
     transform: scale(1);
-    transition: transform 350ms var(--motion-ease);
+    transition: transform var(--motion-zoom, 900ms) var(--motion-zoom-ease, cubic-bezier(0.25, 0.1, 0.25, 1));
 }
 
 @media (hover: hover) {
