@@ -5,7 +5,16 @@ from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 
-from market.models import GoodsModel, GroupOfGoods, ImageModel, PartnerApiKey
+from market.models import (
+    GoodsModel,
+    GroupOfGoods,
+    ImageModel,
+    PartnerApiKey,
+    ProductBrand,
+    ProductBrandI18n,
+    ProductKind,
+    ProductKindI18n,
+)
 from market.utils import (
     BusinessRuBarcodeLookup,
     BusinessRuGoodPricesLookup,
@@ -110,6 +119,105 @@ class GoodsFilterApiTests(TestCase):
         self.assertEqual(self._ids(response), [2, 1])
         missing = self.client.get("/api/market/goods/3/")
         self.assertEqual(missing.status_code, 404)
+
+
+class CatalogContentFilterApiTests(TestCase):
+    def setUp(self):
+        category = GroupOfGoods.objects.create(
+            id=10,
+            default_order="1",
+            deleted=False,
+            name="Кремы",
+            updated="2024-01-01T00:00:00Z",
+        )
+        whoo = ProductBrand.objects.create(slug="the-history-of-whoo")
+        ProductBrandI18n.objects.create(brand=whoo, language="ru", name="THE HISTORY OF WHOO")
+        o_hui = ProductBrand.objects.create(slug="o-hui")
+        ProductBrandI18n.objects.create(brand=o_hui, language="ru", name="O HUI")
+        ProductBrand.objects.create(slug="empty-brand")
+        cream = ProductKind.objects.create(slug="cream")
+        ProductKindI18n.objects.create(kind=cream, language="ru", name="крем")
+        toner = ProductKind.objects.create(slug="toner")
+        ProductKindI18n.objects.create(kind=toner, language="ru", name="тонер")
+        GoodsModel.objects.create(
+            id=1,
+            title="Whoo крем",
+            description="Увлажняющий крем",
+            category=category,
+            type="goods",
+            stock=5,
+            retail_price=10000,
+            content_brand=whoo,
+            content_kind=cream,
+        )
+        GoodsModel.objects.create(
+            id=2,
+            title="O HUI тонер",
+            description="Тонер для лица",
+            category=category,
+            type="goods",
+            stock=3,
+            retail_price=25000,
+            content_brand=o_hui,
+            content_kind=toner,
+        )
+        GoodsModel.objects.create(
+            id=3,
+            title="Whoo скрытый",
+            description="Нет остатка",
+            category=category,
+            type="goods",
+            stock=0,
+            retail_price=1000,
+            content_brand=whoo,
+            content_kind=cream,
+        )
+
+    def _ids(self, response):
+        return [item["id"] for item in response.json()["results"]]
+
+    def test_filter_by_brand(self):
+        response = self.client.get("/api/market/goods/", {"brand": "the-history-of-whoo"})
+        self.assertEqual(self._ids(response), [1])
+
+    def test_filter_by_several_brands(self):
+        response = self.client.get("/api/market/goods/", {"brand": "the-history-of-whoo,o-hui"})
+        self.assertEqual(self._ids(response), [2, 1])
+
+    def test_filter_by_kind(self):
+        response = self.client.get("/api/market/goods/", {"kind": "cream"})
+        self.assertEqual(self._ids(response), [1])
+
+    def test_filter_brand_and_kind(self):
+        response = self.client.get(
+            "/api/market/goods/",
+            {"brand": "the-history-of-whoo", "kind": "cream"},
+        )
+        self.assertEqual(self._ids(response), [1])
+        empty = self.client.get("/api/market/goods/", {"brand": "o-hui", "kind": "cream"})
+        self.assertEqual(self._ids(empty), [])
+
+    def test_empty_brand_does_not_filter(self):
+        response = self.client.get("/api/market/goods/", {"brand": ""})
+        self.assertEqual(self._ids(response), [2, 1])
+
+    def test_catalog_facets_skip_empty_and_out_of_stock(self):
+        response = self.client.get("/api/market/catalog-filters/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        brands = {item["slug"]: item for item in payload["brands"]}
+        kinds = {item["slug"]: item for item in payload["kinds"]}
+        self.assertEqual(brands["o-hui"]["name"], "O HUI")
+        self.assertEqual(brands["o-hui"]["count"], 1)
+        self.assertEqual(brands["the-history-of-whoo"]["count"], 1)
+        self.assertNotIn("empty-brand", brands)
+        self.assertEqual(kinds["cream"]["name"], "крем")
+        self.assertEqual(kinds["cream"]["count"], 1)
+        self.assertEqual([item["slug"] for item in payload["kinds"]], ["toner", "cream"])
+        self.assertEqual(
+            [item["slug"] for item in payload["brands"]],
+            ["o-hui", "the-history-of-whoo"],
+        )
 
 
 class ParseWeightGramsTests(TestCase):

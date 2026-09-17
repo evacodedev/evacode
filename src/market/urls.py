@@ -10,6 +10,7 @@ from .views import (
     GoodsAPIView,
     GoodsByBarcodeView,
     GoodsKrwPricesView,
+    CatalogFacetsAPIView,
     Checkout,
 )
 from .order_views import (
@@ -29,6 +30,7 @@ urlpatterns = [
     path("goods/<int:good_id>/prices/", GoodsKrwPricesView.as_view()),
     path("", include(router.urls)),
     path('categories/', GroupListAPIView.as_view()),
+    path('catalog-filters/', CatalogFacetsAPIView.as_view()),
     path('update_data/', update_data),
     path('get_all_goods/', get_all_goods),
     path('checkout/', Checkout.as_view()),

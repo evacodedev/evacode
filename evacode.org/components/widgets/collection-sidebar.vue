@@ -17,24 +17,14 @@
         :inert="panelInert"
     >
       <div class="catalog-filters-inner">
-        <sidebar-categories
-            :current-category="currentCategory"
-            @applied="closeFilters"
-        />
+        <catalog-filters @applied="closeFilters"/>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import SidebarCategories from '~/components/widgets/sidebar-categories.vue';
-
-defineProps({
-  currentCategory: {
-    type: Number,
-    default: 0,
-  },
-});
+import CatalogFilters from '~/components/widgets/catalog-filters.vue';
 
 const MOBILE_FILTERS = '(max-width: 991px)';
 const isMobile = ref(false);

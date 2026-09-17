@@ -4,33 +4,31 @@
         <section class="section-b-space ratio_asos products-section">
             <div class="collection-wrapper">
                 <div class="container">
-                    <div class="row">
-                        <div class="catalog-sidebar col-12 col-lg-3">
-                            <WidgetsCollectionSidebar :current-category="currentCategory"/>
-                        </div>
-                        <div class="collection-content col-12 col-lg">
-                            <div class="page-main-content">
-                                <div class="row">
-                                    <div class="col-12">
-                                        <div class="collection-product-wrapper">
-                                            <div class="product-top-filter mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
-                                                <span>Найдено: {{ displayedProductsCount }}</span>
-                                                <div class="catalog-toolbar">
-                                                    <label class="catalog-page-size">
-                                                        <span>На странице</span>
-                                                        <select v-model="pageSize" class="form-select catalog-sort">
-                                                            <option :value="20">20</option>
-                                                            <option :value="50">50</option>
-                                                            <option :value="100">100</option>
-                                                        </select>
-                                                    </label>
-                                                    <select v-model="ordering" class="form-select catalog-sort">
-                                                        <option value="retail_price">Сначала дешевле</option>
-                                                        <option value="-retail_price">Сначала дороже</option>
-                                                        <option value="title">По названию</option>
-                                                    </select>
-                                                </div>
-                                            </div>
+                    <WidgetsCatalogFilters>
+                        <template #meta>
+                            <span>Найдено: {{ displayedProductsCount }}</span>
+                            <div class="catalog-toolbar">
+                                <label class="catalog-page-size">
+                                    <span>На странице</span>
+                                    <select v-model="pageSize" class="form-select catalog-sort">
+                                        <option :value="20">20</option>
+                                        <option :value="50">50</option>
+                                        <option :value="100">100</option>
+                                    </select>
+                                </label>
+                                <select v-model="ordering" class="form-select catalog-sort">
+                                    <option value="retail_price">Сначала дешевле</option>
+                                    <option value="-retail_price">Сначала дороже</option>
+                                    <option value="title">По названию</option>
+                                </select>
+                            </div>
+                        </template>
+                    </WidgetsCatalogFilters>
+                    <div class="collection-content">
+                        <div class="page-main-content">
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="collection-product-wrapper">
                                             <div
                                                 class="product-wrapper-grid catalog-grid-stable"
                                                 :class="{ 'catalog-grid-fade': animateCatalogEnter }"
@@ -88,7 +86,6 @@
                                     </div>
                                 </div>
                             </div>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -168,6 +165,16 @@ const goodsQuery = computed(() => {
     }
     if (route.query.max_price) {
         query.max_price = route.query.max_price;
+    }
+    if (route.query.brand) {
+        query.brand = Array.isArray(route.query.brand)
+            ? route.query.brand.join(',')
+            : route.query.brand;
+    }
+    if (route.query.kind) {
+        query.kind = Array.isArray(route.query.kind)
+            ? route.query.kind.join(',')
+            : route.query.kind;
     }
     return query;
 });

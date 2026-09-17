@@ -28,11 +28,18 @@ from .utils import (
 )
 from rest_framework import generics, status
 from rest_framework.viewsets import ModelViewSet
-from .models import CheckoutSettings, GoodsModel, GroupOfGoods
-from .serializers import GoodsListSerializer, GoodsSerializer, GroupOfGoodsSerializer
+from .models import CheckoutSettings, GoodsModel, GroupOfGoods, ProductBrand, ProductKind
+from .product_content import KIND_KEYWORDS
+from .serializers import (
+    GoodsListSerializer,
+    GoodsSerializer,
+    GroupOfGoodsSerializer,
+    _named_label,
+    content_language_from_request,
+)
 from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
-from django.db.models import F
+from django.db.models import Count, F, Q
 from aiogram import Bot, Dispatcher, types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils import executor
@@ -119,6 +126,50 @@ class GoodsKrwPricesView(APIView):
         if not payload:
             return Response({"detail": "Товар не найден"}, status=status.HTTP_404_NOT_FOUND)
         return Response(payload)
+
+
+KIND_FACET_ORDER = {slug: index for index, (slug, *_rest) in enumerate(KIND_KEYWORDS)}
+
+
+def _facet_rows(queryset, lang, order_key=None):
+    rows = []
+    for item in queryset:
+        label = _named_label(item, lang) or {"slug": item.slug, "name": item.slug}
+        rows.append({"slug": label["slug"], "name": label["name"], "count": item.count})
+    if order_key:
+        rows.sort(key=order_key)
+    return rows
+
+
+class CatalogFacetsAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        lang = content_language_from_request(request)
+        in_stock = Q(goods__stock__gt=0)
+        brands = ProductBrand.objects.annotate(
+            count=Count("goods", filter=in_stock, distinct=True)
+        ).filter(count__gt=0).prefetch_related("translations")
+        kinds = ProductKind.objects.annotate(
+            count=Count("goods", filter=in_stock, distinct=True)
+        ).filter(count__gt=0).prefetch_related("translations")
+        return Response(
+            {
+                "brands": _facet_rows(
+                    brands,
+                    lang,
+                    order_key=lambda row: (row["name"] or "").casefold(),
+                ),
+                "kinds": _facet_rows(
+                    kinds,
+                    lang,
+                    order_key=lambda row: (
+                        KIND_FACET_ORDER.get(row["slug"], 999),
+                        (row["name"] or "").casefold(),
+                    ),
+                ),
+            }
+        )
 
 
 class GroupListAPIView(generics.ListAPIView):

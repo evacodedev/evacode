@@ -438,6 +438,11 @@ section.products-main-section {
     }
 }
 
+.products-section .collection-wrapper,
+.products-section .collection-content {
+    overflow: visible;
+}
+
 .collection-content .product-wrapper-grid.catalog-grid-stable {
     --catalog-card-h: 620px;
     --catalog-cols: 3;
