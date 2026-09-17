@@ -1,5 +1,8 @@
 <template>
-  <nav aria-label="Page navigation">
+  <nav class="evacode-pagination-wrap" aria-label="Page navigation">
+    <p class="evacode-pagination-status">
+      Страница {{ currentPage }} из {{ lastPageNumber }}
+    </p>
     <ul class="evacode-pagination">
       <li class="page-item btn-bordered" :class="{ 'is-disabled': !canPrev }">
         <nuxt-link
@@ -35,9 +38,13 @@
           class="page-item"
           v-for="(page_index, index) in pages"
           :key="index"
-          :class="{ 'active': page_index == currentPage }"
+          :class="{ 'active': Number(page_index) === currentPage }"
       >
-        <nuxt-link class="page-link" :to="formatPageUrl(page_index)">
+        <nuxt-link
+            class="page-link"
+            :to="formatPageUrl(page_index)"
+            :aria-current="Number(page_index) === currentPage ? 'page' : undefined"
+        >
           {{ page_index }}
         </nuxt-link>
       </li>
