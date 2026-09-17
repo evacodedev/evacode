@@ -2,12 +2,13 @@
   <div
       v-for="n in count"
       :key="n"
-      class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
+      class="col-grid-box col-xl-4 col-6"
   >
     <div class="product-box product-skeleton" aria-hidden="true">
-      <div>
+      <div class="product-card">
         <div class="img-wrapper skeleton-block"></div>
         <div class="product-detail">
+          <div class="skeleton-line"></div>
           <div class="skeleton-line"></div>
           <div class="skeleton-line short"></div>
         </div>

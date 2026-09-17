@@ -1,11 +1,11 @@
 <template>
-  <div>
+  <div class="product-card">
     <div class="img-wrapper">
       <div class="lable-block">
         <span class="lable3" v-if="product.new">Новый</span>
         <span class="lable4" v-if="product.sale">sale</span>
       </div>
-      <nuxt-link :class="'product-detail-link'" :to="{ path: '/product/' + product.id }" @click="rememberProduct">
+      <nuxt-link class="product-detail-link" :to="{ path: '/product/' + product.id }" @click="rememberProduct">
         <img
             v-if="cardImageUrl"
             ref="productImage"
@@ -15,12 +15,12 @@
             :class="{ 'is-loaded': imageLoaded, 'is-priority': isPriorityImage }"
             :alt="product.title"
             :key="product.id"
-            width="340"
-            height="340"
+            width="720"
+            height="720"
             decoding="async"
             :loading="isPriorityImage ? 'eager' : 'lazy'"
             :fetchpriority="isPriorityImage ? 'high' : 'auto'"
-            sizes="(max-width: 767px) 50vw, (max-width: 1199px) 50vw, 25vw"
+            sizes="(max-width: 767px) 50vw, (max-width: 1199px) 50vw, 30vw"
             @load="imageLoaded = true"
         />
       </nuxt-link>
@@ -29,22 +29,20 @@
       <nuxt-link :to="{ path: '/product/' + product.id }" @click="rememberProduct">
         <h6>{{ product.title }}</h6>
       </nuxt-link>
-      <h4>
-       {{ getPrice(product.retail_price) }}
-        <del>{{ getPrice(product.official_price) }}</del>
-      </h4>
-    </div>
-    <div class="product-right">
-      <div class="product-buttons">
-        <button
-            data-toggle="modal"
-            data-target="#modal-cart"
-            class="evacode-btn buy-btn btn-bordered"
-            title="Купить"
-            @click="addToCart(product, 1)"
-            :disabled="1 > product.stock">Купить
-        </button>
-    </div>
+      <div v-if="cardExcerpt" class="product-card__excerpt">{{ cardExcerpt }}</div>
+      <div class="product-card__prices">
+        <span class="product-card__price">{{ getPrice(product.retail_price) }}</span>
+        <del v-if="showOfficialPrice" class="product-card__was">{{ getPrice(product.official_price) }}</del>
+      </div>
+      <button
+          type="button"
+          data-toggle="modal"
+          data-target="#modal-cart"
+          class="evacode-btn buy-btn btn-bordered"
+          title="Купить"
+          @click="addToCart(product, 1)"
+          :disabled="1 > product.stock"
+      >Купить</button>
     </div>
   </div>
 </template>
@@ -85,7 +83,16 @@ export default {
       }
       const first = this.product && this.product.images && this.product.images[0]
       return first && first.url ? first.url : ''
-    }
+    },
+    showOfficialPrice() {
+      const official = Number(this.product && this.product.official_price)
+      const retail = Number(this.product && this.product.retail_price)
+      return Number.isFinite(official) && official > retail
+    },
+    cardExcerpt() {
+      const text = this.product && this.product.excerpt
+      return text ? String(text).trim() : ''
+    },
   },
   methods: {
     rememberProduct() {

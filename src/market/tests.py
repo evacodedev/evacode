@@ -162,6 +162,7 @@ class GoodsListPrefetchTests(TestCase):
         results = response.json()["results"]
         self.assertEqual(len(results), 3)
         self.assertEqual(len(results[0]["images"]), 1)
+        self.assertEqual(results[0]["excerpt"], "текст")
         self.assertNotIn("description", results[0])
         self.assertNotIn("wholesale_price", results[0])
         self.assertNotIn("large_wholesale_price", results[0])

@@ -17,7 +17,7 @@
             :count="paginationProps.itemsPerPage || 12"
         />
         <div
-            class="col-grid-box col-xl-3 col-md-4 col-6 motion-appear"
+            class="col-grid-box col-xl-4 col-md-4 col-6 motion-appear"
             v-for="(product, index) in (products || [])"
             :key="product.id || index"
             :style="{ '--i': index }"

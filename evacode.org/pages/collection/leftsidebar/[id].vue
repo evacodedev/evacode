@@ -5,10 +5,10 @@
             <div class="collection-wrapper">
                 <div class="container">
                     <div class="row">
-                        <div class="col-lg-3">
+                        <div class="catalog-sidebar col-12 col-lg-3">
                             <WidgetsCollectionSidebar :current-category="currentCategory"/>
                         </div>
-                        <div class="collection-content col">
+                        <div class="collection-content col-12 col-lg">
                             <div class="page-main-content">
                                 <div class="row">
                                     <div class="col-12">
@@ -59,7 +59,7 @@
                                                     </div>
                                                     <template v-else>
                                                         <div
-                                                            class="col-grid-box col-xl-3 col-lg-6 col-md-6 col-6"
+                                                            class="col-grid-box col-xl-4 col-6"
                                                             v-for="(product, index) in (products || [])"
                                                             :key="product.id || index"
                                                         >

@@ -1,8 +1,20 @@
+import re
+
 from rest_framework import serializers
+
 from .models import CONTENT_LANGUAGES, GoodsModel, ImageModel, GroupOfGoods
+from .product_content import strip_html
 from .product_content_agent import _normalize_section_blocks
 
 CONTENT_LANG_CODES = tuple(code for code, _ in CONTENT_LANGUAGES)
+CARD_EXCERPT_LEN = 180
+
+
+def _card_excerpt(description):
+    plain = re.sub(r"\s+", " ", strip_html(description or "")).strip()
+    if len(plain) <= CARD_EXCERPT_LEN:
+        return plain
+    return plain[:CARD_EXCERPT_LEN].rsplit(" ", 1)[0]
 
 
 def content_language_from_request(request):
@@ -96,12 +108,14 @@ class GoodsSerializer(serializers.ModelSerializer):
 
 class GoodsListSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
+    excerpt = serializers.SerializerMethodField()
 
     class Meta:
         model = GoodsModel
         fields = (
             'id',
             'title',
+            'excerpt',
             'category',
             'type',
             'official_price',
@@ -117,6 +131,9 @@ class GoodsListSerializer(serializers.ModelSerializer):
         if image is None:
             return []
         return ImageSerializer([image], many=True).data
+
+    def get_excerpt(self, obj):
+        return _card_excerpt(obj.description)
 
 
 class GroupOfGoodsSerializer(serializers.ModelSerializer):

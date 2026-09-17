@@ -68,7 +68,8 @@
 
   .img-wrapper,
   .skeleton-block {
-    height: 340px;
+    height: auto;
+    aspect-ratio: 1 / 1;
     background: linear-gradient(
       90deg,
       #f3efe8 0%,
@@ -194,6 +195,7 @@
   .reveal-block,
   .catalog-grid-fade > .row,
   .product-box img.media,
+  .product-box:hover .img-wrapper img,
   .soft-fade-enter-active,
   .soft-fade-leave-active,
   .soft-rise-enter-active,
