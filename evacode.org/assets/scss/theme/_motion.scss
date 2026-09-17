@@ -2,9 +2,11 @@
 
 :root {
   --motion-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-zoom-ease: cubic-bezier(0.25, 0.1, 0.25, 1);
   --motion-fast: 180ms;
   --motion-base: 320ms;
   --motion-slow: 480ms;
+  --motion-zoom: 900ms;
   --motion-gold: #b89254;
 }
 
@@ -55,7 +57,9 @@
 
 .product-box img.media {
   opacity: 0;
-  transition: opacity var(--motion-slow) var(--motion-ease);
+  transition:
+    opacity var(--motion-slow) var(--motion-ease),
+    transform var(--motion-zoom) var(--motion-zoom-ease);
 }
 
 .product-box img.media.is-loaded,

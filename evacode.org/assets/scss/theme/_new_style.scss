@@ -328,7 +328,7 @@ section.products-main-section {
             object-position: center;
             background: #fff;
             transform: scale(1);
-            transition: transform 280ms var(--motion-ease);
+            transition: transform var(--motion-zoom, 900ms) var(--motion-zoom-ease, cubic-bezier(0.25, 0.1, 0.25, 1));
         }
     }
 
