@@ -2,7 +2,7 @@ from datetime import time as dt_time
 
 from django import forms
 from django.contrib import admin, messages
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.db.utils import OperationalError, ProgrammingError
 from django.shortcuts import redirect, render
 from django.urls import path, reverse
@@ -260,9 +260,27 @@ class ProductBrandI18nInline(admin.TabularInline):
 
 @admin.register(ProductBrand)
 class ProductBrandAdmin(admin.ModelAdmin):
-    list_display = ("slug",)
+    list_display = ("id", "display_name", "slug", "goods_count")
+    list_display_links = ("id", "display_name")
     search_fields = ("slug", "translations__name")
+    ordering = ("id",)
     inlines = (ProductBrandI18nInline,)
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(_goods_count=Count("goods"))
+            .prefetch_related("translations")
+        )
+
+    @admin.display(description="Название")
+    def display_name(self, obj):
+        return str(obj)
+
+    @admin.display(description="Товаров", ordering="_goods_count")
+    def goods_count(self, obj):
+        return obj._goods_count
 
 
 class ProductKindI18nInline(admin.TabularInline):
