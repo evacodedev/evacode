@@ -223,10 +223,100 @@
     .collection-collapse-block-content {
         .collection-brand-filter {
             .category-list {
+                max-height: 240px;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+
                 li {
-                    justify-content: center;
+                    justify-content: flex-start;
                 }
             }
+        }
+    }
+
+    .products-section {
+        .categories-btn {
+            display: none;
+        }
+
+        .collection-filter,
+        .collection-filter.openFilterbar {
+            position: static;
+            height: auto;
+            min-width: 0;
+            max-width: none;
+            top: auto;
+            left: auto !important;
+            z-index: auto;
+            overflow: visible;
+            padding: 0 0 8px;
+            background: transparent;
+            box-shadow: none;
+            transition: none;
+        }
+
+        .collection-mobile-back {
+            display: none !important;
+        }
+
+        .collection-filter-block {
+            padding: 0;
+            margin-bottom: 0;
+            border: 0;
+            background: transparent;
+        }
+
+        .catalog-filters-toggle {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            width: 100%;
+            min-height: 44px;
+            margin: 0 0 4px;
+            padding: 0;
+            border: 0;
+            border-bottom: 1px solid #ece8e1;
+            background: transparent;
+            color: #8a8680;
+            font-size: 11px;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            text-align: left;
+            cursor: pointer;
+            transition: color 240ms var(--motion-ease);
+
+            &:hover {
+                color: #1a1917;
+            }
+
+            .product-pdp__acc-icon {
+                margin-top: 0;
+            }
+        }
+
+        .collection-filter.is-open .catalog-filters-toggle {
+            color: #1a1917;
+            border-bottom-color: transparent;
+        }
+
+        .collection-filter.is-open .product-pdp__acc-icon::after {
+            transform: translate(-50%, -50%) scaleY(0);
+        }
+
+        .catalog-filters-panel {
+            display: grid;
+            grid-template-rows: 0fr;
+            overflow: hidden;
+            transition: grid-template-rows 320ms var(--motion-ease);
+        }
+
+        .catalog-filters-panel.is-open {
+            grid-template-rows: 1fr;
+        }
+
+        .catalog-filters-inner {
+            overflow: hidden;
         }
     }
     .section-deliveries-intro {
@@ -904,6 +994,21 @@
         flex-basis: 76px;
         width: 76px;
         height: 76px;
+    }
+
+    .evacode-pagination {
+        gap: 8px;
+
+        .page-item {
+            width: 40px;
+            height: 40px;
+            font-size: 14px;
+            line-height: 40px;
+        }
+    }
+
+    .catalog-page-size {
+        font-size: 12px;
     }
 }
 

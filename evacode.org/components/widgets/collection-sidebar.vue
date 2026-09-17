@@ -1,31 +1,61 @@
 <template>
-  <div>
-    <div class="row">
-      <div class="col-xl-12">
-        <div class="categories-btn">
-          <button
-              class="evacode-btn"
-              :class="filter ? 'fill-btn' : ''"
-              @click="filter = !filter"
-          >
-            Фильтры
-          </button>
-        </div>
+  <div class="collection-filter" :class="{ 'is-open': filtersOpen }">
+    <button
+        type="button"
+        class="catalog-filters-toggle"
+        :aria-expanded="filtersOpen"
+        aria-controls="catalog-filters-panel"
+        @click="filtersOpen = !filtersOpen"
+    >
+      <span>Фильтры</span>
+      <span class="product-pdp__acc-icon" aria-hidden="true"></span>
+    </button>
+    <div
+        id="catalog-filters-panel"
+        class="catalog-filters-panel"
+        :class="{ 'is-open': filtersOpen }"
+        :inert="panelInert"
+    >
+      <div class="catalog-filters-inner">
+        <sidebar-categories
+            :current-category="currentCategory"
+            @applied="closeFilters"
+        />
       </div>
-    </div>
-    <div class="collection-filter" :class="filter ? 'openFilterbar' : ''">
-      <sidebar-categories @clickBack="filter = !filter" :current-category="currentCategory"/>
     </div>
   </div>
 </template>
 
 <script setup>
 import SidebarCategories from '~/components/widgets/sidebar-categories.vue';
-const filter = ref(false);
-const props = defineProps({
+
+defineProps({
   currentCategory: {
     type: Number,
     default: 0,
-  }
-})
+  },
+});
+
+const MOBILE_FILTERS = '(max-width: 991px)';
+const isMobile = ref(false);
+const filtersOpen = ref(false);
+const panelInert = computed(() => isMobile.value && !filtersOpen.value);
+const closeFilters = () => {
+  filtersOpen.value = false;
+};
+
+onMounted(() => {
+  const media = window.matchMedia(MOBILE_FILTERS);
+  const sync = () => {
+    isMobile.value = media.matches;
+    if (!media.matches) {
+      filtersOpen.value = true;
+    }
+  };
+  sync();
+  media.addEventListener('change', sync);
+  onBeforeUnmount(() => {
+    media.removeEventListener('change', sync);
+  });
+});
 </script>

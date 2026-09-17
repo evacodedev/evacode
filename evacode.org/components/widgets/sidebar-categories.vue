@@ -1,10 +1,5 @@
 <template>
   <div class="collection-filter-block">
-    <div class="collection-mobile-back">
-        <span class="filter-back" @click="onCLick()">
-            <i class="fa fa-angle-left" aria-hidden="true"></i> Назад
-        </span>
-    </div>
     <div class="collection-collapse-block open">
       <h3 class="collapse-block-title">Поиск</h3>
       <div class="collection-collapse-block-content" :style="{ display: 'block'}">
@@ -51,6 +46,7 @@
               <nuxt-link
                   :class="{ active: !currentCategory }"
                   :to="catalogListTo(null)"
+                  @click="emit('applied')"
               >
                 Все товары
               </nuxt-link>
@@ -60,6 +56,7 @@
                   v-if="category.id !== 1"
                   :class="{ active: category.id === currentCategory }"
                   :to="catalogListTo(category.id)"
+                  @click="emit('applied')"
               >
                 {{ category.name }}
               </nuxt-link>
@@ -81,7 +78,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['clickBack']);
+const emit = defineEmits(['applied']);
 const route = useRoute();
 const router = useRouter();
 
@@ -120,10 +117,6 @@ const {data: categoriesResponse} = await useAsyncData(
 
 const categories = computed(() => categoriesResponse.value?.result);
 
-const onCLick = () => {
-  emit('clickBack');
-};
-
 const patchQuery = async (patch) => {
   const query = { ...route.query, ...patch };
   Object.keys(query).forEach((key) => {
@@ -134,8 +127,9 @@ const patchQuery = async (patch) => {
   await router.push({ path: '/collection/leftsidebar/0', query });
 };
 
-const applyTextFilters = () => {
-  patchQuery({
+const applyTextFilters = async () => {
+  emit('applied');
+  await patchQuery({
     q: searchInput.value.trim() || undefined,
     min_price: minPriceInput.value || undefined,
     max_price: maxPriceInput.value || undefined,

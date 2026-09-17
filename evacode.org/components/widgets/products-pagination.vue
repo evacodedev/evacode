@@ -8,6 +8,7 @@
               :next="paginationProps.next"
               :current="paginationProps.currentPage"
               :pages="paginationProps.pages"
+              :last-page="paginationProps.paginates"
           />
         </div>
       </div>

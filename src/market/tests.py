@@ -213,18 +213,22 @@ class GoodsPageSizeCapTests(TestCase):
                     bestseller=False,
                     retail_price=1000,
                 )
-                for index in range(60)
+                for index in range(110)
             ]
         )
 
-    def test_page_size_capped_at_48(self):
+    def test_page_size_capped_at_100(self):
         response = self.client.get("/api/market/goods/", {"page_size": 1000})
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.json()["results"]), 48)
+        self.assertEqual(len(response.json()["results"]), 100)
 
     def test_catalog_page_size_12_unchanged(self):
         response = self.client.get("/api/market/goods/", {"page_size": 12})
         self.assertEqual(len(response.json()["results"]), 12)
+
+    def test_catalog_page_size_100(self):
+        response = self.client.get("/api/market/goods/", {"page_size": 100})
+        self.assertEqual(len(response.json()["results"]), 100)
 
 
 class CategorySiteOrderApiTests(TestCase):

@@ -15,11 +15,21 @@
                                         <div class="collection-product-wrapper">
                                             <div class="product-top-filter mb-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                                                 <span>Найдено: {{ displayedProductsCount }}</span>
-                                                <select v-model="ordering" class="form-select catalog-sort">
-                                                    <option value="retail_price">Сначала дешевле</option>
-                                                    <option value="-retail_price">Сначала дороже</option>
-                                                    <option value="title">По названию</option>
-                                                </select>
+                                                <div class="catalog-toolbar">
+                                                    <label class="catalog-page-size">
+                                                        <span>На странице</span>
+                                                        <select v-model="pageSize" class="form-select catalog-sort">
+                                                            <option :value="20">20</option>
+                                                            <option :value="50">50</option>
+                                                            <option :value="100">100</option>
+                                                        </select>
+                                                    </label>
+                                                    <select v-model="ordering" class="form-select catalog-sort">
+                                                        <option value="retail_price">Сначала дешевле</option>
+                                                        <option value="-retail_price">Сначала дороже</option>
+                                                        <option value="title">По названию</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                             <div
                                                 class="product-wrapper-grid catalog-grid-stable"
@@ -67,16 +77,11 @@
                                             <div class="product-pagination mb-0"
                                                  v-if="displayedProductsCount > itemsPerPage">
                                                 <div class="theme-paggination-block">
-                                                    <div class="row">
-                                                        <div class="col-xl-6 col-md-6 col-sm-12">
-                                                            <WidgetsShopProductsPagination
-                                                                :previous="previous"
-                                                                :next="next"
-                                                                :current="currentPage"
-                                                                :pages="pages"
-                                                            />
-                                                        </div>
-                                                    </div>
+                                                    <WidgetsShopProductsPagination
+                                                        :current="currentPage"
+                                                        :pages="pages"
+                                                        :last-page="paginates"
+                                                    />
                                                 </div>
                                             </div>
                                         </div>
@@ -93,8 +98,6 @@
             :product="cartproduct"
             @closeCart="closeCartModal"
         />
-        <ShopBeautyTestimonials/>
-        <ShopBeautyAboutSlider/>
         <Footer/>
     </div>
 </template>
@@ -110,10 +113,25 @@ const CATALOG_PATH = '/collection/leftsidebar/0';
 const route = useRoute();
 const router = useRouter();
 
-const itemsPerPage = ref(12);
+const PAGE_SIZES = [20, 50, 100];
+const DEFAULT_PAGE_SIZE = 20;
 const paginateRange = ref(3);
 
 const currentPage = computed(() => parseFloat(route.query.page) || 1);
+const itemsPerPage = computed(() => {
+    const size = Number(route.query.page_size);
+    return PAGE_SIZES.includes(size) ? size : DEFAULT_PAGE_SIZE;
+});
+const pageSize = computed({
+    get: () => itemsPerPage.value,
+    set: async (value) => {
+        const size = PAGE_SIZES.includes(Number(value)) ? Number(value) : DEFAULT_PAGE_SIZE;
+        const query = { ...route.query, page_size: size, page: 1 };
+        delete query.in_stock;
+        delete query.bestseller;
+        await router.push({ path: CATALOG_PATH, query });
+    },
+});
 const currentCategory = computed(() => {
     const fromQuery = parseFloat(route.query.category);
     if (fromQuery && fromQuery > 0) {
@@ -258,14 +276,13 @@ const displayedProductsCount = computed(() => {
 });
 const skeletonCount = computed(() => {
     const count = displayedProductsCount.value;
+    const size = Math.min(itemsPerPage.value, 20);
     if (!count) {
-        return itemsPerPage.value;
+        return size;
     }
-    return Math.min(itemsPerPage.value, count);
+    return Math.min(size, count);
 });
 const totalProductsCount = displayedProductsCount;
-const previous = computed(() => productsResponse.value?.previous ? `?${productsResponse.value?.previous.split('?')[1]}` : null);
-const next = computed(() => productsResponse.value?.next ? `?${productsResponse.value?.next.split('?')[1]}` : null);
 const paginates = computed(() => Math.ceil((totalProductsCount.value || 0) / itemsPerPage.value));
 
 const pages = computed(() => {
