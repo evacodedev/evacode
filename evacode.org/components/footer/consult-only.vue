@@ -4,7 +4,13 @@
             <section class="small-section border-section border-top-0">
                 <div class="row">
                     <div class="col-lg-6">
-                        <img class="consult-girl" src="/images/new_evacode/consult/consult-girl.png" alt="Consult-girl">
+                        <img
+                            class="consult-girl"
+                            src="/images/new_evacode/consult/consult-girl.jpg"
+                            alt="Консультант поможет подобрать уход"
+                            width="900"
+                            height="1125"
+                        >
                     </div>
                     <div class="col-lg-6 consult-column">
                         <h2 class="consult-only-h2">Оставьте Ваш номер телефона и имя.</h2> <br><br>
