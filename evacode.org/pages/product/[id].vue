@@ -107,10 +107,13 @@
                     Оформить заказ
                 </nuxt-link>
                 <div class="product-pdp__help">
-                    <p class="product-pdp__help-label">Связаться</p>
-                    <a class="product-pdp__help-line" href="tel:+821076528595">+8210-7652-8595</a>
-                    <WidgetsMessengerLinks variant="pdp"/>
-                    <a class="product-pdp__help-line" href="mailto:sales@evacode.org">sales@evacode.org</a>
+                    <WidgetsMessengerLinks
+                        variant="pdp"
+                        heading="Контакты для связи"
+                        phone="+8210-7652-8595"
+                        phone-href="tel:+821076528595"
+                        email="sales@evacode.org"
+                    />
                 </div>
             </div>
             <div v-if="accordionItems.length" class="product-pdp__accordion motion-appear" style="--i: 5">

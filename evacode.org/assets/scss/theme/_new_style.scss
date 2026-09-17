@@ -2139,46 +2139,108 @@ html.cart-drawer-open body {
     }
 }
 
-.product-pdp__help-note {
-    margin: -2px 0 10px;
-    font-size: 12px;
-    color: #8a8680;
-}
-
-.shop-messengers__group {
+.shop-messengers__title {
     margin: 0 0 12px;
-}
-
-.shop-messengers__label {
-    margin: 0 0 6px;
     font-size: 11px;
     letter-spacing: 0.16em;
     text-transform: uppercase;
     color: #8a8680;
 }
 
-.shop-messengers__link {
-    display: block;
-    margin: 0 0 4px;
-    color: #1a1917;
-    font-size: 14px;
-    line-height: 1.5;
-    text-decoration: none;
-    text-transform: none;
-    transition: color 240ms var(--motion-ease);
+.shop-messengers__table {
+    width: 100%;
+    border-collapse: collapse;
 
-    &:hover {
+    th,
+    td {
+        padding: 8px 0;
+        border-bottom: 1px solid #f0ece6;
+        vertical-align: top;
+        font-size: 13px;
+        line-height: 1.45;
+        font-weight: 400;
+    }
+
+    tr:last-child th,
+    tr:last-child td {
+        border-bottom: 0;
+        padding-bottom: 0;
+    }
+
+    th {
+        width: 42%;
+        padding-right: 12px;
+        color: #8a8680;
+        text-align: left;
+        white-space: nowrap;
+    }
+
+    td {
+        color: #1a1917;
+    }
+
+    .fa,
+    .shop-messengers__max {
+        margin-right: 8px;
         color: #b89254;
-        text-decoration: none;
     }
 }
 
-.product-pdp__help .shop-messengers {
-    margin-top: 14px;
+.shop-messengers__max {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 12px;
+    height: 12px;
+    border: 1px solid #b89254;
+    font-size: 8px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
 }
 
-.contact-list__messengers {
-    display: block;
+.shop-messengers__link {
+    display: inline-block;
+    color: #b89254;
+    font-size: 13px;
+    line-height: 1.45;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-thickness: 1px;
+    text-transform: none;
+    transition: color 240ms var(--motion-ease);
+
+    & + & {
+        display: block;
+        margin-top: 4px;
+    }
+
+    &:hover {
+        color: #1a1917;
+        text-decoration: underline;
+    }
+}
+
+.shop-messengers.is-footer {
+    margin-top: 8px;
+
+    .shop-messengers__table {
+
+        th,
+        td {
+            border-bottom-color: #ececec;
+        }
+
+        .fa,
+        .shop-messengers__max {
+            color: #8a8680;
+        }
+    }
+
+    .shop-messengers__max {
+        border-color: #8a8680;
+    }
 }
 
 .contact-page .shop-messengers {
