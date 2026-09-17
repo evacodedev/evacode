@@ -1,14 +1,29 @@
 <template>
     <Header/>
     <div v-if="showNotFound" class="product-pdp">
-        <div class="container product-pdp__empty">
+        <div class="container">
+            <nav class="product-pdp__nav">
+                <nuxt-link :to="lastCatalogPath" class="product-pdp__back">
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    Назад к списку
+                </nuxt-link>
+            </nav>
+            <div class="product-pdp__empty">
             <h1>Товар недоступен</h1>
             <p>Возможно, его уже нет в каталоге.</p>
             <nuxt-link to="/collection/leftsidebar/0" class="btn btn-solid">В каталог</nuxt-link>
+            </div>
         </div>
     </div>
     <div v-else-if="!product" class="product-pdp">
-        <div class="container product-pdp__layout">
+        <div class="container">
+            <nav class="product-pdp__nav">
+                <nuxt-link :to="lastCatalogPath" class="product-pdp__back">
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    Назад к списку
+                </nuxt-link>
+            </nav>
+            <div class="product-pdp__layout">
             <div class="product-pdp__gallery">
                 <div class="skeleton-block product-pdp__hero-skel"></div>
             </div>
@@ -21,9 +36,17 @@
                 </div>
             </div>
         </div>
+        </div>
     </div>
     <div v-else class="product-pdp" :class="{ 'is-ready': motionReady }">
-        <div class="container product-pdp__layout">
+        <div class="container">
+            <nav class="product-pdp__nav">
+                <nuxt-link :to="lastCatalogPath" class="product-pdp__back">
+                    <i class="fa fa-angle-left" aria-hidden="true"></i>
+                    Назад к списку
+                </nuxt-link>
+            </nav>
+            <div class="product-pdp__layout">
             <div class="product-pdp__gallery motion-appear" style="--i: 0">
                 <div v-if="productImages.length > 1" class="product-pdp__thumbs">
                     <button
@@ -188,6 +211,7 @@
                 </div>
             </div>
         </div>
+        </div>
         <div v-if="product" class="product-pdp__sticky">
             <div class="container product-pdp__sticky-bar">
                 <span>{{ getPrice(product.retail_price) }}</span>
@@ -227,6 +251,7 @@ const FALLBACK_HEADINGS = {
 
 const route = useRoute();
 const { previewFor } = useProductPreview();
+const { lastCatalogPath } = useCatalogReturn();
 const runtimeConfig = useRuntimeConfig();
 
 const slideId = ref(0);

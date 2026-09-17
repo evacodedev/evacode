@@ -2046,6 +2046,39 @@ html.cart-drawer-open body {
     color: #1a1917;
 }
 
+.product-pdp__nav {
+    margin: 0 0 16px;
+}
+
+.product-pdp__back {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: #8a8680;
+    font-family: $font_0_1, $font_1;
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 240ms var(--motion-ease);
+
+    &:hover,
+    &:focus-visible {
+        color: #1a1917;
+    }
+
+    i {
+        font-size: 16px;
+        line-height: 1;
+    }
+}
+
 .product-pdp__empty {
     padding: 80px 0;
     text-align: center;

@@ -97,6 +97,7 @@ export default {
   methods: {
     rememberProduct() {
       useProductPreview().setPreview(this.product)
+      useCatalogReturn().rememberCatalogPath(useRoute().fullPath)
     },
     addToCart: function (product) {
 
