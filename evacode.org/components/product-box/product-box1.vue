@@ -97,7 +97,11 @@ export default {
   methods: {
     rememberProduct() {
       useProductPreview().setPreview(this.product)
-      useCatalogReturn().rememberCatalogPath(useRoute().fullPath)
+      useCatalogReturn().rememberFromCatalog({
+        path: useRoute().fullPath,
+        productId: this.product && this.product.id,
+        scrollY: import.meta.client ? window.scrollY : 0,
+      })
     },
     addToCart: function (product) {
 

@@ -60,6 +60,7 @@
                                                             class="col-grid-box col-xl-4 col-6"
                                                             v-for="(product, index) in (products || [])"
                                                             :key="product.id || index"
+                                                            :data-catalog-product="product.id"
                                                         >
                                                             <div class="product-box">
                                                                 <ProductBoxProductBox1
@@ -109,6 +110,7 @@ const CATALOG_PATH = '/collection/leftsidebar/0';
 
 const route = useRoute();
 const router = useRouter();
+const { lastProductId, consumeReturnTarget } = useCatalogReturn();
 
 const PAGE_SIZES = [20, 50, 100];
 const DEFAULT_PAGE_SIZE = 20;
@@ -199,7 +201,8 @@ const revealCatalog = async (animate) => {
         return;
     }
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const shouldFade = animate && !firstCatalogEnterDone && !prefersReduced;
+    const returningToProduct = Boolean(lastProductId.value);
+    const shouldFade = animate && !firstCatalogEnterDone && !prefersReduced && !returningToProduct;
     catalogReady.value = true;
     animateCatalogEnter.value = shouldFade;
     if (shouldFade) {
@@ -239,14 +242,51 @@ const loadCatalog = async ({ animate = false } = {}) => {
     await revealCatalog(animate);
 };
 
+const catalogItemSelector = (productId) =>
+    `[data-catalog-product="${String(productId).replace(/"/g, '')}"]`;
+
+const restoreCatalogFocus = async () => {
+    if (!import.meta.client) {
+        return;
+    }
+    const { productId, scrollY } = consumeReturnTarget();
+    if (!productId && !scrollY) {
+        return;
+    }
+    await nextTick();
+    const align = () => {
+        const item = productId
+            ? document.querySelector(catalogItemSelector(productId))
+            : null;
+        if (item) {
+            item.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'auto' });
+            const link = item.querySelector('.product-detail-link');
+            if (link && typeof link.focus === 'function') {
+                link.focus({ preventScroll: true });
+            }
+            return true;
+        }
+        if (scrollY) {
+            window.scrollTo(0, scrollY);
+        }
+        return false;
+    };
+    align();
+    window.setTimeout(align, 50);
+    window.setTimeout(align, 200);
+    window.setTimeout(align, 500);
+};
+
 onMounted(async () => {
     if (productsResponse.value) {
         loadedPath.value = route.fullPath;
         const alreadyVisible = catalogReady.value;
         await revealCatalog(!alreadyVisible);
+        await restoreCatalogFocus();
         return;
     }
     await loadCatalog({ animate: true });
+    await restoreCatalogFocus();
 });
 
 onBeforeUnmount(() => {

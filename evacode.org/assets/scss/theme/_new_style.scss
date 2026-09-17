@@ -294,6 +294,11 @@ section.products-main-section {
     margin-top: 0;
 }
 
+.product-wrapper-grid .col-grid-box[data-catalog-product] {
+    scroll-margin-top: 140px;
+    scroll-margin-bottom: 48px;
+}
+
 .product-box {
     height: auto;
     background: transparent;
