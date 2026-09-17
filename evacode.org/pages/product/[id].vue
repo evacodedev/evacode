@@ -107,13 +107,37 @@
                     Оформить заказ
                 </nuxt-link>
                 <div class="product-pdp__help">
-                    <WidgetsMessengerLinks
-                        variant="pdp"
-                        heading="Контакты для связи"
-                        phone="+8210-7652-8595"
-                        phone-href="tel:+821076528595"
-                        email="sales@evacode.org"
-                    />
+                    <p class="product-pdp__note">
+                        <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
+                        <span>К цене товара может добавиться стоимость доставки.</span>
+                    </p>
+                    <div class="product-pdp__help-acc" :class="{ 'is-open': contactsOpen }">
+                        <button
+                            type="button"
+                            class="product-pdp__help-head"
+                            :aria-expanded="contactsOpen"
+                            aria-controls="pdp-contacts"
+                            @click="contactsOpen = !contactsOpen"
+                        >
+                            <span>Контакты для связи</span>
+                            <span class="product-pdp__acc-icon" aria-hidden="true"></span>
+                        </button>
+                        <div
+                            id="pdp-contacts"
+                            class="product-pdp__help-panel"
+                            :class="{ 'is-open': contactsOpen }"
+                            :inert="!contactsOpen"
+                        >
+                            <div class="product-pdp__help-inner">
+                                <WidgetsMessengerLinks
+                                    variant="pdp"
+                                    phone="+8210-7652-8595"
+                                    phone-href="tel:+821076528595"
+                                    email="sales@evacode.org"
+                                />
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div v-if="accordionItems.length" class="product-pdp__accordion motion-appear" style="--i: 5">
@@ -211,6 +235,7 @@ const swiper = ref({});
 const openKinds = ref({ description: true });
 const motionReady = ref(false);
 const addedNotice = ref(false);
+const contactsOpen = ref(false);
 let addedNoticeTimer;
 const productId = String(route.params.id);
 const cartStore = useCartStore();
