@@ -18,7 +18,12 @@ from .models import (
     ProductContentBlock,
     ProductContentBlockI18n,
 )
-from .product_content import _lookup_brand, parse_product_description, strip_html
+from .product_content import (
+    _lookup_brand,
+    parse_product_description,
+    refresh_enrichment_from_sections,
+    strip_html,
+)
 from .product_content_prompt import (
     BRAND_SITE_RULES,
     DEFAULT_AGENT_PROMPT,
@@ -817,6 +822,7 @@ def accept_agent_draft(good: GoodsModel) -> int:
         existing.pop(payload["kind"], None)
     content.agent_error = ""
     content.save(update_fields=["agent_error"])
+    refresh_enrichment_from_sections(good)
     return written
 
 

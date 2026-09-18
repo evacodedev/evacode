@@ -441,6 +441,50 @@ def _has_ingredients(blocks: list) -> bool:
     return False
 
 
+def _block_plain_text(block: dict) -> str:
+    parts = [str(block.get("body") or "").strip()]
+    for item in block.get("items") or []:
+        if isinstance(item, str):
+            parts.append(item.strip())
+        elif isinstance(item, dict):
+            parts.append(str(item.get("name") or "").strip())
+            parts.append(str(item.get("text") or "").strip())
+    return "\n".join(part for part in parts if part)
+
+
+def assess_content_blocks(blocks: list) -> dict:
+    """Оценка живых секций карточки (не сырого description из BR)."""
+    usable = []
+    for block in blocks or []:
+        if not isinstance(block, dict):
+            continue
+        kind = str(block.get("kind") or "").strip()
+        if not kind:
+            continue
+        plain = _block_plain_text(block)
+        if not plain:
+            continue
+        usable.append({**block, "kind": kind, "plain": plain})
+    kinds = {block["kind"] for block in usable}
+    chars = sum(len(block["plain"]) for block in usable)
+    reasons = []
+    if chars == 0:
+        reasons.append("empty")
+    elif chars < SHORT_COPY_CHARS:
+        reasons.append("short")
+    if not (kinds & EDITORIAL_KINDS):
+        reasons.append("no_sections")
+    if not _has_ingredients(usable):
+        reasons.append("no_ingredients")
+    status = ENRICHMENT_NEEDED if reasons else ENRICHMENT_OK
+    return {
+        "status": status,
+        "reasons": reasons,
+        "char_count": chars,
+        "section_kinds": sorted(kinds),
+    }
+
+
 def assess_product_copy(title: str, description: str, parsed: dict | None = None) -> dict:
     parsed = parsed if parsed is not None else parse_product_description(title, description)
     plain = parsed.get("plain")
@@ -464,6 +508,35 @@ def assess_product_copy(title: str, description: str, parsed: dict | None = None
         "char_count": chars,
         "section_kinds": sorted(kinds),
     }
+
+
+def sections_as_blocks(content: ProductContent, *, language: str = "ru") -> list:
+    rows = []
+    for block in content.blocks.prefetch_related("translations").all():
+        translation = next(
+            (item for item in block.translations.all() if item.language == language),
+            None,
+        )
+        if translation is None:
+            continue
+        rows.append(
+            {
+                "kind": block.kind,
+                "heading": translation.heading or "",
+                "body": translation.body or "",
+                "items": list(translation.items or []),
+            }
+        )
+    return rows
+
+
+def refresh_enrichment_from_sections(good: GoodsModel) -> dict:
+    content, _created = ProductContent.objects.get_or_create(good=good)
+    assessment = assess_content_blocks(sections_as_blocks(content))
+    content.enrichment_status = assessment["status"]
+    content.enrichment_reasons = assessment["reasons"]
+    content.save(update_fields=["enrichment_status", "enrichment_reasons"])
+    return assessment
 
 
 def _lookup_brand(name: str) -> ProductBrand | None:

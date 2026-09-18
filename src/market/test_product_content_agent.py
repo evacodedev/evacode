@@ -268,6 +268,82 @@ class AgentDraftTests(TestCase):
             self.good.pdp_content.blocks.filter(kind="set_contents").exists()
         )
 
+    def test_accept_reassesses_enrichment_from_sections(self):
+        content = self.good.pdp_content
+        content.enrichment_status = "needs_enrichment"
+        content.enrichment_reasons = ["short", "no_ingredients"]
+        content.agent_draft = {
+            "brand_name": "",
+            "blocks": [
+                {
+                    "kind": "lead",
+                    "body": "Короткий лид о креме Whoo.",
+                    "items": [],
+                    "source_url": "https://whoo-hk.com/x",
+                },
+                {
+                    "kind": "about",
+                    "body": (
+                        "Подробный абзац о линии Hwanyu и диком женьшене после пятнадцати лет исследований "
+                        "института Whoo в Корее. Формула поддерживает восстановление кожи в начале цикла, "
+                        "помогает вернуть баланс и более ровный вид без выдуманных медицинских обещаний."
+                    ),
+                    "items": [],
+                    "source_url": "https://whoo-hk.com/x",
+                },
+                {
+                    "kind": "benefits",
+                    "body": "",
+                    "items": ["Увлажнение", "Сияние", "Упругость"],
+                    "source_url": "https://whoo-hk.com/x",
+                },
+                {
+                    "kind": "how_to_use",
+                    "body": "",
+                    "items": ["Нанесите на ладонь", "Распределите по лицу"],
+                    "source_url": "https://whoo-hk.com/x",
+                },
+                {
+                    "kind": "texture",
+                    "body": "Лёгкая эмульсия с двойным увлажняющим барьером.",
+                    "items": [],
+                    "source_url": "https://whoo-hk.com/x",
+                },
+                {
+                    "kind": "ingredients",
+                    "body": "",
+                    "items": [{"name": "Imperial Ginsenium", "text": "комплекс женьшеня"}],
+                    "source_url": "https://whoo-hk.com/x",
+                },
+            ],
+        }
+        content.save(update_fields=["enrichment_status", "enrichment_reasons", "agent_draft"])
+        accept_agent_draft(self.good)
+        content.refresh_from_db()
+        self.assertEqual(content.enrichment_status, "ok")
+        self.assertEqual(content.enrichment_reasons, [])
+
+    def test_accept_keeps_needs_enrichment_when_still_weak(self):
+        content = self.good.pdp_content
+        content.agent_draft = {
+            "brand_name": "",
+            "blocks": [
+                {
+                    "kind": "lead",
+                    "body": "Короткий лид.",
+                    "items": [],
+                    "source_url": "https://example.com/x",
+                }
+            ],
+        }
+        content.save(update_fields=["agent_draft"])
+        accept_agent_draft(self.good)
+        content.refresh_from_db()
+        self.assertEqual(content.enrichment_status, "needs_enrichment")
+        self.assertIn("short", content.enrichment_reasons)
+        self.assertIn("no_sections", content.enrichment_reasons)
+        self.assertIn("no_ingredients", content.enrichment_reasons)
+
     def test_drops_blocks_without_source(self):
         from market.product_content_agent import _sanitize_draft
 

@@ -182,6 +182,39 @@ class ProductCopyDetectorTests(TestCase):
         self.assertEqual(lead.body, "ручная правка")
         self.assertEqual(assess_product_copy(good.title, good.description)["status"], "needs_enrichment")
 
+    def test_assess_content_blocks_ok_and_weak(self):
+        from market.product_content import assess_content_blocks
+
+        rich = assess_content_blocks(
+            [
+                {"kind": "lead", "body": "Лид о продукте Whoo Hwanyu.", "items": []},
+                {
+                    "kind": "about",
+                    "body": (
+                        "Длинный текст о диком женьшене и линии Imperial Youth после пятнадцати лет исследований. "
+                        "Формула поддерживает восстановление кожи в начале цикла и помогает вернуть баланс "
+                        "без выдуманных медицинских обещаний сверх текста бренда."
+                    ),
+                    "items": [],
+                },
+                {"kind": "benefits", "body": "", "items": ["Увлажнение", "Сияние"]},
+                {"kind": "how_to_use", "body": "", "items": ["Нанесите", "Распределите"]},
+                {"kind": "texture", "body": "Лёгкая эмульсия.", "items": []},
+                {
+                    "kind": "ingredients",
+                    "body": "",
+                    "items": [{"name": "Ginsenium", "text": "женьшень"}],
+                },
+            ]
+        )
+        self.assertEqual(rich["status"], "ok")
+        weak = assess_content_blocks(
+            [{"kind": "lead", "body": "Мало текста.", "items": []}]
+        )
+        self.assertEqual(weak["status"], "needs_enrichment")
+        self.assertIn("short", weak["reasons"])
+        self.assertIn("no_ingredients", weak["reasons"])
+
 
 class ProductContentSaveTests(TestCase):
     def setUp(self):
