@@ -64,7 +64,6 @@
                                                         >
                                                             <div class="product-box">
                                                                 <ProductBoxProductBox1
-                                                                    @opencartmodel="showCart"
                                                                     :product="product"
                                                                     :index="index"
                                                                 />
@@ -91,11 +90,6 @@
                 </div>
             </div>
         </section>
-        <cart-modal-popup
-            :openCart="showcartmodal"
-            :product="cartproduct"
-            @closeCart="closeCartModal"
-        />
         <Footer/>
     </div>
 </template>
@@ -345,17 +339,6 @@ const pages = computed(() => {
     }
     return _pages;
 });
-
-const showcartmodal = ref(false);
-const cartproduct = ref({});
-const showCart = (item, product) => {
-    showcartmodal.value = item
-    cartproduct.value = product
-};
-
-const closeCartModal = (item) => {
-    showcartmodal.value = item
-};
 
 useHead({
     titleTemplate: `%s - Магазин`,

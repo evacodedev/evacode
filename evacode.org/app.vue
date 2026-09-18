@@ -4,6 +4,7 @@
     <NuxtLoadingIndicator :height="2" :duration="2000" :throttle="200" color="#B89254" />
     <NuxtPage :page-key="(route) => route.path" />
     <WidgetsCartDrawer />
+    <WidgetsCartFab />
 </NuxtLayout>
 </template>
 

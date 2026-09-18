@@ -1,5 +1,5 @@
 <template>
-  <div class="product-card">
+  <div class="product-card" :class="{ 'is-in-cart': inCart }">
     <div class="img-wrapper">
       <div class="lable-block">
         <span class="lable3" v-if="product.new">Новый</span>
@@ -24,6 +24,7 @@
             @load="imageLoaded = true"
         />
       </nuxt-link>
+      <span v-if="inCart" class="product-card__in-cart" aria-hidden="true">В корзине</span>
     </div>
     <div class="product-detail">
       <nuxt-link :to="{ path: '/product/' + product.id }" @click="rememberProduct">
@@ -36,13 +37,12 @@
       </div>
       <button
           type="button"
-          data-toggle="modal"
-          data-target="#modal-cart"
           class="evacode-btn buy-btn btn-bordered"
-          title="Купить"
-          @click="addToCart(product, 1)"
+          :class="{ 'is-in-cart': inCart }"
+          :title="inCart ? 'Добавить ещё' : 'В корзину'"
+          @click="addToCart(product)"
           :disabled="1 > product.stock"
-      >Купить</button>
+      >{{ inCart ? 'В корзине' : 'В корзину' }}</button>
     </div>
   </div>
 </template>
@@ -57,13 +57,13 @@ export default {
   data() {
     return {
       _imageSrc: '',
-      cartProduct: {},
-      cartval: false,
       imageLoaded: true,
     }
   },
-  emits: ['opencartmodel'],
   computed: {
+    ...mapState(useCartStore, {
+      cartItems: (store) => store.cartItems,
+    }),
     curr() {
       return useProductStore().changeCurrency
     },
@@ -93,6 +93,13 @@ export default {
       const text = this.product && this.product.excerpt
       return text ? String(text).trim() : ''
     },
+    inCart() {
+      const id = this.product && this.product.id
+      if (id == null) {
+        return false
+      }
+      return this.cartItems.some((item) => item.id === id)
+    },
   },
   methods: {
     rememberProduct() {
@@ -103,18 +110,13 @@ export default {
         scrollY: import.meta.client ? window.scrollY : 0,
       })
     },
-    addToCart: function (product) {
-
-      this.cartval = true
-      this.cartProduct = product
-      this.$emit('opencartmodel', this.cartval, this.cartProduct)
-
+    addToCart(product) {
       useCartStore().addToCart(product)
     },
     productVariantChange(imgsrc) {
       this._imageSrc = imgsrc
     },
-    getPrice: function (price) {
+    getPrice(price) {
       return useProductStore().getPrice(price);
     }
   },

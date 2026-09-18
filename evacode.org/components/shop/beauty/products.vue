@@ -24,7 +24,6 @@
         >
           <div class="product-box">
             <ProductBoxProductBox1
-                @opencartmodel="showCart"
                 :product="product"
                 :index="index"
             />
@@ -36,12 +35,6 @@
     <WidgetsProductsPagination
         :totalProductsCount="totalProductsCount"
         :paginationProps="paginationProps"
-    />
-
-    <cart-modal-popup
-        :openCart="showcartmodal"
-        :product="cartproduct"
-        @closeCart="closeCartModal"
     />
   </div>
 </template>
@@ -64,15 +57,4 @@ const props = defineProps({
     default: false,
   }
 });
-
-const showcartmodal = ref(false);
-const cartproduct = ref({});
-const showCart = (item, product) => {
-  showcartmodal.value = item
-  cartproduct.value = product
-};
-
-const closeCartModal = (item) => {
-  showcartmodal.value = item
-};
 </script>
