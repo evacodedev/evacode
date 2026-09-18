@@ -453,6 +453,16 @@ class AgentAdminButtonTests(TestCase):
         response = self.client.get(url, {"q": "The history of Whoo Two way Pact"})
         self.assertEqual(response.status_code, 200)
 
+    def test_productcontent_changelist_has_parse_and_agent_actions(self):
+        apply_product_content(self.good, force=True)
+        self.client.force_login(self.user)
+        url = reverse("admin:market_productcontent_changelist")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Создать контент и распарсить описание")
+        self.assertContains(response, "Агент: найти факты и записать черновик")
+        self.assertContains(response, "Принять черновик агента в секции ru")
+
     def test_productcontent_change_has_sections_and_accept(self):
         apply_product_content(self.good, force=True)
         content = self.good.pdp_content

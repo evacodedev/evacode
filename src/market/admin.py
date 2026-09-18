@@ -354,7 +354,11 @@ class ProductContentAdmin(admin.ModelAdmin):
         "open_good_link",
     )
     inlines = (ProductContentBlockInline,)
-    actions = ("accept_agent_draft_action",)
+    actions = (
+        "parse_product_content_action",
+        "enrich_product_content_action",
+        "accept_agent_draft_action",
+    )
     fields = (
         "open_good_link",
         "good",
@@ -416,10 +420,31 @@ class ProductContentAdmin(admin.ModelAdmin):
             messages.error(request, str(extra))
         return redirect(reverse("admin:market_productcontent_change", args=[object_id]))
 
+    @admin.action(description="Создать контент и распарсить описание")
+    def parse_product_content_action(self, request, queryset):
+        parsed = 0
+        for content in queryset.select_related("good"):
+            apply_product_content(content.good, force=True)
+            parsed += 1
+        self.message_user(request, f"Разобрано товаров: {parsed}", messages.SUCCESS)
+
+    @admin.action(description="Агент: найти факты и записать черновик")
+    def enrich_product_content_action(self, request, queryset):
+        ok = 0
+        for content in queryset.select_related("good"):
+            try:
+                run_content_agent(content.good)
+                ok += 1
+            except (AgentConfigError, AgentRunError) as extra:
+                save_agent_draft(content.good, None, error=str(extra), recorded=False)
+                self.message_user(request, f"{content.good_id}: {extra}", messages.ERROR)
+        if ok:
+            self.message_user(request, f"Черновиков: {ok}", messages.SUCCESS)
+
     @admin.action(description="Принять черновик агента в секции ru")
     def accept_agent_draft_action(self, request, queryset):
         ok = 0
-        for content in queryset:
+        for content in queryset.select_related("good"):
             try:
                 accept_agent_draft(content.good)
                 ok += 1
