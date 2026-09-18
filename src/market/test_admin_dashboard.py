@@ -72,7 +72,22 @@ class AdminDashboardTests(TestCase):
             amount_krw=5000,
             amount_usd=Decimal("3.00"),
         )
-        ApiKzSync.objects.create(warehouse_code=ApiKzSync.WAREHOUSE_KZ, ok=False, message="fail stock")
+        ApiKzSync.objects.create(
+            warehouse_code=ApiKzSync.WAREHOUSE_KZ,
+            ok=False,
+            store_id="936507",
+            inventory_id="2836556",
+            inventory_number="2836556",
+            prices_updated=0,
+            prices_unchanged=10,
+            prices_failed=0,
+            prices_goods=1,
+            message=(
+                "склад 936507: остатки 51, API 44, строк описи 51, излишки 0, недостачи 0, "
+                "инвентаризация id=2836556 № 2836556 (проведено), оприходование не создано "
+                "(нет излишков), списание не создано (нет недостач)"
+            ),
+        )
         ProductContentAgentSettings.load()
 
     def test_superuser_sees_dashboard_kpis(self):
@@ -86,6 +101,9 @@ class AdminDashboardTests(TestCase):
         self.assertContains(response, "Справочник заполняется вручную")
         self.assertContains(response, "Агент контента выключен")
         self.assertContains(response, "Последний синк KZ с ошибкой")
+        self.assertContains(response, "Синхронизация KZ")
+        self.assertContains(response, "Инвентаризация")
+        self.assertContains(response, "Остатки")
         self.assertContains(response, "API KZ")
 
     def test_staff_without_order_perm_hides_orders(self):

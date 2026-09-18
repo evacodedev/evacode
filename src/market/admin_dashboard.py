@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, time as dt_time, timedelta
 from decimal import Decimal
 
@@ -15,7 +16,79 @@ from .models import (
     SiteOrder,
 )
 
-PREVIEW_LIMIT = 8
+PREVIEW_LIMIT = 5
+
+_KZ_MESSAGE_FIELDS = (
+    ("Остатки", r"остатки (\d+)"),
+    ("API", r"API (\d+)"),
+    ("Строк описи", r"строк описи (\d+)"),
+    ("Излишки", r"излишки (\d+)"),
+    ("Недостачи", r"недостачи (\d+)"),
+)
+
+
+def _doc_value(record_id, number, held_note=""):
+    if not record_id and not number:
+        return "—"
+    parts = []
+    if record_id:
+        parts.append(f"id {record_id}")
+    if number:
+        parts.append(f"№ {number}")
+    text = " · ".join(parts)
+    return f"{text}{held_note}" if held_note else text
+
+
+def kz_sync_rows(last: ApiKzSync):
+    when = timezone.localtime(last.run_at).strftime("%Y-%m-%d %H:%M") if last.run_at else "—"
+    rows = [
+        {"label": "Время", "value": when},
+        {"label": "Статус", "value": "успешно" if last.ok else "ошибка"},
+        {"label": "Склад BR", "value": last.store_id or "—"},
+    ]
+    message = last.message or ""
+    for label, pattern in _KZ_MESSAGE_FIELDS:
+        match = re.search(pattern, message)
+        if match:
+            rows.append({"label": label, "value": match.group(1)})
+    held = " (проведено)" if "(проведено)" in message else ""
+    not_held = " (не проведено)" if "(не проведено)" in message else ""
+    inv_note = held or not_held
+    rows.append(
+        {
+            "label": "Инвентаризация",
+            "value": _doc_value(last.inventory_id, last.inventory_number, inv_note),
+        }
+    )
+    rows.append(
+        {
+            "label": "Оприходование",
+            "value": _doc_value(last.posting_id, last.posting_number) if last.posting_id else "не создано",
+        }
+    )
+    rows.append(
+        {
+            "label": "Списание",
+            "value": _doc_value(last.charge_id, last.charge_number) if last.charge_id else "не создано",
+        }
+    )
+    rows.append(
+        {
+            "label": "Цены",
+            "value": (
+                f"обновлено {last.prices_updated}, без изменений {last.prices_unchanged}, "
+                f"ошибок {last.prices_failed}, товаров {last.prices_goods}"
+            ),
+        }
+    )
+    if last.prices_list_id or last.prices_list_number:
+        rows.append(
+            {
+                "label": "Назначение цен",
+                "value": _doc_value(last.prices_list_id, last.prices_list_number),
+            }
+        )
+    return rows
 
 
 class BrandFilledFilter(admin.SimpleListFilter):
@@ -339,7 +412,7 @@ def _build_admin_dashboard(user):
             kz["last"] = {
                 "ok": last.ok,
                 "when": timezone.localtime(last.run_at).strftime("%Y-%m-%d %H:%M") if last.run_at else "—",
-                "message": (last.message or "")[:180],
+                "rows": kz_sync_rows(last),
             }
             if not last.ok:
                 alerts.append(

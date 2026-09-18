@@ -1,64 +1,183 @@
 {% extends "admin/index.html" %}
-{% load static %}
+
+{% block coltype %}colM{% endblock %}
+
+{% block sidebar %}{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
 <style>
-  .evacode-dash { margin: 0 0 24px; }
-  .evacode-dash h2 { margin-top: 0; }
-  .evacode-dash-kpis {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
-    gap: 10px;
-    margin: 12px 0 16px;
+  /* Django admin floats/modules fight CSS grid — keep this layout dumb and explicit. */
+  #content.colM {
+    max-width: none !important;
   }
-  .evacode-dash-kpi {
-    border: 1px solid var(--hairline-color, var(--border-color, #e0e0e0));
-    background: var(--darkened-bg, var(--body-bg, #f8f8f8));
-    border-radius: 8px;
-    padding: 12px 14px;
+  .evacode-dash {
+    display: block !important;
+    float: none !important;
+    clear: both !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 24px !important;
+    padding: 0 !important;
   }
-  .evacode-dash-kpi a { display: block; text-decoration: none; color: inherit; }
-  .evacode-dash-kpi .n {
-    display: block;
-    font-size: 1.45rem;
-    font-weight: 700;
-    line-height: 1.2;
-    color: var(--body-fg, #1a1917);
+  .evacode-dash h2 {
+    margin: 0 0 12px;
   }
-  .evacode-dash-kpi .l {
-    display: block;
-    margin-top: 4px;
-    color: var(--body-quiet-color, #8a8680);
-    font-size: 0.82rem;
+  .evacode-dash h3 {
+    margin: 0 0 10px;
+    font-size: 0.95rem;
   }
-  .evacode-dash-alerts { list-style: none; margin: 0 0 16px; padding: 0; }
+  .evacode-dash-alerts {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 0 14px !important;
+    padding: 0 !important;
+    list-style: none !important;
+    overflow: hidden;
+  }
   .evacode-dash-alerts li {
-    margin: 0 0 8px;
-    padding: 10px 12px;
+    float: left !important;
+    width: calc(50% - 8px) !important;
+    margin: 0 8px 8px 0 !important;
+    padding: 8px 10px !important;
     border-radius: 6px;
     border: 1px solid var(--hairline-color, #e0e0e0);
+    font-size: 0.9rem;
+    line-height: 1.35;
+    box-sizing: border-box !important;
   }
   .evacode-dash-alerts .tone-danger { border-color: var(--error-fg, #ba2121); }
   .evacode-dash-alerts .tone-warning { border-color: #b89254; }
   .evacode-dash-alerts a { font-weight: 600; }
-  .evacode-dash-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+  .evacode-dash-row {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: separate !important;
+    border-spacing: 14px 0 !important;
+    margin: 0 0 14px !important;
+    float: none !important;
   }
+  .evacode-dash-col {
+    display: table-cell !important;
+    width: 50% !important;
+    vertical-align: top !important;
+    float: none !important;
+    position: static !important;
+  }
+  .evacode-dash-panel {
+    display: block !important;
+    float: none !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 12px 14px !important;
+    border: 1px solid var(--hairline-color, #e0e0e0);
+    border-radius: 8px;
+    background: var(--body-bg, transparent);
+    box-sizing: border-box !important;
+  }
+  .evacode-dash-kpis {
+    display: block !important;
+    overflow: hidden !important;
+    margin: 0 0 10px !important;
+  }
+  .evacode-dash-kpi {
+    float: left !important;
+    width: calc(33.333% - 6px) !important;
+    margin: 0 6px 6px 0 !important;
+    padding: 10px 12px !important;
+    border: 1px solid var(--hairline-color, var(--border-color, #e0e0e0));
+    background: var(--darkened-bg, var(--body-bg, #f8f8f8));
+    border-radius: 8px;
+    box-sizing: border-box !important;
+  }
+  .evacode-dash-kpi a {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+  }
+  .evacode-dash-kpi .n {
+    display: block;
+    font-size: 1.2rem;
+    font-weight: 700;
+    line-height: 1.15;
+  }
+  .evacode-dash-kpi .l {
+    display: block;
+    margin-top: 3px;
+    color: var(--body-quiet-color, #8a8680);
+    font-size: 0.78rem;
+  }
+  .evacode-dash-previews {
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+    border-collapse: separate !important;
+    border-spacing: 10px 0 !important;
+    margin-top: 8px !important;
+  }
+  .evacode-dash-previews > table {
+    display: table-cell !important;
+    width: 50% !important;
+    vertical-align: top !important;
+    float: none !important;
+  }
+  .evacode-dash table {
+    float: none !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+  .evacode-dash table th,
+  .evacode-dash table td {
+    padding: 5px 8px;
+    vertical-align: top;
+  }
+  .evacode-dash-kz-wrap {
+    display: block !important;
+    float: none !important;
+    clear: both !important;
+    width: 100% !important;
+    margin: 0 0 8px !important;
+  }
+  .evacode-dash-kz {
+    width: 100% !important;
+  }
+  .evacode-dash-kz th {
+    width: 220px;
+    white-space: nowrap;
+    color: var(--body-quiet-color, #8a8680);
+    font-weight: 500;
+  }
+  .evacode-dash .muted {
+    color: var(--body-quiet-color, #8a8680);
+    font-size: 0.85rem;
+    margin: 0 0 8px;
+  }
+  .evacode-dash .ok { color: var(--message-success-text, #70bf2b); font-weight: 600; }
+  .evacode-dash .bad { color: var(--error-fg, #ba2121); font-weight: 600; }
   @media (max-width: 900px) {
-    .evacode-dash-grid { grid-template-columns: 1fr; }
+    .evacode-dash-row,
+    .evacode-dash-col,
+    .evacode-dash-previews,
+    .evacode-dash-previews > table {
+      display: block !important;
+      width: 100% !important;
+    }
+    .evacode-dash-alerts li,
+    .evacode-dash-kpi {
+      width: 100% !important;
+      margin-right: 0 !important;
+    }
   }
-  .evacode-dash table { width: 100%; }
-  .evacode-dash .muted { color: var(--body-quiet-color, #8a8680); }
 </style>
 {% endblock %}
 
 {% block content %}
 {% with dash=evacode_dashboard %}
 {% if dash.show_orders or dash.show_catalog %}
-<div class="evacode-dash module">
+<div class="evacode-dash">
   <h2>Обзор{% if dash.day %} · {{ dash.day }}{% endif %}</h2>
 
   {% if dash.alerts %}
@@ -69,82 +188,99 @@
     </li>
     {% endfor %}
   </ul>
+  <div style="clear:both;"></div>
   {% endif %}
 
-  {% if dash.show_orders %}
-  <h3>Заказы за сегодня</h3>
-  <div class="evacode-dash-kpis">
-    <div class="evacode-dash-kpi">
-      <a href="{{ dash.orders.url_today }}">
-        <span class="n">{{ dash.orders.created }}</span>
-        <span class="l">Создано</span>
-      </a>
-    </div>
-    <div class="evacode-dash-kpi">
-      <a href="{{ dash.orders.url_today }}">
-        <span class="n">{{ dash.orders.paid }}</span>
-        <span class="l">Оплачено</span>
-      </a>
-    </div>
-    <div class="evacode-dash-kpi">
-      <span class="n">{{ dash.orders.amount_krw }}₩</span>
-      <span class="l">Сумма оплаченных · {{ dash.orders.amount_usd }} USD</span>
-    </div>
-    <div class="evacode-dash-kpi">
-      <a href="{{ dash.orders.url_pending }}">
-        <span class="n">{{ dash.orders.pending }}</span>
-        <span class="l">Ожидают оплату</span>
-      </a>
-    </div>
-    <div class="evacode-dash-kpi">
-      <a href="{{ dash.orders.url_failed }}">
-        <span class="n">{{ dash.orders.failed }}</span>
-        <span class="l">Ошибка оплаты</span>
-      </a>
-    </div>
-  </div>
-  {% if dash.orders.recent %}
-  <table>
-    <thead><tr><th>Последние сегодня</th></tr></thead>
-    <tbody>
-      {% for row in dash.orders.recent %}
-      <tr><td>{% if row.url %}<a href="{{ row.url }}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
-  {% endif %}
-
-  <div class="evacode-dash-grid">
-    {% if dash.show_catalog %}
-    <div>
-      <h3>Очередь контента</h3>
-      <div class="evacode-dash-kpis">
-        <div class="evacode-dash-kpi">
-          <a href="{{ dash.catalog.url_no_brand }}">
-            <span class="n">{{ dash.catalog.no_brand }}</span>
-            <span class="l">Без бренда</span>
-          </a>
+  <div class="evacode-dash-row">
+    {% if dash.show_orders %}
+    <div class="evacode-dash-col">
+      <div class="evacode-dash-panel">
+        <h3>Заказы за сегодня</h3>
+        <div class="evacode-dash-kpis">
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.orders.url_today }}">
+              <span class="n">{{ dash.orders.created }}</span>
+              <span class="l">Создано</span>
+            </a>
+          </div>
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.orders.url_today }}">
+              <span class="n">{{ dash.orders.paid }}</span>
+              <span class="l">Оплачено</span>
+            </a>
+          </div>
+          <div class="evacode-dash-kpi">
+            <span class="n">{{ dash.orders.amount_krw }}₩</span>
+            <span class="l">Сумма · {{ dash.orders.amount_usd }} USD</span>
+          </div>
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.orders.url_pending }}">
+              <span class="n">{{ dash.orders.pending }}</span>
+              <span class="l">Ожидают</span>
+            </a>
+          </div>
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.orders.url_failed }}">
+              <span class="n">{{ dash.orders.failed }}</span>
+              <span class="l">Ошибка</span>
+            </a>
+          </div>
         </div>
-        <div class="evacode-dash-kpi">
-          <a href="{{ dash.catalog.url_no_content }}">
-            <span class="n">{{ dash.catalog.no_content }}</span>
-            <span class="l">Нет контента</span>
-          </a>
-        </div>
-        <div class="evacode-dash-kpi">
-          <a href="{{ dash.catalog.url_needs }}">
-            <span class="n">{{ dash.catalog.needs_enrichment }}</span>
-            <span class="l">Нужно обогащение</span>
-          </a>
-        </div>
-        <div class="evacode-dash-kpi">
-          <a href="{{ dash.catalog.url_drafts }}">
-            <span class="n">{{ dash.catalog.drafts }}</span>
-            <span class="l">Черновики агента</span>
-          </a>
-        </div>
+        <div style="clear:both;"></div>
+        {% if dash.orders.recent %}
+        <table>
+          <thead><tr><th>Последние сегодня</th></tr></thead>
+          <tbody>
+            {% for row in dash.orders.recent %}
+            <tr><td>{% if row.url %}<a href="{{ row.url }}">{{ row.label }}</a>{% else %}{{ row.label }}{% endif %}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
       </div>
+    </div>
+    {% endif %}
+
+    {% if dash.show_catalog %}
+    <div class="evacode-dash-col">
+      <div class="evacode-dash-panel">
+        <h3>Очередь контента</h3>
+        <div class="evacode-dash-kpis">
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.catalog.url_no_brand }}">
+              <span class="n">{{ dash.catalog.no_brand }}</span>
+              <span class="l">Без бренда</span>
+            </a>
+          </div>
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.catalog.url_no_content }}">
+              <span class="n">{{ dash.catalog.no_content }}</span>
+              <span class="l">Нет контента</span>
+            </a>
+          </div>
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.catalog.url_needs }}">
+              <span class="n">{{ dash.catalog.needs_enrichment }}</span>
+              <span class="l">Обогащение</span>
+            </a>
+          </div>
+          <div class="evacode-dash-kpi">
+            <a href="{{ dash.catalog.url_drafts }}">
+              <span class="n">{{ dash.catalog.drafts }}</span>
+              <span class="l">Черновики</span>
+            </a>
+          </div>
+        </div>
+        <div style="clear:both;"></div>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  {% if dash.show_catalog %}
+  <div class="evacode-dash-kz-wrap">
+    <div class="evacode-dash-panel">
+      <h3>Детали очереди</h3>
       {% if dash.catalog.reasons %}
       <p class="muted">
         Причины:
@@ -156,44 +292,56 @@
       {% if dash.catalog.agent_enabled == False %}
       <p class="muted">Агент выключен.</p>
       {% endif %}
-      {% if dash.catalog.recent_no_brand %}
-      <table>
-        <thead><tr><th>Без бренда</th></tr></thead>
-        <tbody>
-          {% for row in dash.catalog.recent_no_brand %}
-          <tr><td><a href="{{ row.url }}">{{ row.label }}</a></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
-      {% if dash.catalog.recent_enrichment %}
-      <table>
-        <thead><tr><th>Нужно обогащение</th></tr></thead>
-        <tbody>
-          {% for row in dash.catalog.recent_enrichment %}
-          <tr><td><a href="{{ row.url }}">{{ row.label }}</a></td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      {% endif %}
+      <div class="evacode-dash-previews">
+        {% if dash.catalog.recent_no_brand %}
+        <table>
+          <thead><tr><th>Без бренда</th></tr></thead>
+          <tbody>
+            {% for row in dash.catalog.recent_no_brand %}
+            <tr><td><a href="{{ row.url }}">{{ row.label }}</a></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+        {% if dash.catalog.recent_enrichment %}
+        <table>
+          <thead><tr><th>Нужно обогащение</th></tr></thead>
+          <tbody>
+            {% for row in dash.catalog.recent_enrichment %}
+            <tr><td><a href="{{ row.url }}">{{ row.label }}</a></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% endif %}
+      </div>
     </div>
-    {% endif %}
+  </div>
+  {% endif %}
 
-    {% if dash.show_kz %}
-    <div>
-      <h3>Синхронизация KZ</h3>
+  {% if dash.show_kz %}
+  <div class="evacode-dash-kz-wrap">
+    <div class="evacode-dash-panel">
+      <h3>Синхронизация KZ {% if dash.kz.last %}<a href="{{ dash.kz.url }}">история</a>{% endif %}</h3>
       {% if dash.kz.last %}
-      <p>
-        <a href="{{ dash.kz.url }}">{{ dash.kz.last.when }}</a>
-        — {% if dash.kz.last.ok %}успешно{% else %}ошибка{% endif %}
+      <p class="{% if dash.kz.last.ok %}ok{% else %}bad{% endif %}">
+        {{ dash.kz.last.when }} — {% if dash.kz.last.ok %}успешно{% else %}ошибка{% endif %}
       </p>
-      {% if dash.kz.last.message %}<p class="muted">{{ dash.kz.last.message }}</p>{% endif %}
+      <table class="evacode-dash-kz">
+        <tbody>
+          {% for row in dash.kz.last.rows %}
+          <tr>
+            <th>{{ row.label }}</th>
+            <td>{{ row.value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
       {% else %}
       <p class="muted">Запусков ещё не было. <a href="{{ dash.kz.url }}">История</a></p>
       {% endif %}
     </div>
-    {% endif %}
   </div>
+  {% endif %}
 </div>
 {% endif %}
 {% endwith %}
