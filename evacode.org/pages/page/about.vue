@@ -1,75 +1,93 @@
 <template>
     <Header/>
-    <div>
-        <section class="about-section-with-img">
-            <div class="container-img container">
-                <div class="about-background">
-                    <WidgetsBrandLogo :logo_type="'white'" />
-                    <h2>{{ about.title }}</h2>
-                </div>
-            </div>
-            <div class="container-img-fluid container-fluid about-background">
-                <h2>{{ about.title }}</h2>
-            </div>
-        </section>
-        <section v-reveal class="about-page section-b-space">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-6 col-12">
-                        <div class="banner-section">
-                            <img src="/images/new_evacode/about-logo.png" alt/>
-                        </div>
-                    </div>
-                    <div class="col-lg-6 col-12">
-                        <div v-html="about.description"></div>
-                    </div>
-                </div>
+    <div class="about-lux">
+        <section class="about-lux__hero">
+            <img
+                class="about-lux__hero-photo"
+                src="/images/new_evacode/about-hero.jpg"
+                alt="Студийный beauty-портрет"
+                width="2400"
+                height="1600"
+                decoding="async"
+                fetchpriority="high"
+            >
+            <div class="about-lux__hero-veil" aria-hidden="true"></div>
+            <div class="about-lux__hero-inner">
+                <p class="about-lux__brand">EvaCode</p>
+                <h1 class="about-lux__title">{{ about.title || 'О нас' }}</h1>
+                <p class="about-lux__lead">Люксовая корейская косметика. Официальные поставщики. Забота о каждой женщине.</p>
             </div>
         </section>
-        <section v-reveal class="about-illustration-section first">
+
+        <section v-reveal class="about-lux__intro">
             <div class="container">
-                <div class="row gx-5">
-                    <div class="col-xl-3 col-12">
-                        <img class="about-illustration-img" src="/images/new_evacode/about-illustr-1.png" alt="happy girl">
-                    </div>
-                    <div class="col-xl-9 col-12">
-                        <div class="about-illustration-text-column">
-                            <h3 class="about-illustration-title">Персональные консультации и уход</h3>
-                            <p class="about-illustration-description">В нашем штате работают свыше 20 консультантов по всему миру, которые в любое время суток помогут подобрать индивидуальный уход для лица, тела и волос, при этом – оформить заказ и довести
-                                вас до желаемого результата.</p>
-                        </div>
-                    </div>
+                <div class="about-lux__manifesto">
+                    <p class="about-lux__eyebrow">О бренде</p>
+                    <h2 class="about-lux__manifesto-title">Люксовая корейская косметика с 2018&nbsp;года</h2>
+                    <p class="about-lux__manifesto-lead">
+                        EvaCode работает с официальными поставщиками корпораций LG Household&nbsp;&amp;&nbsp;HealthCare и Amore&nbsp;Pacific.
+                        Офис в Южной Корее — доставка по всему миру.
+                    </p>
                 </div>
-            </div>
-        </section>
-        <section v-reveal class="about-illustration-section second">
-            <div class="container">
-                <div class="row gx-5">
-                    <div class="col-xl-9 col-12">
-                        <div class="about-illustration-text-column">
-                            <h3 class="about-illustration-title">ЦЕННОСТИ EVACODE</h3>
-                            <p class="about-illustration-description">Ценности нашей компании – осознанный подход к красоте и здоровью наших клиентов, а также качество поставляемой продукции.</p>
-                        </div>
-                    </div>
-                    <div class="col-xl-3 col-12">
-                        <img class="about-illustration-img" src="/images/new_evacode/about-illustr-2.png" alt="happy girl">
-                    </div>
+
+                <ul class="about-lux__facts" aria-label="Ключевые факты">
+                    <li class="about-lux__fact">
+                        <span class="about-lux__fact-value">7+</span>
+                        <span class="about-lux__fact-label">лет на рынке</span>
+                    </li>
+                    <li class="about-lux__fact">
+                        <span class="about-lux__fact-value">20+</span>
+                        <span class="about-lux__fact-label">консультантов</span>
+                    </li>
+                    <li class="about-lux__fact">
+                        <span class="about-lux__fact-value">KR</span>
+                        <span class="about-lux__fact-label">офис в Корее</span>
+                    </li>
+                </ul>
+
+                <div class="about-lux__brands">
+                    <p class="about-lux__brands-label">Бренды в каталоге</p>
+                    <ul class="about-lux__brands-list">
+                        <li v-for="brand in featuredBrands" :key="brand">{{ brand }}</li>
+                    </ul>
                 </div>
             </div>
         </section>
-        <section v-reveal class="about-illustration-section third">
+
+        <section
+            v-for="(block, index) in storyBlocks"
+            :key="block.title"
+            v-reveal
+            class="about-lux__story"
+            :class="{ 'is-reverse': index % 2 === 1, 'is-alt': index % 2 === 1 }"
+        >
             <div class="container">
-                <div class="row gx-5">
-                    <div class="col-xl-3 col-12">
-                        <img class="about-illustration-img" src="/images/new_evacode/about-illustr-3.png" alt="happy girl">
-                    </div>
-                    <div class="col-xl-9 col-12">
-                        <div class="about-illustration-text-column">
-                            <h3 class="about-illustration-title">Забота о каждой женщине</h3>
-                            <p class="about-illustration-description">Мы стремимся слышать всех женщин, где бы они ни жили и чем бы ни занимались, и удовлетворять их потребности.</p>
-                        </div>
+                <div class="about-lux__story-grid">
+                    <figure class="about-lux__story-photo">
+                        <img
+                            :src="block.image"
+                            :alt="block.alt"
+                            width="1200"
+                            height="1500"
+                            loading="lazy"
+                            decoding="async"
+                        >
+                    </figure>
+                    <div class="about-lux__story-copy">
+                        <p class="about-lux__eyebrow">{{ block.eyebrow }}</p>
+                        <h2 class="about-lux__story-title">{{ block.title }}</h2>
+                        <p class="about-lux__story-text">{{ block.text }}</p>
                     </div>
                 </div>
+            </div>
+        </section>
+
+        <section v-reveal class="about-lux__cta">
+            <div class="container">
+                <p class="about-lux__cta-brand">EvaCode</p>
+                <h2 class="about-lux__cta-title">Откройте каталог</h2>
+                <p class="about-lux__cta-text">Оригинальная корейская косметика с персональным подбором ухода.</p>
+                <nuxt-link to="/collection/leftsidebar/0/" class="about-lux__cta-btn">В магазин</nuxt-link>
             </div>
         </section>
     </div>
@@ -82,8 +100,46 @@
 import {useAboutStore} from '~/store/about';
 
 const about = await useAboutStore().aboutPage;
+
+const img = (name) => `/images/new_evacode/${name}`;
+
+const featuredBrands = [
+    'THE HISTORY OF WHOO',
+    'O HUI',
+    'SU:M37',
+    'CNP',
+    'The Saga of Soo',
+    'Sulwhasoo',
+    'Hera',
+    'Amorepacific',
+];
+
+const storyBlocks = [
+    {
+        eyebrow: 'Консультации',
+        title: 'Персональный уход',
+        text: 'Более 20 консультантов помогают подобрать уход для лица, тела и волос, оформить заказ и довести вас до желаемого результата.',
+        image: img('about-story-consult.jpg'),
+        alt: 'Студийный портрет консультанта',
+    },
+    {
+        eyebrow: 'Ценности',
+        title: 'Качество и осознанность',
+        text: 'Осознанный подход к красоте и здоровью клиентов и только качественная продукция от официальных поставщиков.',
+        image: img('about-story-values.jpg'),
+        alt: 'Beauty-портрет в студийном свете',
+    },
+    {
+        eyebrow: 'Забота',
+        title: 'Для каждой женщины',
+        text: 'Мы стремимся слышать женщин в любой стране и подбирать уход под их ритм жизни и потребности кожи.',
+        image: img('about-story-care.jpg'),
+        alt: 'Студийная beauty-фотография ухода',
+    },
+];
+
 useHead({
-    titleTemplate: `%s - ${about.title}`,
+    titleTemplate: `%s - ${about.title || 'О нас'}`,
     meta: [
         {
             name: 'description',

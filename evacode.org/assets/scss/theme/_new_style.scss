@@ -1264,70 +1264,300 @@ section.beauty-about {
     }
 }
 
-.about-section-with-img {
+.about-lux {
+    background: #fff;
+    color: #1a1917;
+}
+
+.about-lux__hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: min(78vh, 760px);
+    overflow: hidden;
+    background: #1a1917;
+}
+
+.about-lux__hero-photo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 22%;
+}
+
+.about-lux__hero-veil {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        180deg,
+        rgba(26, 25, 23, 0.18) 0%,
+        rgba(26, 25, 23, 0.28) 45%,
+        rgba(26, 25, 23, 0.72) 100%
+    );
+    pointer-events: none;
+}
+
+.about-lux__hero-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 48px 32px 64px;
+}
+
+.about-lux__brand,
+.about-lux__cta-brand {
+    margin: 0 0 12px;
+    color: #b89254;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+}
+
+.about-lux__title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(40px, 6vw, 72px);
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    line-height: 1.05;
+}
+
+.about-lux__lead {
+    max-width: 28em;
+    margin: 18px 0 0;
+    color: rgba(255, 255, 255, 0.82);
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.55;
+}
+
+.about-lux__intro {
+    padding: 96px 0 72px;
+    background: #f7f4ef;
+}
+
+.about-lux__manifesto {
+    max-width: 640px;
+    margin: 0 auto;
+    text-align: center;
+}
+
+.about-lux__manifesto-title {
+    margin: 0;
+    color: #1a1917;
+    font-size: clamp(26px, 3.2vw, 36px);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.25;
+    text-transform: none;
+}
+
+.about-lux__manifesto-lead {
+    margin: 22px 0 0;
+    color: #8a8680;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.7;
+}
+
+.about-lux__facts {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    max-width: 720px;
+    margin: 56px auto 0;
     padding: 0;
+    list-style: none;
+}
 
-    .about-background {
-        background-image: url('/images/new_evacode/about-bunner-large.jpg');
-        width: 100%;
-        height: 495px;
-        display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        justify-content: center;
-        padding-right: 130px;
-        margin-top: 50px;
-        margin-bottom: 50px;
+.about-lux__fact {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    text-align: center;
+}
 
-        .brand-logo img {
-            width: 715px;
-        }
+.about-lux__fact-value {
+    color: #1a1917;
+    font-size: clamp(28px, 3vw, 36px);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    line-height: 1;
+}
 
-        h2 {
-            font-size: 46px;
-            color: white;
-            margin-top: 35px;
-        }
-    }
+.about-lux__fact-label {
+    color: #8a8680;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
 
-    .container-img-fluid.about-background {
-        background-image: url('/images/new_evacode/about-bunner-resp.jpg');
-        padding-right: 110px;
-        height: 595px;
-        background-size: cover;
+.about-lux__brands {
+    max-width: 920px;
+    margin: 64px auto 0;
+    padding-top: 40px;
+    border-top: 1px solid rgba(184, 146, 84, 0.35);
+    text-align: center;
+}
 
-        h2 {
-            font-size: 84px;
-            color: white;
-            font-family: 'LatoWebLight', sans-serif;
-        }
+.about-lux__brands-label {
+    margin: 0 0 22px;
+    color: #b89254;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.about-lux__brands-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 28px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.about-lux__brands-list li {
+    color: #1a1917;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+}
+
+.about-lux__story {
+    padding: 72px 0;
+    background: #fff;
+
+    &.is-alt {
+        background: #f7f4ef;
     }
 }
-.about-illustration-section {
-    .about-illustration-img {
+
+.about-lux__story-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: 56px;
+    align-items: center;
+}
+
+.about-lux__story.is-reverse .about-lux__story-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+
+    .about-lux__story-photo {
+        order: 2;
+    }
+
+    .about-lux__story-copy {
+        order: 1;
+    }
+}
+
+.about-lux__story-photo {
+    margin: 0;
+    overflow: hidden;
+    background: #eeeae3;
+
+    img {
+        display: block;
         width: 100%;
-        max-width: 100%;
-    }
-    .about-illustration-text-column {
         height: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        background: -webkit-linear-gradient(52deg, #F7EFD6, #FFFBEE);
-        padding: 0 100px;
+        aspect-ratio: 4 / 5;
+        object-fit: cover;
+        object-position: center 20%;
+        transition: transform var(--motion-zoom, 900ms) var(--motion-zoom-ease, cubic-bezier(0.25, 0.1, 0.25, 1));
     }
-    .about-illustration-title {
-        text-transform: uppercase;
-        color: #AD884C;
-        font-size: 16px;
+
+    &:hover img {
+        transform: scale(1.03);
     }
-    .about-illustration-description {
-        color: black;
-        font-size: 14px;
-        line-height: 2;
-        margin-top: 30px;
+}
+
+.about-lux__story-copy {
+    max-width: 34em;
+}
+
+.about-lux__eyebrow {
+    margin: 0 0 14px;
+    color: #b89254;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.about-lux__story-title {
+    margin: 0;
+    color: #1a1917;
+    font-size: clamp(28px, 3.2vw, 40px);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.2;
+    text-transform: none;
+}
+
+.about-lux__story-text {
+    margin: 20px 0 0;
+    color: #8a8680;
+    font-size: 16px;
+    font-weight: 400;
+    line-height: 1.7;
+}
+
+.about-lux__cta {
+    padding: 96px 0;
+    background: #f7f4ef;
+    text-align: center;
+}
+
+.about-lux__cta-title {
+    margin: 0;
+    color: #1a1917;
+    font-size: clamp(28px, 3.5vw, 42px);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+}
+
+.about-lux__cta-text {
+    max-width: 28em;
+    margin: 16px auto 0;
+    color: #8a8680;
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.about-lux__cta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    margin-top: 32px;
+    padding: 12px 28px;
+    border: 1px solid #1a1917;
+    background: #1a1917;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background 240ms var(--motion-ease), color 240ms var(--motion-ease), border-color 240ms var(--motion-ease);
+
+    &:hover,
+    &:focus {
+        background: transparent;
+        color: #1a1917;
+        border-color: #1a1917;
     }
 }
 
