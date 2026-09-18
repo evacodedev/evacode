@@ -9,6 +9,14 @@ from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
 
+from .admin_dashboard import (
+    AgentQueueFilter,
+    BrandFilledFilter,
+    OrderOpsFilter,
+    OrderWhenFilter,
+    PdpPresenceFilter,
+    patch_admin_index,
+)
 from .br_stock_inventory import execute_kz_stock_sync
 from .business_ru_orders import export_paid_order
 from .order_email import send_order_confirmation_email
@@ -332,7 +340,7 @@ class ProductContentAgentSettingsAdmin(admin.ModelAdmin):
 @admin.register(ProductContent)
 class ProductContentAdmin(admin.ModelAdmin):
     list_display = ("id", "good", "good_id", "enrichment_status", "agent_run_at", "parsed_at")
-    list_filter = ("enrichment_status",)
+    list_filter = ("enrichment_status", AgentQueueFilter)
     search_fields = ("good__title",)
     change_form_template = "admin/market/productcontent/change_form.html"
     readonly_fields = (
@@ -435,7 +443,13 @@ class GoodsModelAdmin(admin.ModelAdmin):
         "retail_price",
     )
     list_editable = ("queue",)
-    list_filter = ("content_brand", "content_kind", "pdp_content__enrichment_status")
+    list_filter = (
+        BrandFilledFilter,
+        PdpPresenceFilter,
+        "content_brand",
+        "content_kind",
+        "pdp_content__enrichment_status",
+    )
     search_fields = ("title",)
     list_per_page = 50
     autocomplete_fields = ("content_brand", "content_kind")
@@ -657,7 +671,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_reservation_number",
         "created_at",
     )
-    list_filter = ("status",)
+    list_filter = ("status", OrderWhenFilter, OrderOpsFilter)
     search_fields = (
         "public_id",
         "email",
@@ -803,3 +817,4 @@ def get_app_list(request, app_label=None):
 
 
 admin.site.get_app_list = get_app_list
+patch_admin_index()
