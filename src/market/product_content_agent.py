@@ -218,31 +218,40 @@ def _user_payload(good: GoodsModel, pages: list | None = None) -> str:
             + "\nДля Whoo ищи site:whoo-hk.com/en/productdetail + имя товара "
             "(пример imperial-youth-emulsion), не только главную бренда.\n"
         )
-    official_line = (
-        f"preferred_official_url: {hint}\n"
-        f"{extra_line}"
-        "Сначала официальный сайт бренда, затем also_search_sites, затем интернет. "
-        "Если SKU нет на первом сайте — не останавливайся. "
-        "Ищи по точному названию на английском И на корейском (한글, 화해, 올리브영). "
-        "Корейские страницы не игнорировать: с них бери INCI и how-to, пиши секции по-русски. "
-        "Пустой blocks запрещён, если ниже есть description_from_BR: разложи его по секциям, "
-        f"для таких кусков source_url={CATALOG_SOURCE}.\n"
-        if hint
-        else (
+    has_br = bool(strip_html(good.description or "").strip())
+    if hint:
+        search_line = (
+            f"preferred_official_url: {hint}\n"
+            f"{extra_line}"
+            "Сначала официальный сайт бренда, затем also_search_sites, затем интернет. "
+            "Если SKU нет на первом сайте — не останавливайся. "
+            "Ищи по точному названию на английском И на корейском (한글, 화해, 올리브영). "
+            "Корейские страницы не игнорировать: с них бери INCI и how-to, пиши секции по-русски. "
+        )
+    else:
+        search_line = (
             f"{extra_line}"
             "Ищи товар в интернете по точному названию на английском и на корейском (한글). "
-            f"Если страниц мало — разложи description_from_BR, source_url={CATALOG_SOURCE}.\n"
         )
-    )
+    if has_br:
+        search_line += (
+            "Пустой blocks запрещён, если ниже есть description_from_BR: разложи его по секциям, "
+            f"для таких кусков source_url={CATALOG_SOURCE}.\n"
+        )
+    else:
+        search_line += (
+            "description_from_BR пустой — собери черновик ТОЛЬКО по title + web_search / fetched_pages. "
+            "Не выдумывай. Нет фактов в сети — blocks: [] и кратко в notes.\n"
+        )
     return (
         f"id: {good.id}\n"
         f"title: {good.title}\n"
         f"brand_already_set: {brand or '(пусто — можно предложить каноническое имя)'}\n"
         f"kind: {good.content_kind or ''}\n"
         f"weight_grams_from_catalog: {good.weight}\n"
-        f"{official_line}"
+        f"{search_line}"
         f"{_fetched_pages_block(pages)}"
-        f"description_from_BR:\n{good.description or ''}\n"
+        f"description_from_BR:\n{good.description or '(пусто)'}\n"
     )
 
 
