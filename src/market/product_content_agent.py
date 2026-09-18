@@ -820,8 +820,9 @@ def accept_agent_draft(good: GoodsModel) -> int:
         )
         written += 1
         existing.pop(payload["kind"], None)
+    content.agent_draft = None
     content.agent_error = ""
-    content.save(update_fields=["agent_error"])
+    content.save(update_fields=["agent_draft", "agent_error"])
     refresh_enrichment_from_sections(good)
     return written
 

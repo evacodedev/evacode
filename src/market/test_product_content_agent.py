@@ -320,6 +320,7 @@ class AgentDraftTests(TestCase):
         content.save(update_fields=["enrichment_status", "enrichment_reasons", "agent_draft"])
         accept_agent_draft(self.good)
         content.refresh_from_db()
+        self.assertIsNone(content.agent_draft)
         self.assertEqual(content.enrichment_status, "ok")
         self.assertEqual(content.enrichment_reasons, [])
 
@@ -339,6 +340,7 @@ class AgentDraftTests(TestCase):
         content.save(update_fields=["agent_draft"])
         accept_agent_draft(self.good)
         content.refresh_from_db()
+        self.assertIsNone(content.agent_draft)
         self.assertEqual(content.enrichment_status, "needs_enrichment")
         self.assertIn("short", content.enrichment_reasons)
         self.assertIn("no_sections", content.enrichment_reasons)
