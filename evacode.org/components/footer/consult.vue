@@ -1,5 +1,5 @@
 <template>
-    <div class="consulting">
+    <div id="consult" class="consulting" tabindex="-1">
         <div class="container">
             <section class="small-section border-section border-top-0">
                 <div class="row">
@@ -31,5 +31,18 @@
 <style scoped>
 .consult-girl {
     display: block;
+}
+
+.consulting {
+    scroll-margin-top: 120px;
+}
+
+.consulting:focus {
+    outline: none;
+}
+
+.consulting:focus-visible {
+    outline: 2px solid #b89254;
+    outline-offset: 4px;
 }
 </style>

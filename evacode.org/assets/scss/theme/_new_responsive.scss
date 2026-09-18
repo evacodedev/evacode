@@ -237,6 +237,87 @@
     .about-lux__cta {
         padding: 64px 0;
     }
+
+    .delivery-lux__hero {
+        min-height: min(68vh, 520px);
+    }
+
+    .delivery-lux__hero-inner {
+        padding: 32px 20px 40px;
+    }
+
+    .delivery-lux__lead {
+        font-size: 15px;
+    }
+
+    .delivery-lux__intro,
+    .delivery-lux__regions,
+    .delivery-lux__returns {
+        padding: 56px 0 40px;
+    }
+
+    .delivery-lux__manifesto-lead,
+    .delivery-lux__panel {
+        font-size: 15px;
+    }
+
+    .delivery-lux__facts {
+        gap: 16px;
+        margin-top: 40px;
+    }
+
+    .delivery-lux__fact-label {
+        font-size: 10px;
+        letter-spacing: 0.08em;
+    }
+
+    .delivery-lux__tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 8px;
+        margin-bottom: 28px;
+        padding-bottom: 4px;
+    }
+
+    .delivery-lux__tab {
+        flex: 0 0 auto;
+        min-height: 40px;
+        padding: 8px 12px;
+        font-size: 11px;
+    }
+
+    .delivery-lux__methods {
+        grid-template-columns: 1fr;
+    }
+
+    .delivery-lux__method {
+        padding: 22px 18px;
+    }
+
+    .delivery-lux__rule-cards,
+    .delivery-lux__rule-split,
+    .delivery-lux__rule-notes ul {
+        grid-template-columns: 1fr;
+    }
+
+    .delivery-lux__rule-card,
+    .delivery-lux__rule-block {
+        padding: 22px 18px;
+    }
+
+    .delivery-lux__cta {
+        padding: 64px 0;
+    }
+
+    .delivery-lux__cta-actions {
+        width: 100%;
+    }
+
+    .delivery-lux__cta-btn {
+        flex: 1 1 auto;
+        min-width: 140px;
+    }
 }
 
 @media (min-width: 992px) {
