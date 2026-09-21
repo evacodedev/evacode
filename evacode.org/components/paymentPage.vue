@@ -63,46 +63,61 @@
 
           <section class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Способ доставки</h2>
-            <label class="checkout-choice" :class="{ 'is-selected': shippingMethod === 'ems' }">
-              <input v-model="shippingMethod" type="radio" name="shipping" value="ems">
-              <span class="checkout-choice__body">
-                <span class="checkout-choice__title">EMS</span>
-                <span class="checkout-choice__note">Почта Кореи, стоимость по стране и весу заказа.</span>
-              </span>
-            </label>
-            <label class="checkout-choice" :class="{ 'is-selected': shippingMethod === 'pickup' }">
-              <input v-model="shippingMethod" type="radio" name="shipping" value="pickup">
-              <span class="checkout-choice__body">
-                <span class="checkout-choice__title">Самовывоз</span>
-                <span class="checkout-choice__note">Забрать заказ в Корее, без доставки.</span>
-              </span>
-            </label>
+            <div class="checkout-choice-list">
+              <label class="checkout-choice" :class="{ 'is-selected': shippingMethod === 'ems' }">
+                <input v-model="shippingMethod" type="radio" name="shipping" value="ems">
+                <span class="checkout-choice__body">
+                  <span class="checkout-choice__title">EMS</span>
+                  <span class="checkout-choice__note">Почта Кореи, стоимость по стране и весу заказа.</span>
+                </span>
+                <span class="checkout-choice__mark" aria-hidden="true" />
+              </label>
+              <label class="checkout-choice" :class="{ 'is-selected': shippingMethod === 'pickup' }">
+                <input v-model="shippingMethod" type="radio" name="shipping" value="pickup">
+                <span class="checkout-choice__body">
+                  <span class="checkout-choice__title">Самовывоз</span>
+                  <span class="checkout-choice__note">Забрать заказ в Корее, без доставки.</span>
+                </span>
+                <span class="checkout-choice__mark" aria-hidden="true" />
+              </label>
+            </div>
             <p v-if="shippingError" class="checkout-field__error">{{ shippingError }}</p>
           </section>
 
           <section v-if="isEms" class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Адрес</h2>
             <div v-if="showSavedPicker" class="checkout-saved">
-              <p class="checkout-saved__hint">Быстрое заполнение</p>
-              <label
-                v-for="item in savedAddresses"
-                :key="item.id"
-                class="checkout-choice"
-                :class="{ 'is-selected': selectedAddressId === String(item.id) }"
-              >
-                <input v-model="selectedAddressId" type="radio" name="saved-address" :value="String(item.id)">
-                <span class="checkout-choice__body">
-                  <span class="checkout-choice__title">{{ formatAccountAddress(item) }}</span>
-                  <span v-if="isDefaultAddress(item)" class="checkout-choice__note">По умолчанию</span>
-                </span>
-              </label>
-              <label class="checkout-choice" :class="{ 'is-selected': selectedAddressId === 'new' }">
-                <input v-model="selectedAddressId" type="radio" name="saved-address" value="new">
-                <span class="checkout-choice__body">
-                  <span class="checkout-choice__title">Другой адрес</span>
-                  <span class="checkout-choice__note">Заполнить поля вручную</span>
-                </span>
-              </label>
+              <p class="checkout-saved__hint">Нажмите карточку, чтобы подставить адрес</p>
+              <div class="checkout-saved__list">
+                <label
+                  v-for="item in savedAddresses"
+                  :key="item.id"
+                  class="checkout-saved__item"
+                  :class="{ 'is-selected': selectedAddressId === String(item.id) }"
+                >
+                  <input v-model="selectedAddressId" type="radio" name="saved-address" :value="String(item.id)">
+                  <span class="checkout-saved__pin" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none">
+                      <path d="M12 21s6.5-6.1 6.5-11.2A6.5 6.5 0 0 0 12 3.3a6.5 6.5 0 0 0-6.5 6.5C5.5 14.9 12 21 12 21Z" stroke="currentColor" stroke-width="1.4"/>
+                      <circle cx="12" cy="9.7" r="2.2" stroke="currentColor" stroke-width="1.4"/>
+                    </svg>
+                  </span>
+                  <span class="checkout-saved__body">
+                    <span class="checkout-saved__title">{{ formatAccountAddress(item) }}</span>
+                    <span v-if="isDefaultAddress(item)" class="checkout-saved__note">По умолчанию</span>
+                  </span>
+                  <span class="checkout-saved__mark" aria-hidden="true" />
+                </label>
+                <label class="checkout-saved__item checkout-saved__item--other" :class="{ 'is-selected': selectedAddressId === 'new' }">
+                  <input v-model="selectedAddressId" type="radio" name="saved-address" value="new">
+                  <span class="checkout-saved__pin" aria-hidden="true">+</span>
+                  <span class="checkout-saved__body">
+                    <span class="checkout-saved__title">Другой адрес</span>
+                    <span class="checkout-saved__note">Заполнить поля вручную</span>
+                  </span>
+                  <span class="checkout-saved__mark" aria-hidden="true" />
+                </label>
+              </div>
             </div>
             <CheckoutField
               v-model="destinationCode"
@@ -198,42 +213,52 @@
 
           <section class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Оплата</h2>
-            <label
-              class="checkout-choice"
-              :class="{ 'is-disabled': !paypalEnabled }"
-              :aria-disabled="paypalEnabled ? 'false' : 'true'"
-            >
-              <input
-                v-model="paymentMethod"
-                type="radio"
-                name="payment"
-                value="paypal"
-                :disabled="!paypalEnabled"
-                :tabindex="paypalEnabled ? 0 : -1"
+            <div class="checkout-choice-list">
+              <label
+                class="checkout-choice"
+                :class="{
+                  'is-selected': paymentMethod === 'paypal',
+                  'is-disabled': !paypalEnabled,
+                }"
+                :aria-disabled="paypalEnabled ? 'false' : 'true'"
               >
-              <span class="checkout-choice__body">
-                <span class="checkout-choice__title">PayPal</span>
-                <span class="checkout-choice__note">{{ paypalNote }}</span>
-              </span>
-            </label>
-            <label
-              class="checkout-choice"
-              :class="{ 'is-disabled': !telegramEnabled }"
-              :aria-disabled="telegramEnabled ? 'false' : 'true'"
-            >
-              <input
-                v-model="paymentMethod"
-                type="radio"
-                name="payment"
-                value="telegram"
-                :disabled="!telegramEnabled"
-                :tabindex="telegramEnabled ? 0 : -1"
+                <input
+                  v-model="paymentMethod"
+                  type="radio"
+                  name="payment"
+                  value="paypal"
+                  :disabled="!paypalEnabled"
+                  :tabindex="paypalEnabled ? 0 : -1"
+                >
+                <span class="checkout-choice__body">
+                  <span class="checkout-choice__title">PayPal</span>
+                  <span class="checkout-choice__note">{{ paypalNote }}</span>
+                </span>
+                <span class="checkout-choice__mark" aria-hidden="true" />
+              </label>
+              <label
+                class="checkout-choice"
+                :class="{
+                  'is-selected': paymentMethod === 'telegram',
+                  'is-disabled': !telegramEnabled,
+                }"
+                :aria-disabled="telegramEnabled ? 'false' : 'true'"
               >
-              <span class="checkout-choice__body">
-                <span class="checkout-choice__title">Заказ в Telegram</span>
-                <span class="checkout-choice__note">{{ telegramNote }}</span>
-              </span>
-            </label>
+                <input
+                  v-model="paymentMethod"
+                  type="radio"
+                  name="payment"
+                  value="telegram"
+                  :disabled="!telegramEnabled"
+                  :tabindex="telegramEnabled ? 0 : -1"
+                >
+                <span class="checkout-choice__body">
+                  <span class="checkout-choice__title">Заказ в Telegram</span>
+                  <span class="checkout-choice__note">{{ telegramNote }}</span>
+                </span>
+                <span class="checkout-choice__mark" aria-hidden="true" />
+              </label>
+            </div>
             <p v-if="paypalError" class="checkout-v2__pay-error">{{ paypalError }}</p>
             <button
               class="checkout-v2__cta"
