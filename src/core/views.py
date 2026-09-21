@@ -9,6 +9,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.http import HttpResponse, JsonResponse
 from taggit.models import Tag
 from babel import Locale, UnknownLocaleError
@@ -16,7 +17,7 @@ from .serializers import TagSerializer, ContactSerailizer
 from taggit.models import Tag
 from rest_framework.views import View, APIView
 from django.core.mail import send_mail
-from .serializers import RegisterSerializer, UserSerializer, CommentSerializer
+from .serializers import RegisterSerializer, AccountUserSerializer, LoginSerializer, CommentSerializer
 from .models import Comment, Contacts, AboutUs, Banner, Delivery, SectionWithVideo
 from django_filters import FilterSet, CharFilter
 from babel.numbers import get_currency_symbol, UnknownCurrencyError
@@ -115,28 +116,50 @@ class PostViewSet(viewsets.ModelViewSet):
     pagination_class = PageNumberSetPagination
 
 
+def _auth_payload(user):
+    refresh = RefreshToken.for_user(user)
+    return {
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": AccountUserSerializer(user).data,
+    }
+
+
 class RegisterView(generics.GenericAPIView):
     permission_classes = [permissions.AllowAny]
+    authentication_classes = []
     serializer_class = RegisterSerializer
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        return Response({
-            "user": UserSerializer(user, context=self.get_serializer_context()).data,
-            "message": "Пользователь успешно создан",
-        })
+        return Response(_auth_payload(user), status=status.HTTP_201_CREATED)
+
+
+class LoginView(generics.GenericAPIView):
+    permission_classes = [permissions.AllowAny]
+    authentication_classes = []
+    serializer_class = LoginSerializer
+
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(_auth_payload(serializer.validated_data["user"]))
 
 
 class ProfileView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
-    serializer_class = UserSerializer
+    serializer_class = AccountUserSerializer
 
     def get(self, request, *args, **kwargs):
-        return Response({
-            "user": UserSerializer(request.user, context=self.get_serializer_context()).data,
-        })
+        return Response(AccountUserSerializer(request.user).data)
+
+    def patch(self, request, *args, **kwargs):
+        serializer = self.get_serializer(request.user, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
 
 
 class CommentView(generics.ListCreateAPIView):

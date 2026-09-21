@@ -1198,6 +1198,34 @@
     }
 }
 
+@media (max-width: 991px) {
+    .account-lux {
+        padding: 32px 0 64px;
+    }
+
+    .account-lux__layout {
+        grid-template-columns: 1fr;
+        gap: 32px;
+    }
+
+    .account-lux__nav {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin-top: 20px;
+    }
+
+    .account-lux__link {
+        width: auto;
+        padding: 8px 0;
+        border-bottom: 0;
+    }
+
+    .account-lux__logout {
+        margin-top: 0;
+    }
+}
+
 @media (max-width: 360px) {
 
 }

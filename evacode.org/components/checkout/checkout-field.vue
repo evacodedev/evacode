@@ -6,6 +6,7 @@
       'is-focused': focused,
       'is-invalid': showError,
       'is-select': Boolean(options),
+      'is-password': isPassword,
     }"
   >
     <select
@@ -30,7 +31,7 @@
     <input
       v-else
       :id="inputId"
-      :type="type"
+      :type="inputType"
       :value="modelValue"
       :autocomplete="autocomplete"
       :name="name"
@@ -40,6 +41,26 @@
       @blur="onBlur"
     >
     <label :for="inputId">{{ label }}</label>
+    <button
+      v-if="isPassword"
+      class="checkout-field__reveal"
+      type="button"
+      :aria-label="revealed ? 'Скрыть пароль' : 'Показать пароль'"
+      :aria-pressed="revealed"
+      @mousedown.prevent
+      @click="revealed = !revealed"
+    >
+      <svg v-if="revealed" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 3l18 18" />
+        <path d="M10.6 10.6A3 3 0 0012 15a3 3 0 002.4-4.4" />
+        <path d="M9.9 5.2A10.8 10.8 0 0112 5c6.5 0 10 7 10 7a17.6 17.6 0 01-3.2 3.9" />
+        <path d="M6.1 6.1C3.8 7.8 2 12 2 12s3.5 7 10 7c1.7 0 3.2-.4 4.5-1" />
+      </svg>
+      <svg v-else viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+        <circle cx="12" cy="12" r="3" />
+      </svg>
+    </button>
     <p v-if="showError" class="checkout-field__error">{{ error }}</p>
   </div>
 </template>
@@ -62,11 +83,21 @@ export default {
     return {
       focused: false,
       touched: false,
+      revealed: false,
     }
   },
   computed: {
     inputId() {
       return `checkout-${this.name || this.label}`
+    },
+    isPassword() {
+      return this.type === 'password'
+    },
+    inputType() {
+      if (this.isPassword && this.revealed) {
+        return 'text'
+      }
+      return this.type
     },
     filled() {
       return String(this.modelValue || '').trim().length > 0

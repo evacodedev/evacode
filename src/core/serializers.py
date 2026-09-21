@@ -1,9 +1,11 @@
 from rest_framework import serializers
-from .models import Post, Slide, Review
-from taggit.serializers import TagListSerializerField, TaggitSerializer
+from django.contrib.auth import authenticate
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from taggit.serializers import TagListSerializerField, TaggitSerializer
 from taggit.models import Tag
-from .models import Comment, Banner, AboutUs, Contacts, Delivery, SectionWithVideo
+from .models import Post, Slide, Review, Comment, Banner, AboutUs, Contacts, Delivery, SectionWithVideo
 
 
 class PostSerializer(TaggitSerializer, serializers.ModelSerializer):
@@ -36,34 +38,72 @@ class ContactSerailizer(serializers.Serializer):
     message = serializers.CharField()
 
 
-class RegisterSerializer(serializers.ModelSerializer):
-    password2 = serializers.CharField(write_only=True)
+class AccountUserSerializer(serializers.ModelSerializer):
+    email = serializers.EmailField(read_only=True)
 
     class Meta:
         model = User
-        fields = [
-            "username",
-            "password",
-            "password2",
-        ]
-        extra_kwargs = {"password": {"write_only": True}}
+        fields = ("id", "email", "first_name", "last_name")
+        read_only_fields = ("id", "email")
+
+
+class RegisterSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    password2 = serializers.CharField(write_only=True)
+    first_name = serializers.CharField(required=False, allow_blank=True, max_length=150)
+
+    def validate_email(self, value):
+        email = value.strip().lower()
+        if len(email) > 150:
+            raise serializers.ValidationError("Слишком длинный email")
+        taken = User.objects.filter(username__iexact=email).exists() or User.objects.filter(
+            email__iexact=email
+        ).exists()
+        if taken:
+            raise serializers.ValidationError("Такой email уже зарегистрирован")
+        return email
+
+    def validate(self, attrs):
+        password = attrs["password"]
+        if password != attrs["password2"]:
+            raise serializers.ValidationError({"password2": "Пароли не совпадают"})
+        try:
+            validate_password(password)
+        except DjangoValidationError as exc:
+            raise serializers.ValidationError({"password": list(exc.messages)}) from exc
+        return attrs
 
     def create(self, validated_data):
-        username = validated_data["username"]
-        password = validated_data["password"]
-        password2 = validated_data["password2"]
-        if password != password2:
-            raise serializers.ValidationError({"password": "Пароли не совпадают"})
-        user = User(username=username)
-        user.set_password(password)
+        email = validated_data["email"]
+        user = User(
+            username=email,
+            email=email,
+            first_name=(validated_data.get("first_name") or "").strip(),
+        )
+        user.set_password(validated_data["password"])
         user.save()
         return user
+
+
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+
+    def validate(self, attrs):
+        email = attrs["email"].strip().lower()
+        user = authenticate(username=email, password=attrs["password"])
+        if user is None:
+            raise serializers.ValidationError("Неверный email или пароль")
+        attrs["email"] = email
+        attrs["user"] = user
+        return attrs
 
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = '__all__'
+        fields = ("id", "username", "email", "first_name", "last_name")
 
 
 class CommentSerializer(serializers.ModelSerializer):
