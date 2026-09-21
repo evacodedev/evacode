@@ -177,8 +177,27 @@ class SiteOrderApiTests(TestCase):
         self.assertEqual(order.goods_krw, 20000)
         self.assertEqual(order.shipping_krw, 57000)
         self.assertEqual(order.amount_krw, 77000)
+        self.assertEqual(order.postal_code, "12345")
         self.assertEqual(order.weight_grams, 1300)
         self.assertEqual(create_order_mock.call_args.kwargs["amount_usd"], Decimal("48.13"))
+
+    def test_create_order_ems_requires_postal_code(self):
+        from io import BytesIO
+
+        from market.ems_tariffs import import_ems_xlsx
+        from market.test_ems_tariffs import make_ems_xlsx
+
+        import_ems_xlsx(BytesIO(make_ems_xlsx()))
+        payload = self._payload(shipping={"method": "ems", "destination": "RU"})
+        payload["user"]["country"] = "Россия"
+        payload["user"]["postalCode"] = ""
+        response = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("postalCode", response.json().get("errors", {}))
 
     def test_destinations_skip_korea(self):
         response = self.client.get("/api/market/shipping/destinations/")

@@ -16,6 +16,7 @@ from .models import (
     Delivery,
     SectionWithVideo,
     AccountProfile,
+    AccountAddress,
 )
 
 
@@ -139,6 +140,59 @@ class AccountUserSerializer(serializers.ModelSerializer):
             instance.set_password(password)
             instance.save(update_fields=["password"])
         return instance
+
+
+class AccountAddressSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AccountAddress
+        fields = ("id", "country", "country_code", "city", "street", "house", "apartment", "postal_code", "comment")
+        extra_kwargs = {
+            "country": {"required": True, "allow_blank": False},
+            "country_code": {"required": True, "allow_blank": False},
+            "postal_code": {"required": True, "allow_blank": False},
+        }
+
+    def validate_country(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Укажите страну")
+        return value
+
+    def validate_country_code(self, value):
+        value = (value or "").strip().upper()[:8]
+        if not value:
+            raise serializers.ValidationError("Укажите страну")
+        return value
+
+    def validate_city(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Укажите город")
+        return value
+
+    def validate_street(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Укажите улицу")
+        return value
+
+    def validate_house(self, value):
+        value = (value or "").strip()
+        if not value:
+            raise serializers.ValidationError("Укажите дом")
+        return value
+
+    def validate_postal_code(self, value):
+        value = (value or "").strip()[:32]
+        if not value:
+            raise serializers.ValidationError("Укажите индекс")
+        return value
+
+    def validate_apartment(self, value):
+        return (value or "").strip()
+
+    def validate_comment(self, value):
+        return (value or "").strip()
 
 
 class RegisterSerializer(serializers.Serializer):

@@ -4,8 +4,9 @@
     <AccountShell current="orders">
       <h2 class="account-lux__heading">Заказы</h2>
       <AccountEmpty
-        lead="Здесь появятся оформленные заказы."
-        text="Пока ни одного. Когда оформите — заказ будет на этой странице."
+        icon="bag"
+        lead="Заказов пока нет"
+        text="Когда оформите, они появятся здесь."
         cta="В каталог"
         to="/collection/leftsidebar/0/"
       />

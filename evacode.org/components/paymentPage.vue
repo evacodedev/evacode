@@ -82,11 +82,33 @@
 
           <section v-if="isEms" class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Адрес</h2>
+            <div v-if="showSavedPicker" class="checkout-saved">
+              <p class="checkout-saved__hint">Быстрое заполнение</p>
+              <label
+                v-for="item in savedAddresses"
+                :key="item.id"
+                class="checkout-choice"
+                :class="{ 'is-selected': selectedAddressId === String(item.id) }"
+              >
+                <input v-model="selectedAddressId" type="radio" name="saved-address" :value="String(item.id)">
+                <span class="checkout-choice__body">
+                  <span class="checkout-choice__title">{{ formatAccountAddress(item) }}</span>
+                  <span v-if="isDefaultAddress(item)" class="checkout-choice__note">По умолчанию</span>
+                </span>
+              </label>
+              <label class="checkout-choice" :class="{ 'is-selected': selectedAddressId === 'new' }">
+                <input v-model="selectedAddressId" type="radio" name="saved-address" value="new">
+                <span class="checkout-choice__body">
+                  <span class="checkout-choice__title">Другой адрес</span>
+                  <span class="checkout-choice__note">Заполнить поля вручную</span>
+                </span>
+              </label>
+            </div>
             <CheckoutField
               v-model="destinationCode"
               name="country"
               label="Страна"
-              autocomplete="country-name"
+              autocomplete="country"
               :options="destinationOptions"
               :error="user.country.errormsg"
               :submitted="submitted"
@@ -147,14 +169,21 @@
             <CheckoutField
               v-model="user.postalCode.value"
               name="postalCode"
-              label="Индекс"
+              label="Индекс *"
               autocomplete="postal-code"
+              :error="user.postalCode.errormsg"
+              :submitted="submitted"
+              @blur="validateField('postalCode')"
             />
             <CheckoutField
               v-model="user.comment.value"
               name="comment"
               label="Комментарий (необязательно)"
             />
+            <label v-if="isLoggedIn" class="checkout-check">
+              <input v-model="saveNewAddress" type="checkbox">
+              Сохранить адрес в кабинет
+            </label>
           </section>
 
           <section v-else class="checkout-v2__section">
@@ -299,8 +328,18 @@
 
 <script>
 import MazPhoneNumberInput from 'maz-ui/components/MazPhoneNumberInput'
+import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import { useCartStore } from '~~/store/cart'
 import { useProductStore } from '~~/store/products'
+import { accountErrorMessage, useAuthStore } from '~/store/auth'
+import { toIntlPhone } from '~/utils/input-mask'
+import {
+  accountAddressPayload,
+  addressCountryOptions,
+  countryNameFromCode,
+  formatAccountAddress,
+  sameAccountAddress,
+} from '~/utils/account-address'
 
 export default {
   components: { MazPhoneNumberInput },
@@ -314,11 +353,27 @@ export default {
     isEms() {
       return this.shippingMethod === 'ems'
     },
+    isLoggedIn() {
+      return useAuthStore().isLoggedIn
+    },
+    accountUser() {
+      return useAuthStore().user
+    },
+    savedAddresses() {
+      return this.isLoggedIn ? useAuthStore().addresses : []
+    },
+    showSavedPicker() {
+      return this.isLoggedIn && this.savedAddresses.length > 0
+    },
     destinationOptions() {
-      return this.destinations.map((item) => ({ value: item.code, label: item.name }))
+      return addressCountryOptions(this.destinations)
     },
     selectedDestination() {
-      return this.destinations.find((item) => item.code === this.destinationCode) || null
+      const match = this.destinationOptions.find((item) => item.value === this.destinationCode)
+      if (!match) {
+        return null
+      }
+      return { code: match.value, name: match.label }
     },
     shippingLine() {
       if (this.shippingMethod === 'pickup') {
@@ -381,7 +436,7 @@ export default {
       return this.telegramLoading ? 'Отправляем…' : 'Отправить заказ'
     },
     ctaDisabled() {
-      if (!this.settingsLoaded || this.paypalLoading || this.telegramLoading) {
+      if (!this.settingsLoaded || this.paypalLoading || this.telegramLoading || this.submitting) {
         return true
       }
       if (this.paymentMethod === 'paypal') {
@@ -450,6 +505,10 @@ export default {
       settingsLoaded: false,
       paypalEnabled: false,
       telegramEnabled: false,
+      selectedAddressId: 'new',
+      saveNewAddress: true,
+      profileApplied: false,
+      submitting: false,
     }
   },
   watch: {
@@ -462,9 +521,49 @@ export default {
       this.user.country.errormsg = ''
       this.scheduleQuote()
     },
-    destinationCode() {
+    destinationCode(code) {
       this.user.country.errormsg = ''
+      this.user.country.value = this.selectedDestination?.name
+        || countryNameFromCode(this.destinations, code)
+        || this.user.country.value
       this.scheduleQuote()
+    },
+    selectedAddressId(id) {
+      if (id === 'new') {
+        this.clearAddressFields()
+        this.saveNewAddress = true
+        return
+      }
+      const item = this.savedAddresses.find((row) => String(row.id) === String(id))
+      if (item) {
+        this.applySavedAddress(item)
+      }
+    },
+    destinations() {
+      this.syncSelectedDestination()
+    },
+    accountUser: {
+      immediate: true,
+      handler() {
+        this.applyProfile()
+      },
+    },
+    isLoggedIn: {
+      immediate: true,
+      handler(logged) {
+        if (logged) {
+          this.loadSavedAddresses()
+        }
+      },
+    },
+    savedAddresses(list) {
+      if (!list.length || this.selectedAddressId !== 'new') {
+        return
+      }
+      if (this.user.city.value || this.user.address.value) {
+        return
+      }
+      this.selectedAddressId = String(list[0].id)
     },
     cart: {
       handler(value) {
@@ -490,9 +589,10 @@ export default {
       this.$router.replace('/page/account/cart')
       return
     }
-    this.loadDestinations()
-    this.fetchQuote()
     this.loadCheckoutSettings()
+    this.loadDestinations()
+    this.loadSavedAddresses()
+    this.fetchQuote()
     const paypalStatus = this.$route.query.paypal
     if (paypalStatus === 'cancel') {
       this.paypalError = 'Оплата в PayPal отменена'
@@ -509,6 +609,131 @@ export default {
     }
   },
   methods: {
+    formatAccountAddress,
+    applyProfile() {
+      const account = this.accountUser
+      if (!account || this.profileApplied) {
+        return
+      }
+      this.user.email.value = account.email || this.user.email.value
+      this.user.firstName.value = account.first_name || this.user.firstName.value
+      this.user.lastName.value = account.last_name || this.user.lastName.value
+      if (account.phone) {
+        const intl = toIntlPhone(account.phone)
+        this.user.phone.value = intl || account.phone
+        const parsed = parsePhoneNumberFromString(this.user.phone.value)
+        if (parsed?.country) {
+          this.countryCode = parsed.country
+        }
+      }
+      this.profileApplied = true
+    },
+    isDefaultAddress(item) {
+      return Boolean(item) && this.savedAddresses[0]?.id === item.id
+    },
+    syncSelectedDestination() {
+      if (this.selectedAddressId === 'new') {
+        return
+      }
+      const item = this.savedAddresses.find((row) => String(row.id) === String(this.selectedAddressId))
+      if (item) {
+        this.applyDestination(item)
+      }
+    },
+    applyDestination(item) {
+      const code = String(item?.country_code || '').trim()
+      if (!code) {
+        return
+      }
+      this.destinationCode = code
+      this.user.country.value = item.country || this.selectedDestination?.name || ''
+    },
+    applySavedAddress(item) {
+      this.applyDestination(item)
+      this.user.country.value = item.country || ''
+      this.user.city.value = item.city || ''
+      this.user.address.value = item.street || ''
+      this.user.house.value = item.house || ''
+      this.user.apartment.value = item.apartment || ''
+      this.user.postalCode.value = item.postal_code || ''
+      this.user.comment.value = item.comment || ''
+      this.privateHouse = !String(item.apartment || '').trim()
+    },
+    clearAddressFields() {
+      this.destinationCode = ''
+      this.user.country.value = ''
+      this.user.region.value = ''
+      this.user.city.value = ''
+      this.user.address.value = ''
+      this.user.house.value = ''
+      this.user.apartment.value = ''
+      this.user.postalCode.value = ''
+      this.user.comment.value = ''
+      this.privateHouse = false
+    },
+    async loadSavedAddresses() {
+      const auth = useAuthStore()
+      if (!process.client || !auth.isLoggedIn) {
+        return
+      }
+      await auth.ensureAddresses()
+      const preferred = auth.defaultAddress || this.savedAddresses[0]
+      if (preferred && this.selectedAddressId === 'new' && !this.user.city.value && !this.user.address.value) {
+        this.selectedAddressId = String(preferred.id)
+      }
+    },
+    addressEquals(item) {
+      return sameAccountAddress(item, this.currentAddressPayload())
+    },
+    addressMatchesSelected() {
+      if (this.selectedAddressId === 'new') {
+        return false
+      }
+      const item = this.savedAddresses.find((row) => String(row.id) === String(this.selectedAddressId))
+      return this.addressEquals(item)
+    },
+    resolvedCountryName() {
+      return this.selectedDestination?.name
+        || countryNameFromCode(this.destinations, this.destinationCode)
+        || String(this.user.country.value || '').trim()
+    },
+    currentAddressPayload() {
+      return accountAddressPayload({
+        country: this.resolvedCountryName(),
+        country_code: this.destinationCode,
+        city: this.user.city.value,
+        street: this.user.address.value,
+        house: this.user.house.value,
+        apartment: this.privateHouse ? '' : this.user.apartment.value,
+        postal_code: this.user.postalCode.value,
+        comment: this.user.comment.value,
+      })
+    },
+    async persistNewAddress() {
+      if (!this.isLoggedIn || !this.isEms || !this.saveNewAddress) {
+        return
+      }
+      const payload = this.currentAddressPayload()
+      const duplicate = this.savedAddresses.find((item) => sameAccountAddress(item, payload))
+      if (duplicate) {
+        this.selectedAddressId = String(duplicate.id)
+        return
+      }
+      if (!payload.country || !payload.country_code) {
+        this.paypalError = 'Не удалось сохранить адрес: укажите страну'
+        throw new Error('address-country')
+      }
+      const existingId = this.selectedAddressId !== 'new' ? this.selectedAddressId : undefined
+      try {
+        const saved = await useAuthStore().saveAddress(payload, existingId)
+        if (saved?.id) {
+          this.selectedAddressId = String(saved.id)
+        }
+      } catch (error) {
+        this.paypalError = accountErrorMessage(error, 'Не удалось сохранить адрес')
+        throw error
+      }
+    },
     itemImage(item) {
       return item.images?.[0]?.url || item.image || ''
     },
@@ -619,12 +844,16 @@ export default {
         if (this.privateHouse) return this.setError(field, '')
         return this.setError(field, value ? '' : 'Укажите квартиру')
       }
+      if (field === 'postalCode') {
+        if (!this.isEms) return this.setError(field, '')
+        return this.setError(field, value ? '' : 'Укажите индекс')
+      }
       return true
     },
     validateForm() {
       const fields = ['firstName', 'lastName', 'email', 'phone']
       if (this.isEms) {
-        fields.push('country', 'city', 'address', 'house')
+        fields.push('country', 'city', 'address', 'house', 'postalCode')
         if (!this.privateHouse) {
           fields.push('apartment')
         }
@@ -750,12 +979,13 @@ export default {
         behavior: reduceMotion ? 'auto' : 'smooth',
         block: 'center',
       })
-      const input = invalid.querySelector('input')
+      const input = invalid.querySelector('.m-phone-input input, input[type="tel"]')
+        || invalid.querySelector('select, textarea, input')
       if (input) {
         input.focus({ preventScroll: true })
       }
     },
-    onPrimarySubmit() {
+    async onPrimarySubmit() {
       if (this.ctaDisabled) {
         return
       }
@@ -764,10 +994,21 @@ export default {
         this.$nextTick(() => this.scrollToFirstError())
         return
       }
-      if (this.paymentMethod === 'paypal') {
-        return this.onPaypalSubmit()
+      this.submitting = true
+      try {
+        await this.persistNewAddress()
+        if (this.paymentMethod === 'paypal') {
+          await this.onPaypalSubmit()
+          return
+        }
+        await this.onSubmit()
+      } catch {
+        return
+      } finally {
+        if (!this.paypalLoading && !this.telegramLoading) {
+          this.submitting = false
+        }
       }
-      return this.onSubmit()
     },
     async onSubmit() {
       if (!this.telegramEnabled || !this.validateForm() || this.telegramLoading) {

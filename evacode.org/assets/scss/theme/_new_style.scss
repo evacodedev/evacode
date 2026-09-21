@@ -2397,7 +2397,8 @@ $checkout-error: #c0392b;
     margin-bottom: 14px;
 
     input,
-    select {
+    select,
+    textarea {
         width: 100%;
         height: 56px;
         padding: 22px 14px 8px;
@@ -2419,12 +2420,14 @@ $checkout-error: #c0392b;
         background-position: right 14px center;
     }
 
-    input::placeholder {
+    input::placeholder,
+    textarea::placeholder {
         color: transparent;
     }
 
     input:focus,
-    select:focus {
+    select:focus,
+    textarea:focus {
         outline: none;
         border-color: $checkout-gold;
         box-shadow: inset 0 0 0 1px $checkout-gold;
@@ -2446,7 +2449,9 @@ $checkout-error: #c0392b;
     &.is-filled label,
     input:not(:placeholder-shown) + label,
     input:focus + label,
-    select:focus + label {
+    select:focus + label,
+    textarea:not(:placeholder-shown) + label,
+    textarea:focus + label {
         top: 10px;
         transform: none;
         font-size: 11px;
@@ -2456,19 +2461,22 @@ $checkout-error: #c0392b;
 
     &.is-focused label,
     input:focus + label,
-    select:focus + label {
+    select:focus + label,
+    textarea:focus + label {
         color: $checkout-gold;
     }
 
     &.is-invalid input,
-    &.is-invalid select {
+    &.is-invalid select,
+    &.is-invalid textarea {
         border-color: $checkout-error;
         box-shadow: inset 0 0 0 1px $checkout-error;
     }
 
     &.is-invalid label,
     &.is-invalid input:focus + label,
-    &.is-invalid select:focus + label {
+    &.is-invalid select:focus + label,
+    &.is-invalid textarea:focus + label {
         color: $checkout-error;
     }
 
@@ -2483,9 +2491,32 @@ $checkout-error: #c0392b;
         padding-right: 48px;
     }
 
-    &.is-disabled input {
+    &.is-disabled input,
+    &.is-disabled textarea {
         color: #8a8680;
         background: #fff;
+    }
+
+    &.is-textarea {
+        textarea {
+            height: auto;
+            min-height: 96px;
+            padding: 28px 14px 12px;
+            resize: vertical;
+            line-height: 1.4;
+        }
+
+        label {
+            top: 22px;
+            transform: none;
+        }
+
+        &.is-focused label,
+        &.is-filled label,
+        textarea:not(:placeholder-shown) + label,
+        textarea:focus + label {
+            top: 10px;
+        }
     }
 
     &__reveal {
@@ -2541,6 +2572,23 @@ $checkout-error: #c0392b;
         accent-color: $checkout-gold;
         margin: 0;
         flex-shrink: 0;
+    }
+}
+
+.checkout-saved {
+    margin: 0 0 18px;
+
+    &__hint {
+        margin: 0 0 10px;
+        font-size: 13px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #8a8680;
+    }
+
+    .checkout-choice__title {
+        font-weight: 500;
+        line-height: 1.45;
     }
 }
 
@@ -3818,6 +3866,50 @@ html.cart-drawer-open body {
         line-height: 1.55;
         color: #8a8680;
     }
+
+    &-icon {
+        display: inline-flex;
+        width: 88px;
+        height: 88px;
+        color: #b89254;
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+    }
+
+    &-track {
+        opacity: 0.22;
+    }
+
+    &.is-illustrated {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        max-width: 320px;
+        margin: 56px auto 0;
+        padding: 0;
+
+        .account-lux__empty-lead {
+            margin: 20px 0 0;
+            font-size: 20px;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+        }
+
+        .account-lux__empty-text {
+            margin: 10px 0 28px;
+            font-size: 14px;
+            line-height: 1.45;
+        }
+
+        .account-lux__ghost {
+            min-width: 180px;
+            border-radius: 8px;
+        }
+    }
 }
 
 .account-lux__ghost,
@@ -3883,11 +3975,19 @@ html.cart-drawer-open body {
     .checkout-field {
         margin-bottom: 0;
 
-        input {
+        input,
+        textarea,
+        select {
             height: 70px;
             padding: 24px 20px 10px;
             border-color: #b89254;
             border-radius: 12px;
+        }
+
+        textarea {
+            height: auto;
+            min-height: 96px;
+            padding-top: 28px;
         }
 
         &.is-password input {
@@ -3903,7 +4003,11 @@ html.cart-drawer-open body {
         }
 
         &.is-focused input,
-        input:focus {
+        &.is-focused textarea,
+        &.is-focused select,
+        input:focus,
+        textarea:focus,
+        select:focus {
             box-shadow: none;
         }
 
@@ -3964,6 +4068,217 @@ html.cart-drawer-open body {
 
 .account-lux__span-2 {
     grid-column: 1 / -1;
+}
+
+.account-lux__profile--dialog {
+    max-width: none;
+    gap: 16px;
+
+    .checkout-check {
+        margin: 0;
+        align-self: center;
+        min-height: 24px;
+    }
+}
+
+.account-lux__addresses {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+    max-width: 640px;
+}
+
+.account-lux__address {
+    display: grid;
+    grid-template-columns: 20px minmax(0, 1fr) auto;
+    gap: 10px 12px;
+    align-items: start;
+    width: 100%;
+    padding: 14px 0;
+    border-bottom: 1px solid #efeae2;
+
+    &--preview {
+        margin: 0 0 24px;
+        padding: 0;
+        border: 0;
+        align-items: center;
+    }
+}
+
+.account-lux__pin {
+    display: inline-flex;
+    width: 20px;
+    height: 20px;
+    margin-top: 2px;
+    color: #b89254;
+
+    svg {
+        width: 100%;
+        height: 100%;
+    }
+}
+
+.account-lux__address-text {
+    margin: 0;
+    font-size: 16px;
+    line-height: 1.45;
+    color: #1a1917;
+}
+
+.account-lux__address-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.account-lux__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #b89254;
+    cursor: pointer;
+    transition: color 240ms var(--motion-ease), transform 240ms var(--motion-ease);
+
+    svg {
+        width: 18px;
+        height: 18px;
+    }
+
+    &:hover,
+    &:focus {
+        color: #1a1917;
+    }
+
+    &.is-mute {
+        color: #8a8680;
+
+        &:hover,
+        &:focus {
+            color: #b89254;
+        }
+    }
+}
+
+.account-lux__add {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 18px 0 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #b89254;
+    font-size: 15px;
+    line-height: 1.4;
+    cursor: pointer;
+    transition: color 240ms var(--motion-ease);
+
+    span {
+        font-size: 18px;
+        line-height: 1;
+    }
+
+    &:hover,
+    &:focus {
+        color: #1a1917;
+    }
+}
+
+.account-lux-dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+
+    &__backdrop {
+        position: absolute;
+        inset: 0;
+        border: 0;
+        background: rgba(26, 25, 23, 0.22);
+        cursor: pointer;
+    }
+
+    &__card {
+        position: relative;
+        z-index: 1;
+        width: min(420px, 100%);
+        padding: 36px 32px 32px;
+        background: #fff;
+        border-radius: 4px;
+
+        &--confirm {
+            width: min(380px, 100%);
+        }
+    }
+
+    &__title {
+        margin: 0 0 24px;
+        padding-right: 24px;
+        font-size: 20px;
+        font-weight: 500;
+        line-height: 1.35;
+        color: #1a1917;
+    }
+
+    &__close {
+        position: absolute;
+        top: 12px;
+        right: 14px;
+        width: 32px;
+        height: 32px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #8a8680;
+        font-size: 24px;
+        line-height: 1;
+        cursor: pointer;
+
+        &:hover,
+        &:focus {
+            color: #1a1917;
+        }
+    }
+
+    &__actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+
+        .account-lux__submit--brand,
+        .account-lux__ghost {
+            width: 100%;
+            min-width: 0;
+            min-height: 52px;
+            margin: 0;
+            justify-self: stretch;
+            border-radius: 8px;
+            font-size: 11px;
+            letter-spacing: 0.08em;
+        }
+    }
+
+    .account-lux__submit--brand {
+        width: 100%;
+        min-width: 0;
+        min-height: 56px;
+        margin-top: 8px;
+        justify-self: stretch;
+    }
+
+    &__card--confirm .account-lux__submit--brand {
+        margin-top: 0;
+        min-height: 52px;
+    }
 }
 
 .account-lux__submit {

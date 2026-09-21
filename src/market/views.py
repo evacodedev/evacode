@@ -213,7 +213,8 @@ class Checkout(View):
                     for good in data['cart']:
                         message_text += f'{good["title"]} - {good["quantity"]}шт - {good["retail_price"]}\n'
                     message_text += f'ФИО: {data["user"]["firstName"]}\n' \
-                                    f'Номер: {data["user"]["phone"]}\n'
+                                    f'Номер: {data["user"]["phone"]}\n' \
+                                    f'Индекс: {data["user"].get("postalCode") or ""}\n'
 
                     n = async_to_sync(bot.send_message)(chat_id=chat_id, text=message_text, reply_markup=keyboard)
                 print("Message send!")

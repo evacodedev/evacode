@@ -7,28 +7,41 @@
       'is-invalid': showError,
       'is-select': Boolean(options),
       'is-password': isPassword,
+      'is-textarea': isTextarea,
       'is-disabled': disabled,
     }"
   >
     <select
       v-if="options"
       :id="inputId"
-      :value="modelValue"
+      v-model="selected"
       :name="name"
       :autocomplete="autocomplete"
-      @change="$emit('update:modelValue', $event.target.value)"
       @focus="focused = true"
       @blur="onBlur"
     >
-      <option value="" disabled hidden></option>
+      <option disabled value=""></option>
       <option
         v-for="option in options"
-        :key="option.value"
+        :key="String(option.value)"
         :value="option.value"
       >
         {{ option.label }}
       </option>
     </select>
+    <textarea
+      v-else-if="isTextarea"
+      :id="inputId"
+      :value="modelValue"
+      :autocomplete="autocomplete"
+      :name="name"
+      :disabled="disabled"
+      :rows="rows"
+      placeholder=" "
+      @input="onInput"
+      @focus="focused = true"
+      @blur="onBlur"
+    />
     <input
       v-else
       :id="inputId"
@@ -84,6 +97,7 @@ export default {
     options: { type: Array, default: null },
     disabled: { type: Boolean, default: false },
     mask: { type: String, default: '' },
+    rows: { type: Number, default: 3 },
   },
   emits: ['update:modelValue', 'blur'],
   data() {
@@ -100,6 +114,9 @@ export default {
     isPassword() {
       return this.type === 'password'
     },
+    isTextarea() {
+      return this.type === 'textarea'
+    },
     inputType() {
       if (this.isPassword && this.revealed) {
         return 'text'
@@ -111,6 +128,14 @@ export default {
         return 'tel'
       }
       return undefined
+    },
+    selected: {
+      get() {
+        return this.modelValue
+      },
+      set(value) {
+        this.$emit('update:modelValue', value)
+      },
     },
     filled() {
       return String(this.modelValue || '').trim().length > 0

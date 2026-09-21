@@ -158,3 +158,24 @@ class AccountProfile(models.Model):
 
     def __str__(self):
         return self.user.email or self.user.username
+
+
+class AccountAddress(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="account_addresses")
+    country = models.CharField("Страна", max_length=64, blank=True)
+    country_code = models.CharField("Код страны", max_length=8, blank=True)
+    city = models.CharField("Город", max_length=128)
+    street = models.CharField("Улица", max_length=255)
+    house = models.CharField("Дом", max_length=32)
+    apartment = models.CharField("Квартира", max_length=32, blank=True)
+    postal_code = models.CharField("Индекс", max_length=32)
+    comment = models.CharField("Комментарий", max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+        verbose_name = "Адрес доставки"
+        verbose_name_plural = "Адреса доставки"
+
+    def __str__(self):
+        return f"{self.country}, {self.city}, {self.street}, {self.house}".strip(", ")

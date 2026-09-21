@@ -1225,8 +1225,20 @@
         margin-top: 0;
     }
 
-    .account-lux__profile {
+    .account-lux__profile:not(.account-lux__profile--dialog) {
         grid-template-columns: 1fr;
+    }
+
+    .account-lux-dialog {
+        padding: 16px;
+
+        &__card {
+            padding: 28px 20px 22px;
+        }
+    }
+
+    .account-lux__empty.is-illustrated {
+        margin-top: 32px;
     }
 
     .account-lux__submit--brand {

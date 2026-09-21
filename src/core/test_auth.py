@@ -175,3 +175,103 @@ class CustomerAuthApiTests(TestCase):
     def test_profile_requires_auth(self):
         response = self.client.get("/api/core/auth/me/")
         self.assertEqual(response.status_code, 401)
+
+    def test_address_crud_and_isolation(self):
+        owner = User.objects.create_user("owner@example.com", "owner@example.com", "StrongPass123")
+        other = User.objects.create_user("other@example.com", "other@example.com", "StrongPass123")
+        login = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": "owner@example.com", "password": "StrongPass123"},
+            content_type="application/json",
+        )
+        token = login.json()["access"]
+        created = self.client.post(
+            "/api/core/auth/addresses/",
+            data={
+                "country": "Корея",
+                "country_code": "KR",
+                "city": "Сеул",
+                "street": "район Каннам-гу, улица Тхеран-ро",
+                "house": "152",
+                "apartment": "",
+                "postal_code": "06236",
+                "comment": "домофон 12",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(created.status_code, 201, created.content)
+        address_id = created.json()["id"]
+        self.assertEqual(created.json()["city"], "Сеул")
+        self.assertEqual(created.json()["country"], "Корея")
+        self.assertEqual(created.json()["country_code"], "KR")
+        self.assertEqual(created.json()["postal_code"], "06236")
+
+        missing_country = self.client.post(
+            "/api/core/auth/addresses/",
+            data={
+                "city": "Сеул",
+                "street": "Тхеран-ро",
+                "house": "1",
+                "apartment": "2",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(missing_country.status_code, 400, missing_country.content)
+
+        missing_postal = self.client.post(
+            "/api/core/auth/addresses/",
+            data={
+                "country": "Корея",
+                "country_code": "KR",
+                "city": "Сеул",
+                "street": "Тхеран-ро",
+                "house": "1",
+                "apartment": "",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(missing_postal.status_code, 400, missing_postal.content)
+
+        listed = self.client.get(
+            "/api/core/auth/addresses/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(listed.status_code, 200, listed.content)
+        self.assertEqual(len(listed.json()), 1)
+
+        patched = self.client.patch(
+            f"/api/core/auth/addresses/{address_id}/",
+            data={"house": "154"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(patched.status_code, 200, patched.content)
+        self.assertEqual(patched.json()["house"], "154")
+
+        other_login = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": "other@example.com", "password": "StrongPass123"},
+            content_type="application/json",
+        )
+        other_token = other_login.json()["access"]
+        denied = self.client.get(
+            f"/api/core/auth/addresses/{address_id}/",
+            HTTP_AUTHORIZATION=f"Bearer {other_token}",
+        )
+        self.assertEqual(denied.status_code, 404)
+
+        deleted = self.client.delete(
+            f"/api/core/auth/addresses/{address_id}/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(deleted.status_code, 204)
+        empty = self.client.get(
+            "/api/core/auth/addresses/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(empty.json(), [])
+        self.assertFalse(other.account_addresses.exists())
+        self.assertFalse(owner.account_addresses.exists())

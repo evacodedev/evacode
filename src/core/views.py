@@ -17,8 +17,8 @@ from .serializers import TagSerializer, ContactSerailizer
 from taggit.models import Tag
 from rest_framework.views import View, APIView
 from django.core.mail import send_mail
-from .serializers import RegisterSerializer, AccountUserSerializer, LoginSerializer, CommentSerializer
-from .models import Comment, Contacts, AboutUs, Banner, Delivery, SectionWithVideo
+from .serializers import RegisterSerializer, AccountUserSerializer, AccountAddressSerializer, LoginSerializer, CommentSerializer
+from .models import Comment, Contacts, AboutUs, Banner, Delivery, SectionWithVideo, AccountAddress
 from django_filters import FilterSet, CharFilter
 from babel.numbers import get_currency_symbol, UnknownCurrencyError
 from currency_symbols import CurrencySymbols
@@ -160,6 +160,26 @@ class ProfileView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+
+class AddressListView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AccountAddressSerializer
+    pagination_class = None
+
+    def get_queryset(self):
+        return AccountAddress.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+class AddressDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AccountAddressSerializer
+
+    def get_queryset(self):
+        return AccountAddress.objects.filter(user=self.request.user)
 
 
 class CommentView(generics.ListCreateAPIView):

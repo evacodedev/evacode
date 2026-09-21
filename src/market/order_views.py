@@ -234,6 +234,8 @@ class CreateSiteOrderView(APIView):
             errors["city"] = "Обязательное поле"
         if not address:
             errors["address"] = "Обязательное поле"
+        if shipping_method != METHOD_PICKUP and not postal_code:
+            errors["postalCode"] = "Обязательное поле"
         parsed, cart_error = parse_cart_lines(cart)
         if cart_error:
             errors["cart"] = cart_error

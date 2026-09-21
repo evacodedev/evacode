@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import PostViewSet, TagDetailView, TagView, AsideView, FeedBackView, RegisterView, LoginView, ProfileView, CommentView, \
+from .views import PostViewSet, TagDetailView, TagView, AsideView, FeedBackView, RegisterView, LoginView, ProfileView, AddressListView, AddressDetailView, CommentView, \
     AboutUsView, ContactsView, DeliveryView, BannerView, SlideView,ReviewView, CurrenciesView, SectionWithVideoView
 
 router = DefaultRouter()
@@ -20,6 +20,8 @@ urlpatterns = [
     path("auth/register/", RegisterView.as_view()),
     path("auth/login/", LoginView.as_view()),
     path("auth/me/", ProfileView.as_view()),
+    path("auth/addresses/", AddressListView.as_view()),
+    path("auth/addresses/<int:pk>/", AddressDetailView.as_view()),
     # path("tags/", TagView.as_view()),
     # path("tags/<slug:tag_slug>/", TagDetailView.as_view()),
     # path("aside/", AsideView.as_view()),
