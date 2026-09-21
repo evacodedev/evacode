@@ -4,10 +4,10 @@
         <section class="about-lux__hero">
             <img
                 class="about-lux__hero-photo"
-                src="/images/new_evacode/about-hero.jpg"
+                src="/images/new_evacode/about-hero.jpg?v=4"
                 alt="Студийный beauty-портрет"
-                width="2400"
-                height="1600"
+                width="1600"
+                height="2400"
                 decoding="async"
                 fetchpriority="high"
             >

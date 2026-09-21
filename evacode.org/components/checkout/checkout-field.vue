@@ -7,6 +7,7 @@
       'is-invalid': showError,
       'is-select': Boolean(options),
       'is-password': isPassword,
+      'is-disabled': disabled,
     }"
   >
     <select
@@ -35,8 +36,10 @@
       :value="modelValue"
       :autocomplete="autocomplete"
       :name="name"
+      :disabled="disabled"
+      :inputmode="inputMode"
       placeholder=" "
-      @input="$emit('update:modelValue', $event.target.value)"
+      @input="onInput"
       @focus="focused = true"
       @blur="onBlur"
     >
@@ -66,6 +69,8 @@
 </template>
 
 <script>
+import { maskPhoneRu, maskTelegram } from '~/utils/input-mask'
+
 export default {
   name: 'CheckoutField',
   props: {
@@ -77,6 +82,8 @@ export default {
     autocomplete: { type: String, default: 'off' },
     name: { type: String, default: '' },
     options: { type: Array, default: null },
+    disabled: { type: Boolean, default: false },
+    mask: { type: String, default: '' },
   },
   emits: ['update:modelValue', 'blur'],
   data() {
@@ -99,6 +106,12 @@ export default {
       }
       return this.type
     },
+    inputMode() {
+      if (this.mask === 'phone' || this.type === 'tel') {
+        return 'tel'
+      }
+      return undefined
+    },
     filled() {
       return String(this.modelValue || '').trim().length > 0
     },
@@ -107,6 +120,18 @@ export default {
     },
   },
   methods: {
+    maskedValue(value) {
+      if (this.mask === 'phone') {
+        return maskPhoneRu(value)
+      }
+      if (this.mask === 'telegram') {
+        return maskTelegram(value)
+      }
+      return value
+    },
+    onInput(event) {
+      this.$emit('update:modelValue', this.maskedValue(event.target.value))
+    },
     onBlur() {
       this.focused = false
       this.touched = true

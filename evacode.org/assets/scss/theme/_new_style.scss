@@ -1809,7 +1809,7 @@ section.beauty-about {
     align-items: flex-end;
     min-height: min(78vh, 760px);
     overflow: hidden;
-    background: #1a1917;
+    background: #f7f4ef;
 }
 
 .about-lux__hero-photo {
@@ -1818,7 +1818,8 @@ section.beauty-about {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center 22%;
+    object-position: center 36%;
+    filter: none;
 }
 
 .about-lux__hero-veil {
@@ -1826,9 +1827,10 @@ section.beauty-about {
     inset: 0;
     background: linear-gradient(
         180deg,
-        rgba(26, 25, 23, 0.18) 0%,
-        rgba(26, 25, 23, 0.28) 45%,
-        rgba(26, 25, 23, 0.72) 100%
+        rgba(247, 244, 239, 0.02) 0%,
+        rgba(247, 244, 239, 0.08) 35%,
+        rgba(26, 25, 23, 0.22) 70%,
+        rgba(26, 25, 23, 0.52) 100%
     );
     pointer-events: none;
 }
@@ -2479,6 +2481,11 @@ $checkout-error: #c0392b;
 
     &.is-password input {
         padding-right: 48px;
+    }
+
+    &.is-disabled input {
+        color: #8a8680;
+        background: #fff;
     }
 
     &__reveal {
@@ -3734,6 +3741,13 @@ html.cart-drawer-open body {
     line-height: 1.5;
 }
 
+.account-lux__status-line {
+    margin: 8px 0 0;
+    color: #1a1917;
+    font-size: 15px;
+    line-height: 1.45;
+}
+
 .account-lux__nav {
     display: flex;
     flex-direction: column;
@@ -3773,10 +3787,17 @@ html.cart-drawer-open body {
 }
 
 .account-lux__heading {
-    margin: 0 0 28px;
+    margin: 0 0 12px;
     font-size: 24px;
     font-weight: 500;
     text-transform: none;
+}
+
+.account-lux__status {
+    margin: 0 0 28px;
+    font-size: 16px;
+    font-weight: 500;
+    color: #1a1917;
 }
 
 .account-lux__empty {
@@ -3848,14 +3869,156 @@ html.cart-drawer-open body {
     margin: 24px auto 0;
 }
 
-.account-lux__form,
-.account-lux__profile {
+.account-lux__form {
     margin-top: 28px;
+}
+
+.account-lux__profile {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 20px;
+    max-width: 600px;
+    margin-top: 0;
+
+    .checkout-field {
+        margin-bottom: 0;
+
+        input {
+            height: 70px;
+            padding: 24px 20px 10px;
+            border-color: #b89254;
+            border-radius: 12px;
+        }
+
+        &.is-password input {
+            padding-right: 52px;
+        }
+
+        .checkout-field__reveal {
+            height: 70px;
+        }
+
+        label {
+            left: 20px;
+        }
+
+        &.is-focused input,
+        input:focus {
+            box-shadow: none;
+        }
+
+        &.is-disabled input {
+            background: #f3f1ec;
+            cursor: not-allowed;
+        }
+    }
+
+    .account-phone {
+        min-width: 0;
+
+        .m-phone-number-input,
+        .m-input,
+        .m-select {
+            width: 100%;
+        }
+
+        .m-input {
+            height: 70px;
+        }
+
+        .m-input-wrapper {
+            height: 70px;
+            border-radius: 12px;
+            border-color: #b89254 !important;
+            background: #fff;
+            box-shadow: none !important;
+        }
+
+        .m-input-input {
+            height: 70px !important;
+            color: #1a1917;
+        }
+
+        .m-input-label,
+        .m-input-input::placeholder {
+            color: #8a8680;
+        }
+
+        .m-phone-number-input.--row .m-country-selector__select .m-select-input .m-input-wrapper {
+            border-top-right-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+
+        .m-phone-number-input.--row .m-phone-input.--border-radius .m-input-wrapper {
+            border-top-left-radius: 0;
+            border-bottom-left-radius: 0;
+        }
+
+        .m-select .m-select-list {
+            z-index: 20;
+            border: 1px solid #e8e2d8;
+            box-shadow: none;
+        }
+    }
+}
+
+.account-lux__span-2 {
+    grid-column: 1 / -1;
 }
 
 .account-lux__submit {
     width: 100%;
     margin-top: 8px;
+}
+
+.account-lux__submit--brand {
+    width: auto;
+    min-width: 290px;
+    min-height: 70px;
+    margin-top: 4px;
+    padding: 0 20px;
+    border-radius: 12px;
+    background: #b89254;
+    grid-column: 1 / -1;
+    justify-self: start;
+
+    &:hover,
+    &:focus {
+        color: #fff;
+        opacity: 0.88;
+    }
+
+    &:disabled {
+        background: #d4c4a8;
+    }
+}
+
+.account-lux__password {
+    max-width: 600px;
+    margin-top: 28px;
+
+    > .account-lux__ghost {
+        min-height: 70px;
+        border-radius: 12px;
+    }
+}
+
+.account-lux__password-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    grid-column: 1 / -1;
+    align-items: center;
+
+    .account-lux__submit--brand,
+    .account-lux__ghost {
+        margin-top: 0;
+    }
+
+    .account-lux__ghost {
+        min-height: 70px;
+        border-radius: 12px;
+    }
 }
 
 .account-lux__error,

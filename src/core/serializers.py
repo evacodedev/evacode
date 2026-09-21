@@ -5,7 +5,18 @@ from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
 from taggit.serializers import TagListSerializerField, TaggitSerializer
 from taggit.models import Tag
-from .models import Post, Slide, Review, Comment, Banner, AboutUs, Contacts, Delivery, SectionWithVideo
+from .models import (
+    Post,
+    Slide,
+    Review,
+    Comment,
+    Banner,
+    AboutUs,
+    Contacts,
+    Delivery,
+    SectionWithVideo,
+    AccountProfile,
+)
 
 
 class PostSerializer(TaggitSerializer, serializers.ModelSerializer):
@@ -40,11 +51,94 @@ class ContactSerailizer(serializers.Serializer):
 
 class AccountUserSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(read_only=True)
+    phone = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    birth_date = serializers.DateField(required=False, allow_null=True)
+    whatsapp = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    telegram = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    password = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    password2 = serializers.CharField(write_only=True, required=False, allow_blank=True)
+    current_password = serializers.CharField(write_only=True, required=False, allow_blank=True)
 
     class Meta:
         model = User
-        fields = ("id", "email", "first_name", "last_name")
+        fields = (
+            "id",
+            "email",
+            "first_name",
+            "last_name",
+            "phone",
+            "birth_date",
+            "whatsapp",
+            "telegram",
+            "password",
+            "password2",
+            "current_password",
+        )
         read_only_fields = ("id", "email")
+        extra_kwargs = {
+            "first_name": {"required": False, "allow_blank": True},
+            "last_name": {"required": False, "allow_blank": True},
+        }
+
+    def to_internal_value(self, data):
+        if hasattr(data, "copy"):
+            data = data.copy()
+            if data.get("birth_date") == "":
+                data["birth_date"] = None
+        return super().to_internal_value(data)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        profile = getattr(instance, "account_profile", None)
+        data["phone"] = profile.phone if profile else ""
+        data["birth_date"] = profile.birth_date.isoformat() if profile and profile.birth_date else None
+        data["whatsapp"] = profile.whatsapp if profile else ""
+        data["telegram"] = profile.telegram if profile else ""
+        data.pop("password", None)
+        data.pop("password2", None)
+        data.pop("current_password", None)
+        return data
+
+    def validate(self, attrs):
+        password = attrs.get("password") or ""
+        password2 = attrs.get("password2") or ""
+        current_password = attrs.get("current_password") or ""
+        if password or password2 or current_password:
+            if not current_password:
+                raise serializers.ValidationError({"current_password": "Укажите текущий пароль"})
+            if self.instance is None or not self.instance.check_password(current_password):
+                raise serializers.ValidationError({"current_password": "Неверный текущий пароль"})
+            if not password:
+                raise serializers.ValidationError({"password": "Введите новый пароль"})
+            if password != password2:
+                raise serializers.ValidationError({"password2": "Пароли не совпадают"})
+            try:
+                validate_password(password, user=self.instance)
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError({"password": list(exc.messages)}) from exc
+        return attrs
+
+    def update(self, instance, validated_data):
+        password = validated_data.pop("password", None) or ""
+        validated_data.pop("password2", None)
+        validated_data.pop("current_password", None)
+        profile_fields = {
+            key: validated_data.pop(key)
+            for key in ("phone", "birth_date", "whatsapp", "telegram")
+            if key in validated_data
+        }
+        instance = super().update(instance, validated_data)
+        if profile_fields:
+            profile, _ = AccountProfile.objects.get_or_create(user=instance)
+            for key, value in profile_fields.items():
+                if key in ("phone", "whatsapp", "telegram") and value is not None:
+                    value = str(value).strip()
+                setattr(profile, key, value)
+            profile.save()
+        if password:
+            instance.set_password(password)
+            instance.save(update_fields=["password"])
+        return instance
 
 
 class RegisterSerializer(serializers.Serializer):

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils.safestring import mark_safe
 
-from .models import Post, Contacts, AboutUs, Banner, Delivery, Slide, Review, SectionWithVideo, Currency
+from .models import Post, Contacts, AboutUs, Banner, Delivery, Slide, Review, SectionWithVideo, Currency, AccountProfile
 
 
 class PostAdmin(admin.ModelAdmin):
@@ -76,4 +76,5 @@ admin.site.register(Contacts, ContactsAdmin)
 admin.site.register(Currency, CurrencyAdmin)
 # admin.site.register(Slide, SlideAdmin)
 admin.site.register(Review, ReviewAdmin)
+admin.site.register(AccountProfile)
 # admin.site.register(SectionWithVideo, SectionWithVideoAdmin)

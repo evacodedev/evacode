@@ -143,3 +143,18 @@ class Currency(models.Model):
 
     def __str__(self):
         return f'{self.name} - {self.value}'
+
+
+class AccountProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="account_profile")
+    phone = models.CharField("Телефон", max_length=64, blank=True)
+    birth_date = models.DateField("Дата рождения", null=True, blank=True)
+    whatsapp = models.CharField("WhatsApp", max_length=64, blank=True)
+    telegram = models.CharField("Telegram", max_length=64, blank=True)
+
+    class Meta:
+        verbose_name = "Профиль покупателя"
+        verbose_name_plural = "Профили покупателей"
+
+    def __str__(self):
+        return self.user.email or self.user.username

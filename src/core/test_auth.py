@@ -48,6 +48,99 @@ class CustomerAuthApiTests(TestCase):
         self.assertEqual(patch.json()["first_name"], "Лана")
         self.assertEqual(patch.json()["last_name"], "Иванова")
 
+    def test_profile_extra_fields_and_optional_birth_date(self):
+        User.objects.create_user("lana@example.com", "lana@example.com", "StrongPass123")
+        login = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": "lana@example.com", "password": "StrongPass123"},
+            content_type="application/json",
+        )
+        token = login.json()["access"]
+        saved = self.client.patch(
+            "/api/core/auth/me/",
+            data={
+                "phone": "+7 987-654-32-10",
+                "birth_date": "1990-01-01",
+                "whatsapp": "+7 987-654-32-10",
+                "telegram": "@svetlana",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(saved.status_code, 200, saved.content)
+        body = saved.json()
+        self.assertEqual(body["phone"], "+7 987-654-32-10")
+        self.assertEqual(body["birth_date"], "1990-01-01")
+        self.assertEqual(body["telegram"], "@svetlana")
+
+        cleared = self.client.patch(
+            "/api/core/auth/me/",
+            data={"birth_date": ""},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(cleared.status_code, 200, cleared.content)
+        self.assertIsNone(cleared.json()["birth_date"])
+
+        bad = self.client.patch(
+            "/api/core/auth/me/",
+            data={"birth_date": "32.13.1990"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(bad.status_code, 400)
+
+    def test_profile_password_change(self):
+        User.objects.create_user("pass@example.com", "pass@example.com", "StrongPass123")
+        login = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": "pass@example.com", "password": "StrongPass123"},
+            content_type="application/json",
+        )
+        changed = self.client.patch(
+            "/api/core/auth/me/",
+            data={
+                "current_password": "StrongPass123",
+                "password": "NewStrongPass123",
+                "password2": "NewStrongPass123",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {login.json()['access']}",
+        )
+        self.assertEqual(changed.status_code, 200, changed.content)
+        old = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": "pass@example.com", "password": "StrongPass123"},
+            content_type="application/json",
+        )
+        self.assertEqual(old.status_code, 400)
+        fresh = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": "pass@example.com", "password": "NewStrongPass123"},
+            content_type="application/json",
+        )
+        self.assertEqual(fresh.status_code, 200, fresh.content)
+
+        denied = self.client.patch(
+            "/api/core/auth/me/",
+            data={"password": "AnotherPass123", "password2": "AnotherPass123"},
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {fresh.json()['access']}",
+        )
+        self.assertEqual(denied.status_code, 400)
+
+        wrong = self.client.patch(
+            "/api/core/auth/me/",
+            data={
+                "current_password": "wrong-pass",
+                "password": "AnotherPass123",
+                "password2": "AnotherPass123",
+            },
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {fresh.json()['access']}",
+        )
+        self.assertEqual(wrong.status_code, 400)
+
     def test_duplicate_email_and_bad_password(self):
         User.objects.create_user("ivan@example.com", "ivan@example.com", "StrongPass123")
         duplicate = self.client.post(

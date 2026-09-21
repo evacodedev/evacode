@@ -5,7 +5,8 @@
         <aside class="account-lux__aside">
           <p class="account-lux__eyebrow">Аккаунт</p>
           <h1 class="account-lux__title">Личный кабинет</h1>
-          <p class="account-lux__hello">Здравствуйте, {{ displayName }}</p>
+          <p class="account-lux__hello">Здравствуйте, {{ displayName }}!</p>
+          <p class="account-lux__status-line">Статус: Розничный клиент</p>
           <nav class="account-lux__nav" aria-label="Разделы кабинета">
             <nuxt-link
               v-for="item in items"

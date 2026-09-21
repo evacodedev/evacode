@@ -1224,6 +1224,15 @@
     .account-lux__logout {
         margin-top: 0;
     }
+
+    .account-lux__profile {
+        grid-template-columns: 1fr;
+    }
+
+    .account-lux__submit--brand {
+        width: 100%;
+        min-width: 0;
+    }
 }
 
 @media (max-width: 360px) {
