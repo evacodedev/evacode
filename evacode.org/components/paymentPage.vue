@@ -470,7 +470,13 @@ export default {
       return !this.telegramEnabled
     },
     paypalNote() {
-      return this.paypalEnabled ? 'Оплата картой через PayPal' : 'Сейчас недоступно'
+      if (!this.paypalEnabled) {
+        return 'Сейчас недоступно'
+      }
+      if (this.paypalSandbox) {
+        return 'Тестовая оплата PayPal (sandbox)'
+      }
+      return 'Оплата картой через PayPal'
     },
     telegramNote() {
       return this.telegramEnabled ? 'Менеджер подтвердит заказ в Telegram' : 'Сейчас недоступно'
@@ -529,6 +535,7 @@ export default {
       cartReady: false,
       settingsLoaded: false,
       paypalEnabled: false,
+      paypalSandbox: false,
       telegramEnabled: false,
       selectedAddressId: 'new',
       saveNewAddress: true,
@@ -895,12 +902,16 @@ export default {
     },
     async loadCheckoutSettings() {
       try {
-        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout-settings/`)
+        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout-settings/`, {
+          headers: useAuthStore().authHeader(),
+        })
         this.paypalEnabled = Boolean(data.paypal_enabled)
         this.telegramEnabled = Boolean(data.telegram_enabled)
+        this.paypalSandbox = Boolean(data.paypal_sandbox)
       } catch (error) {
         this.paypalEnabled = false
         this.telegramEnabled = false
+        this.paypalSandbox = false
       }
       if (this.paypalEnabled && !this.telegramEnabled) {
         this.paymentMethod = 'paypal'
@@ -1080,6 +1091,7 @@ export default {
         }))
         const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/orders/`, {
           method: 'POST',
+          headers: useAuthStore().authHeader(),
           body: {
             cart: cartCheckout,
             user: this.userValues(),

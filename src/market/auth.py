@@ -1,5 +1,7 @@
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.authentication import JWTAuthentication
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
 from .models import PartnerApiKey
 
@@ -34,3 +36,14 @@ class PartnerApiKeyAuthentication(BaseAuthentication):
 
     def authenticate_header(self, request):
         return "Bearer"
+
+
+class OptionalJWTAuthentication(JWTAuthentication):
+    """JWT if the access token is valid; otherwise anonymous so guest checkout still works."""
+
+    def authenticate(self, request):
+        try:
+            return super().authenticate(request)
+        except (InvalidToken, TokenError, AuthenticationFailed):
+            return None
+

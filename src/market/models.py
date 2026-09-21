@@ -238,6 +238,12 @@ class SiteOrder(models.Model):
     paypal_capture_id = models.CharField(max_length=64, blank=True)
     paypal_receipt_url = models.TextField(blank=True, verbose_name="Ссылка на чек PayPal")
     paypal_payload = models.TextField(blank=True)
+    paypal_mode = models.CharField(
+        max_length=16,
+        blank=True,
+        verbose_name="Режим PayPal",
+        help_text="live или sandbox. Нужен, чтобы capture шёл в тот же контур, где создали заказ.",
+    )
     business_ru_partner_id = models.CharField(max_length=32, blank=True)
     business_ru_order_id = models.CharField(max_length=32, blank=True)
     business_ru_order_number = models.CharField(max_length=32, blank=True, verbose_name="№ заказа покупателя")

@@ -230,7 +230,7 @@ class SiteOrderApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
             response.json(),
-            {"paypal_enabled": False, "telegram_enabled": True},
+            {"paypal_enabled": False, "telegram_enabled": True, "paypal_sandbox": False},
         )
 
     def test_create_order_forbidden_when_paypal_disabled(self):
@@ -245,6 +245,139 @@ class SiteOrderApiTests(TestCase):
         )
         self.assertEqual(response.status_code, 403)
         self.assertFalse(SiteOrder.objects.exists())
+
+    def _login(self, email, *, staff=False):
+        from django.contrib.auth.models import User
+
+        User.objects.create_user(email, email, "StrongPass123", is_staff=staff, is_superuser=staff)
+        login = self.client.post(
+            "/api/core/auth/login/",
+            data={"email": email, "password": "StrongPass123"},
+            content_type="application/json",
+        )
+        self.assertEqual(login.status_code, 200, login.content)
+        return login.json()["access"]
+
+    @override_settings(
+        PAYPAL_MODE="live",
+        PAYPAL_CLIENT_ID="live-id",
+        PAYPAL_SECRET="live-secret",
+        PAYPAL_SANDBOX_CLIENT_ID="sb-id",
+        PAYPAL_SANDBOX_SECRET="sb-secret",
+        PAYPAL_SANDBOX_EMAILS="vadim.k@evacode.co.kr",
+    )
+    @patch("market.order_views.create_order")
+    @patch("market.order_views.krw_to_usd", return_value=(Decimal("12.50"), Decimal("1600")))
+    def test_staff_tester_uses_paypal_sandbox(self, _rate, create_order_mock):
+        create_order_mock.return_value = ({"id": "PAYPAL-SB"}, "https://sandbox.paypal.test/approve")
+        token = self._login("vadim.k@evacode.co.kr", staff=True)
+
+        settings_response = self.client.get(
+            "/api/market/checkout-settings/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(settings_response.status_code, 200)
+        self.assertTrue(settings_response.json()["paypal_sandbox"])
+
+        response = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(self._payload()),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(create_order_mock.call_args.kwargs["mode"], "sandbox")
+        order = SiteOrder.objects.get(public_id=response.json()["id"])
+        self.assertEqual(order.paypal_mode, "sandbox")
+
+    @override_settings(
+        PAYPAL_MODE="live",
+        PAYPAL_CLIENT_ID="live-id",
+        PAYPAL_SECRET="live-secret",
+        PAYPAL_SANDBOX_CLIENT_ID="sb-id",
+        PAYPAL_SANDBOX_SECRET="sb-secret",
+        PAYPAL_SANDBOX_EMAILS="vadim.k@evacode.co.kr",
+    )
+    @patch("market.order_views.create_order")
+    @patch("market.order_views.krw_to_usd", return_value=(Decimal("12.50"), Decimal("1600")))
+    def test_guest_and_plain_user_use_paypal_live(self, _rate, create_order_mock):
+        create_order_mock.return_value = ({"id": "PAYPAL-LIVE"}, "https://paypal.test/approve")
+
+        guest = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(self._payload(user={
+                **self._payload()["user"],
+                "email": "vadim.k@evacode.co.kr",
+            })),
+            content_type="application/json",
+        )
+        self.assertEqual(guest.status_code, 200, guest.content)
+        self.assertEqual(create_order_mock.call_args.kwargs["mode"], "live")
+        self.assertEqual(SiteOrder.objects.get(public_id=guest.json()["id"]).paypal_mode, "live")
+
+        token = self._login("buyer@example.com", staff=False)
+        buyer = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(self._payload()),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(buyer.status_code, 200, buyer.content)
+        self.assertEqual(create_order_mock.call_args.kwargs["mode"], "live")
+
+        settings_response = self.client.get(
+            "/api/market/checkout-settings/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertFalse(settings_response.json()["paypal_sandbox"])
+
+    @override_settings(PAYPAL_MODE="live")
+    @patch("market.order_views.capture_order")
+    @patch("market.order_views._complete_paid_order", return_value=True)
+    def test_paypal_return_captures_in_stored_sandbox_mode(self, _complete, capture_mock):
+        capture_mock.return_value = {"status": "COMPLETED"}
+        order = SiteOrder.objects.create(
+            first_name="Ivan",
+            phone="+821011122233",
+            phone_digits="821011122233",
+            email="ivan@example.com",
+            country="KR",
+            city="Seoul",
+            address="Street",
+            amount_krw=10000,
+            amount_usd=Decimal("6.25"),
+            paypal_order_id="PAYPAL-SB-RETURN",
+            paypal_mode="sandbox",
+        )
+        response = self.client.get("/api/market/orders/paypal/return/", {"token": "PAYPAL-SB-RETURN"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(capture_mock.call_args.kwargs["mode"], "sandbox")
+        self.assertIn(str(order.public_id), response["Location"])
+
+    @patch("django.db.close_old_connections")
+    @patch("market.order_views._notify_telegram")
+    @patch("market.order_views.send_order_confirmation_email")
+    @patch("market.order_views.export_paid_order")
+    def test_sandbox_paid_order_skips_business_ru(self, export_mock, email_mock, notify_mock, _close):
+        from market.order_views import _export_paid_side_effects
+
+        order = SiteOrder.objects.create(
+            first_name="Ivan",
+            phone="+821011122233",
+            phone_digits="821011122233",
+            email="ivan@example.com",
+            country="KR",
+            city="Seoul",
+            address="Street",
+            amount_krw=10000,
+            amount_usd=Decimal("6.25"),
+            paypal_mode="sandbox",
+            status=SiteOrder.Status.PAID,
+        )
+        _export_paid_side_effects(order.pk)
+        export_mock.assert_not_called()
+        email_mock.assert_not_called()
+        notify_mock.assert_called_once()
 
 
 @override_settings(

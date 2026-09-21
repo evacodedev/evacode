@@ -17,11 +17,21 @@ from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 from urllib.parse import urljoin, urlencode
 
+from .auth import OptionalJWTAuthentication
+
 from .business_ru_orders import export_paid_order
 from .order_email import send_order_confirmation_email
 from .currency import krw_to_usd
 from .models import CheckoutSettings, SiteOrder, SiteOrderItem
-from .paypal import PayPalError, capture_id_from_payload, capture_order, create_order, receipt_url
+from .paypal import (
+    PayPalError,
+    capture_id_from_payload,
+    capture_order,
+    create_order,
+    receipt_url,
+    resolve_paypal_mode,
+    user_uses_paypal_sandbox,
+)
 from .shipping import (
     METHOD_EMS,
     METHOD_PICKUP,
@@ -62,8 +72,13 @@ def _notify_telegram(order: SiteOrder):
         return
     if not chat_id:
         return
+    title = (
+        "ТЕСТ PAYPAL SANDBOX:"
+        if (order.paypal_mode or "").lower() == "sandbox"
+        else "ОПЛАЧЕННЫЙ ЗАКАЗ С САЙТА:"
+    )
     lines = [
-        "ОПЛАЧЕННЫЙ ЗАКАЗ С САЙТА:",
+        title,
         f"№ {order.public_id}",
         f"{order.amount_krw} ₩ / {order.amount_usd} USD",
         f"ФИО: {order.first_name}",
@@ -145,11 +160,11 @@ def _complete_paid_order(order: SiteOrder, capture_data: dict) -> bool:
     if order.status != SiteOrder.Status.PAID:
         order.status = SiteOrder.Status.PAID
         order.paypal_capture_id = capture_id or order.paypal_capture_id
-        order.paypal_receipt_url = receipt_url(order.paypal_capture_id)
+        order.paypal_receipt_url = receipt_url(order.paypal_capture_id, mode=order.paypal_mode)
         order.paid_at = timezone.now()
         order.save(update_fields=["status", "paypal_capture_id", "paypal_receipt_url", "paypal_payload", "paid_at", "updated_at"])
     elif not order.paypal_receipt_url and order.paypal_capture_id:
-        order.paypal_receipt_url = receipt_url(order.paypal_capture_id)
+        order.paypal_receipt_url = receipt_url(order.paypal_capture_id, mode=order.paypal_mode)
         order.save(update_fields=["paypal_receipt_url", "paypal_payload", "updated_at"])
 
     # PayPal is already PAID here. BR/Telegram run in the background so the
@@ -170,6 +185,10 @@ def _export_paid_side_effects(order_id: int) -> None:
     try:
         order = SiteOrder.objects.filter(pk=order_id).first()
         if not order:
+            return
+        if (order.paypal_mode or "").lower() == "sandbox":
+            logger.info("Sandbox PayPal %s: skip Business.Ru export", order.public_id)
+            _notify_telegram(order)
             return
         if (
             not order.business_ru_order_id
@@ -195,7 +214,7 @@ def _export_paid_side_effects(order_id: int) -> None:
 
 class CreateSiteOrderView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes = []
+    authentication_classes = [OptionalJWTAuthentication]
 
     def post(self, request):
         if not CheckoutSettings.load().paypal_enabled:
@@ -258,6 +277,7 @@ class CreateSiteOrderView(APIView):
         if amount_usd < Decimal("0.01"):
             return JsonResponse({"error": "Сумма заказа слишком мала для PayPal"}, status=400)
 
+        paypal_mode = resolve_paypal_mode(request.user)
         order = SiteOrder.objects.create(
             first_name=first_name[:128],
             phone=phone[:64],
@@ -276,6 +296,7 @@ class CreateSiteOrderView(APIView):
             amount_krw=total_krw,
             amount_usd=amount_usd,
             usd_rate_snapshot=usd_snapshot,
+            paypal_mode=paypal_mode,
         )
         SiteOrderItem.objects.bulk_create(
             [
@@ -304,6 +325,7 @@ class CreateSiteOrderView(APIView):
                 return_url=return_url,
                 cancel_url=cancel_url,
                 description=f"Evacode {order.public_id}",
+                mode=paypal_mode,
             )
         except PayPalError as exc:
             order.status = SiteOrder.Status.FAILED
@@ -313,7 +335,7 @@ class CreateSiteOrderView(APIView):
 
         order.paypal_order_id = paypal_order.get("id") or ""
         order.paypal_payload = json.dumps(paypal_order, ensure_ascii=False)[:20000]
-        order.save(update_fields=["paypal_order_id", "paypal_payload", "updated_at"])
+        order.save(update_fields=["paypal_order_id", "paypal_payload", "paypal_mode", "updated_at"])
         return JsonResponse(
             {
                 "id": str(order.public_id),
@@ -369,14 +391,20 @@ class SiteOrderDetailView(APIView):
 
 class CheckoutSettingsView(APIView):
     permission_classes = [AllowAny]
-    authentication_classes = []
+    authentication_classes = [OptionalJWTAuthentication]
 
     def get(self, request):
         settings_row = CheckoutSettings.load()
+        paypal_sandbox = bool(
+            settings_row.paypal_enabled
+            and resolve_paypal_mode(request.user) == "sandbox"
+            and user_uses_paypal_sandbox(request.user)
+        )
         return JsonResponse(
             {
                 "paypal_enabled": settings_row.paypal_enabled,
                 "telegram_enabled": settings_row.telegram_enabled,
+                "paypal_sandbox": paypal_sandbox,
             }
         )
 
@@ -393,7 +421,10 @@ class PayPalReturnView(View):
                 _frontend_url("/page/order-success", {"paypal": "1", "id": str(order.public_id)})
             )
         try:
-            capture_data = capture_order(order.paypal_order_id)
+            capture_data = capture_order(
+                order.paypal_order_id,
+                mode=resolve_paypal_mode(stored_mode=order.paypal_mode),
+            )
         except PayPalError:
             logger.exception("Capture PayPal не удался для %s", order.public_id)
             order.status = SiteOrder.Status.FAILED

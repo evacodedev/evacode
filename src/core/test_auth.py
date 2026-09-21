@@ -275,3 +275,22 @@ class CustomerAuthApiTests(TestCase):
         self.assertEqual(empty.json(), [])
         self.assertFalse(other.account_addresses.exists())
         self.assertFalse(owner.account_addresses.exists())
+
+
+class PromoteAccountAdminTests(TestCase):
+    def test_promotes_existing_user(self):
+        from django.core.management import call_command
+
+        user = User.objects.create_user("vadim.k@evacode.co.kr", "vadim.k@evacode.co.kr", "StrongPass123")
+        call_command("promote_account_admin", "vadim.k@evacode.co.kr")
+        user.refresh_from_db()
+        self.assertTrue(user.is_staff)
+        self.assertTrue(user.is_superuser)
+        self.assertTrue(user.is_active)
+
+    def test_missing_user_errors(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+
+        with self.assertRaises(CommandError):
+            call_command("promote_account_admin", "missing@example.com")

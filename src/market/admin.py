@@ -685,6 +685,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
     list_display = (
         "public_id",
         "status",
+        "paypal_mode",
         "first_name",
         "email",
         "phone",
@@ -696,7 +697,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_reservation_number",
         "created_at",
     )
-    list_filter = ("status", OrderWhenFilter, OrderOpsFilter)
+    list_filter = ("status", "paypal_mode", OrderWhenFilter, OrderOpsFilter)
     search_fields = (
         "public_id",
         "email",
@@ -726,6 +727,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "amount_krw",
         "amount_usd",
         "usd_rate_snapshot",
+        "paypal_mode",
         "paypal_order_id",
         "paypal_capture_id",
         "paypal_receipt_url",
