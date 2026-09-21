@@ -13,9 +13,11 @@ from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.views import APIView
 from urllib.parse import urljoin, urlencode
+
+from django.db.models import Q
 
 from .auth import OptionalJWTAuthentication
 
@@ -111,6 +113,30 @@ def _shipping_telegram_line(order: SiteOrder) -> str:
     return "Доставка: не указана"
 
 
+def _order_list_item(order: SiteOrder) -> dict:
+    items = [
+        {
+            "title": item.title,
+            "quantity": item.quantity,
+            "price_krw": item.price_krw,
+        }
+        for item in order.items.all()
+    ]
+    return {
+        "id": str(order.public_id),
+        "status": order.status,
+        "status_label": order.get_status_display(),
+        "created_at": order.created_at.isoformat() if order.created_at else None,
+        "paid_at": order.paid_at.isoformat() if order.paid_at else None,
+        "amount_krw": order.amount_krw,
+        "amount_usd": str(order.amount_usd),
+        "shipping_method": order.shipping_method,
+        "business_ru_order_number": order.business_ru_order_number or "",
+        "paypal_mode": order.paypal_mode or "",
+        "items": items,
+    }
+
+
 def _order_payload(order: SiteOrder) -> dict:
     items = []
     for item in order.items.select_related("good").all():
@@ -185,10 +211,6 @@ def _export_paid_side_effects(order_id: int) -> None:
     try:
         order = SiteOrder.objects.filter(pk=order_id).first()
         if not order:
-            return
-        if (order.paypal_mode or "").lower() == "sandbox":
-            logger.info("Sandbox PayPal %s: skip Business.Ru export", order.public_id)
-            _notify_telegram(order)
             return
         if (
             not order.business_ru_order_id
@@ -278,7 +300,9 @@ class CreateSiteOrderView(APIView):
             return JsonResponse({"error": "Сумма заказа слишком мала для PayPal"}, status=400)
 
         paypal_mode = resolve_paypal_mode(request.user)
+        account_user = request.user if getattr(request.user, "is_authenticated", False) else None
         order = SiteOrder.objects.create(
+            user=account_user,
             first_name=first_name[:128],
             phone=phone[:64],
             phone_digits=_digits(phone)[:32],
@@ -387,6 +411,22 @@ class SiteOrderDetailView(APIView):
         if not order:
             return JsonResponse({"error": "Заказ не найден"}, status=404)
         return JsonResponse(_order_payload(order))
+
+
+class MySiteOrdersView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [OptionalJWTAuthentication]
+
+    def get(self, request):
+        email = (request.user.email or request.user.username or "").strip()
+        if email:
+            SiteOrder.objects.filter(user__isnull=True, email__iexact=email).update(user=request.user)
+        queryset = (
+            SiteOrder.objects.filter(Q(user=request.user) | Q(email__iexact=email))
+            .prefetch_related("items")
+            .order_by("-created_at")
+        )
+        return JsonResponse({"results": [_order_list_item(order) for order in queryset]})
 
 
 class CheckoutSettingsView(APIView):

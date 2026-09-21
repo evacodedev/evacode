@@ -358,7 +358,7 @@ class SiteOrderApiTests(TestCase):
     @patch("market.order_views._notify_telegram")
     @patch("market.order_views.send_order_confirmation_email")
     @patch("market.order_views.export_paid_order")
-    def test_sandbox_paid_order_skips_business_ru(self, export_mock, email_mock, notify_mock, _close):
+    def test_sandbox_paid_order_exports_business_ru(self, export_mock, email_mock, notify_mock, _close):
         from market.order_views import _export_paid_side_effects
 
         order = SiteOrder.objects.create(
@@ -374,10 +374,67 @@ class SiteOrderApiTests(TestCase):
             paypal_mode="sandbox",
             status=SiteOrder.Status.PAID,
         )
+
+        def _fake_export(saved):
+            saved.business_ru_order_id = "BR-1"
+            saved.business_ru_order_number = "ЗП-1"
+            saved.business_ru_payment_id = "PAY-1"
+            saved.business_ru_reservation_id = "RES-1"
+            saved.save(
+                update_fields=[
+                    "business_ru_order_id",
+                    "business_ru_order_number",
+                    "business_ru_payment_id",
+                    "business_ru_reservation_id",
+                ]
+            )
+
+        export_mock.side_effect = _fake_export
         _export_paid_side_effects(order.pk)
-        export_mock.assert_not_called()
-        email_mock.assert_not_called()
+        export_mock.assert_called_once()
+        email_mock.assert_called_once()
         notify_mock.assert_called_once()
+
+    def test_logged_in_order_links_user_and_lists_in_cabinet(self):
+        token = self._login("buyer@example.com", staff=False)
+        with patch("market.order_views.create_order") as create_order_mock, patch(
+            "market.order_views.krw_to_usd", return_value=(Decimal("12.50"), Decimal("1600"))
+        ):
+            create_order_mock.return_value = ({"id": "PAYPAL-USER"}, "https://paypal.test/approve")
+            response = self.client.post(
+                "/api/market/orders/",
+                data=json.dumps(self._payload()),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        order = SiteOrder.objects.get(public_id=response.json()["id"])
+        self.assertEqual(order.user.email, "buyer@example.com")
+        order.status = SiteOrder.Status.PAID
+        order.save(update_fields=["status"])
+
+        orphan = SiteOrder.objects.create(
+            first_name="Buyer",
+            phone="+821011122233",
+            phone_digits="821011122233",
+            email="buyer@example.com",
+            country="KR",
+            city="Seoul",
+            address="Street",
+            amount_krw=5000,
+            amount_usd=Decimal("3.00"),
+            status=SiteOrder.Status.PAID,
+        )
+        mine = self.client.get(
+            "/api/market/orders/mine/",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
+        self.assertEqual(mine.status_code, 200, mine.content)
+        ids = [item["id"] for item in mine.json()["results"]]
+        self.assertIn(str(order.public_id), ids)
+        self.assertIn(str(orphan.public_id), ids)
+        orphan.refresh_from_db()
+        self.assertEqual(orphan.user_id, order.user_id)
 
 
 @override_settings(

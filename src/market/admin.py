@@ -686,6 +686,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "public_id",
         "status",
         "paypal_mode",
+        "user",
         "first_name",
         "email",
         "phone",
@@ -708,9 +709,11 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_payment_number",
         "business_ru_reservation_number",
     )
+    raw_id_fields = ("user",)
     fields = (
         "public_id",
         "status",
+        "user",
         "first_name",
         "phone",
         "email",

@@ -16,6 +16,7 @@ from .views import (
 from .order_views import (
     CheckoutSettingsView,
     CreateSiteOrderView,
+    MySiteOrdersView,
     PayPalReturnView,
     ShippingDestinationsView,
     ShippingQuoteView,
@@ -36,6 +37,7 @@ urlpatterns = [
     path('checkout/', Checkout.as_view()),
     path('checkout-settings/', CheckoutSettingsView.as_view()),
     path('orders/', CreateSiteOrderView.as_view()),
+    path('orders/mine/', MySiteOrdersView.as_view()),
     path('orders/paypal/return/', PayPalReturnView.as_view(), name='site_order_paypal_return'),
     path('orders/<str:public_id>/', SiteOrderDetailView.as_view()),
     path('shipping/destinations/', ShippingDestinationsView.as_view()),

@@ -1,6 +1,7 @@
 from datetime import time as dt_time
 import secrets
 
+from django.conf import settings
 from django.db import models
 
 
@@ -215,6 +216,14 @@ class SiteOrder(models.Model):
 
     public_id = models.CharField(max_length=36, unique=True, editable=False, default=generate_public_id)
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="site_orders",
+        verbose_name="Покупатель",
+    )
     first_name = models.CharField(max_length=128, verbose_name="ФИО")
     phone = models.CharField(max_length=64, verbose_name="Телефон")
     phone_digits = models.CharField(max_length=32, blank=True, verbose_name="Телефон (цифры)")

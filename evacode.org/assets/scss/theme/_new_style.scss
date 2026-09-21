@@ -4065,6 +4065,90 @@ html.cart-drawer-open body {
     text-transform: none;
 }
 
+.account-lux__orders {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 12px;
+    max-width: 640px;
+}
+
+.account-lux__order {
+    margin: 0;
+    padding: 18px 16px;
+    border: 1px solid #efeae2;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 3px 10px rgba(26, 25, 23, 0.04);
+}
+
+.account-lux__order-top {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.account-lux__order-id {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1917;
+}
+
+.account-lux__order-status {
+    margin: 0;
+    font-size: 13px;
+    color: #8a8680;
+    white-space: nowrap;
+
+    &[data-status='paid'] {
+        color: #b89254;
+    }
+
+    &[data-status='failed'],
+    &[data-status='cancelled'] {
+        color: #c0392b;
+    }
+}
+
+.account-lux__order-meta {
+    margin: 6px 0 0;
+    font-size: 13px;
+    color: #8a8680;
+}
+
+.account-lux__order-items {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+
+    li {
+        font-size: 14px;
+        line-height: 1.4;
+        color: #1a1917;
+
+        span {
+            color: #8a8680;
+        }
+    }
+}
+
+.account-lux__order-total {
+    margin: 14px 0 0;
+    font-size: 15px;
+    font-weight: 500;
+    color: #1a1917;
+
+    span {
+        font-weight: 400;
+        color: #8a8680;
+    }
+}
+
 .account-lux__status {
     margin: 0 0 28px;
     font-size: 16px;
