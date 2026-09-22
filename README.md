@@ -132,7 +132,7 @@ cp .env.template .env2
 | `FRONTEND_PUBLIC_URL` | адрес витрины для возврата после PayPal |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_MODE` | прямой PayPal Checkout (`sandbox` или `live`) |
 | `GOOGLE_CLIENT_ID` | Google Sign-In на login/register (OAuth Web Client ID). Пусто — кнопка скрыта |
-| `BUSINESS_RU_STORE_NAME`, `BUSINESS_RU_STATUS_NAME` | склад и статус для выгрузки оплаченного заказа |
+| `BUSINESS_RU_RESERVATION_STORE_ID`, `BUSINESS_RU_STATUS_ID` | склад KR (заказ + резерв) и статус выгрузки |
 | `BUSINESS_RU_ORGANIZATION_ID`, `BUSINESS_RU_EMPLOYEE_ID` | организация и сотрудник-автор заказа в Business.Ru |
 
 `YOOKASSA_SHOP_ID` и `YOOKASSA_API_TOKEN` используются кодом, поэтому добавьте их в `.env`, если YooKassa включена, хотя их пока нет в `.env.template`.

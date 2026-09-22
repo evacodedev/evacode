@@ -696,17 +696,13 @@ def _export_payment(client: BusinessRuOrderClient, order, partner_id, org_id: st
     _link_payment_to_order(client, payment_id, order)
 
 
-def _store_record(client: BusinessRuOrderClient):
-    store = client.find_by_name("stores", settings.BUSINESS_RU_STORE_NAME)
-    if store is None:
-        raise BusinessRuOrderError(f"Склад «{settings.BUSINESS_RU_STORE_NAME}» не найден")
-    return store
-
-
-def _reservation_store_id(client: BusinessRuOrderClient) -> str:
+def _korea_store_id(client: BusinessRuOrderClient) -> str:
+    """KR склад Корея: один id для строк заказа покупателя и резерва."""
     store_id = str(getattr(settings, "BUSINESS_RU_RESERVATION_STORE_ID", "") or "").strip()
     if not store_id:
-        raise BusinessRuOrderError("Не задан BUSINESS_RU_RESERVATION_STORE_ID")
+        raise BusinessRuOrderError(
+            "Не задан BUSINESS_RU_RESERVATION_STORE_ID (id склада «KR склад Корея»)"
+        )
     store = _get_by_id(client, "stores", store_id)
     if not store or str(store.get("id")) != str(store_id):
         raise BusinessRuOrderError(f"Склад id={store_id} не найден")
@@ -720,7 +716,7 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
     order_id = str(order.business_ru_order_id or "").strip()
     if not order_id:
         raise BusinessRuOrderError("Нет заказа покупателя для резерва")
-    store_id = _reservation_store_id(client)
+    store_id = _korea_store_id(client)
     created = client.request(
         "post",
         "reservations",
@@ -731,7 +727,8 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
             "responsible_employee_id": employee_id,
             "customer_order_id": order_id,
             "store_id": store_id,
-            "sync_with_order": 0,
+            # «Обновлять резерв при изменении заказа покупателя»
+            "sync_with_order": 1,
             "held": 1,
             "comment": _document_note(order),
         },
@@ -766,10 +763,9 @@ def export_paid_order(order) -> None:
         )
 
     client = BusinessRuOrderClient()
-    store = None
+    store_id = None
     if not order.business_ru_order_id:
-        store = _store_record(client)
-    if not order.business_ru_order_id:
+        store_id = _korea_store_id(client)
         status_id = str(getattr(settings, "BUSINESS_RU_STATUS_ID", "") or "").strip()
         if not status_id:
             raise BusinessRuOrderError("Не задан BUSINESS_RU_STATUS_ID")
@@ -838,7 +834,7 @@ def export_paid_order(order) -> None:
                     "good_id": item.good_id_snapshot,
                     "amount": item.quantity,
                     "price": item.price_krw,
-                    "store_id": store["id"],
+                    "store_id": store_id,
                 },
             )
 
