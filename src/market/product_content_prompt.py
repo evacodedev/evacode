@@ -43,6 +43,9 @@ OFFICIAL_BRAND_SITES = (
     ("the whoo", "https://whoo-hk.com/en/productdetail/"),
     ("더후", "https://whoo-hk.com/en/productdetail/"),
     ("whoo", "https://whoo-hk.com/en/productdetail/"),
+    ("jogabi", "https://ewhajogabi.com/"),
+    ("이화조개비", "https://ewhajogabi.com/"),
+    ("조가비", "https://ewhajogabi.com/"),
 )
 
 BRAND_SITE_RULES = """
@@ -54,6 +57,7 @@ BRAND_SITE_RULES = """
   главная https://whoo-hk.com/en — только если productdetail не нашлась.
   затем https://themonodist.com/ по имени SKU (пример:
   https://themonodist.com/the-history-of-whoo-hwanyu-imperial-youth-emulsion/)
+- JOGABI / 이화조개비 / 조가비: https://ewhajogabi.com/
 Нет SKU на сайте бренда — тогда themonodist и интернет (EN + KO).
 
 Если fetched_pages есть в задании — это уже текст карточки. Не сжимай его до названия товара. Нужны about, benefits/texture, how_to_use с шагами.

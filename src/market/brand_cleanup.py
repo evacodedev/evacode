@@ -46,6 +46,7 @@ CANONICAL = {
     "oshiaree": ("oshiaree", "OSHIAREE"),
     "dr-cura": ("dr-cura", "Dr. Cura"),
     "dr-oregamo": ("dr-oregamo", "DR. Oregamo"),
+    "jogabi": ("jogabi", "JOGABI"),
 }
 
 # Источник-обрубок → несколько брендов по подстроке в названии товара.

@@ -83,7 +83,14 @@
                 </div>
             </div>
             <div class="product-pdp__buy motion-appear" style="--i: 2">
-                <p v-if="brandName" class="product-pdp__brand">{{ brandName }}</p>
+                <p v-if="brandName" class="product-pdp__brand">
+                    <nuxt-link
+                        v-if="brandPageHref"
+                        :to="brandPageHref"
+                        class="product-pdp__brand-link"
+                    >{{ brandName }}</nuxt-link>
+                    <template v-else>{{ brandName }}</template>
+                </p>
                 <h1 class="product-pdp__title">{{ product.title }}</h1>
                 <p v-if="metaLine" class="product-pdp__meta">{{ metaLine }}</p>
                 <div class="product-pdp__price">
@@ -291,6 +298,13 @@ const showNotFound = computed(() =>
 const outOfStock = computed(() => product.value?.stock != null && counter.value > product.value.stock);
 const contentBlocks = computed(() => product.value?.content_blocks || []);
 const brandName = computed(() => product.value?.content_brand?.name || '');
+const brandPageHref = computed(() => {
+    const brand = product.value?.content_brand;
+    if (!brand?.page || !brand.slug) {
+        return '';
+    }
+    return `/brand/${brand.slug}`;
+});
 const volumeText = computed(() => contentBlocks.value.find((block) => block.kind === 'volume')?.body || '');
 const kindName = computed(() => product.value?.content_kind?.name || '');
 const metaLine = computed(() => [kindName.value, volumeText.value].filter(Boolean).join(' · '));

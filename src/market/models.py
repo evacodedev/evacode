@@ -39,6 +39,18 @@ CONTENT_BLOCK_KINDS = (
 
 class ProductBrand(models.Model):
     slug = models.SlugField(max_length=160, unique=True, allow_unicode=True, verbose_name="Код")
+    page_published = models.BooleanField(default=False, verbose_name="Страница на сайте")
+    official_url = models.URLField(blank=True, verbose_name="Официальный сайт")
+    native_caption = models.CharField(
+        max_length=128,
+        blank=True,
+        verbose_name="Подпись на исконном языке",
+        help_text="Не перевод имени, например 이화조개비",
+    )
+    logo = models.CharField(max_length=512, blank=True, verbose_name="Логотип")
+    hero = models.CharField(max_length=512, blank=True, verbose_name="Hero")
+    history_image = models.CharField(max_length=512, blank=True, verbose_name="Фото истории")
+    video_url = models.URLField(blank=True, verbose_name="Видео")
 
     class Meta:
         verbose_name = "Бренд"
@@ -54,6 +66,17 @@ class ProductBrandI18n(models.Model):
     brand = models.ForeignKey(ProductBrand, on_delete=models.CASCADE, related_name="translations")
     language = models.CharField(max_length=8, choices=CONTENT_LANGUAGES, verbose_name="Язык")
     name = models.CharField(max_length=256, verbose_name="Название")
+    lead = models.TextField(blank=True, verbose_name="Лид")
+    history = models.TextField(blank=True, verbose_name="История")
+    mission = models.TextField(blank=True, verbose_name="Миссия")
+    history_title = models.CharField(max_length=256, blank=True, verbose_name="Заголовок истории")
+    mission_title = models.CharField(max_length=256, blank=True, verbose_name="Заголовок миссии")
+    facts = models.JSONField(blank=True, default=list, verbose_name="Факты")
+    lines = models.JSONField(blank=True, default=list, verbose_name="Линии")
+    partnership_title = models.CharField(max_length=256, blank=True, verbose_name="Заголовок партнёрства")
+    partnership = models.TextField(blank=True, verbose_name="Партнёрство")
+    gallery = models.JSONField(blank=True, default=list, verbose_name="Галерея")
+    video_title = models.CharField(max_length=256, blank=True, verbose_name="Заголовок видео")
 
     class Meta:
         verbose_name = "Перевод бренда"

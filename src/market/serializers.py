@@ -41,7 +41,37 @@ def _named_label(obj, lang):
         return None
     translation = _pick_i18n(list(obj.translations.all()), lang)
     name = (translation.name if translation else "") or obj.slug
-    return {"slug": obj.slug, "name": name}
+    payload = {"slug": obj.slug, "name": name}
+    if hasattr(obj, "page_published"):
+        payload["page"] = bool(obj.page_published)
+    return payload
+
+
+def serialize_brand_page(brand, lang):
+    translation = _pick_i18n(list(brand.translations.all()), lang)
+    facts = list(translation.facts) if translation and translation.facts else []
+    lines = list(translation.lines) if translation and translation.lines else []
+    return {
+        "slug": brand.slug,
+        "name": (translation.name if translation else "") or brand.slug,
+        "native_caption": brand.native_caption or "",
+        "official_url": brand.official_url or "",
+        "logo": brand.logo or "",
+        "hero": brand.hero or "",
+        "history_image": brand.history_image or "",
+        "video_url": brand.video_url or "",
+        "lead": (translation.lead if translation else "") or "",
+        "history_title": (translation.history_title if translation else "") or "",
+        "history": (translation.history if translation else "") or "",
+        "mission_title": (translation.mission_title if translation else "") or "",
+        "mission": (translation.mission if translation else "") or "",
+        "partnership_title": (translation.partnership_title if translation else "") or "",
+        "partnership": (translation.partnership if translation else "") or "",
+        "facts": facts,
+        "lines": lines,
+        "gallery": list(translation.gallery) if translation and translation.gallery else [],
+        "video_title": (translation.video_title if translation else "") or "",
+    }
 
 
 class ImageSerializer(serializers.ModelSerializer):

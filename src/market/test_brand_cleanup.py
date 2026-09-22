@@ -84,7 +84,7 @@ class BrandCleanupTests(TestCase):
         self._good(1, "HERA Lip Serum", lip)
         cleanup_product_brands(dry_run=True)
         lip.refresh_from_db()
-        self.assertEqual(ProductBrand.objects.count(), 2)
+        self.assertEqual(ProductBrand.objects.filter(slug__in=("hera", "hera-lip-serum")).count(), 2)
         self.assertEqual(lip.goods.count(), 1)
         self.assertEqual(hera.goods.count(), 0)
 

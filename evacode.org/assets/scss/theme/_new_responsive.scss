@@ -238,6 +238,110 @@
         padding: 64px 0;
     }
 
+    .brand-lux__hero {
+        min-height: min(70vh, 560px);
+    }
+
+    .brand-lux__hero-inner {
+        padding: 32px 20px 40px;
+    }
+
+    .brand-lux__lead,
+    .brand-lux__story-text,
+    .brand-lux__line-text {
+        font-size: 15px;
+    }
+
+    .brand-lux__intro {
+        padding: 56px 0 0;
+    }
+
+    .brand-lux__origin-text {
+        font-size: 15px;
+        max-width: 18em;
+    }
+
+    .brand-lux__story {
+        padding: 48px 0;
+    }
+
+    .brand-lux__story-grid,
+    .brand-lux__story.is-reverse .brand-lux__story-grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .brand-lux__story.is-reverse .brand-lux__story-photo,
+    .brand-lux__story.is-reverse .brand-lux__story-copy {
+        order: initial;
+    }
+
+    .brand-lux__story-photo img {
+        aspect-ratio: 5 / 6;
+    }
+
+    .brand-lux__lines {
+        padding: 48px 0 24px;
+    }
+
+    .brand-lux__line-grid {
+        grid-template-columns: 1fr;
+        gap: 36px;
+    }
+
+    .brand-lux__partner {
+        padding: 48px 0 32px;
+    }
+
+    .brand-lux__partner-text {
+        font-size: 15px;
+        margin-bottom: 28px;
+    }
+
+    .brand-lux__gallery {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .brand-lux__gallery-item.is-lead img {
+        aspect-ratio: 4 / 3;
+    }
+
+    .brand-lux__film {
+        margin-top: 40px;
+    }
+
+    .brand-lux__film-btn {
+        width: 56px;
+        height: 56px;
+    }
+
+    .brand-lux__goods {
+        padding: 32px 0 56px;
+    }
+
+    .brand-lux__cta {
+        padding: 64px 0;
+    }
+
+    .home-brand {
+        padding: 56px 0 40px;
+    }
+
+    .home-brand__stage {
+        grid-template-columns: 1fr;
+        gap: 24px;
+        margin-bottom: 28px;
+    }
+
+    .home-brand__lead {
+        font-size: 15px;
+    }
+
+    .home-brand__more {
+        margin-top: 24px;
+    }
+
     .delivery-lux__hero {
         min-height: min(68vh, 520px);
     }
@@ -883,15 +987,21 @@
 
     .footer-light {
         .consulting {
-            text-align: center;
+            text-align: left;
 
             h2 {
-                display: inline-block;
+                display: block;
                 font-size: 36px;
             }
 
             h4 {
                 font-size: 18px;
+                margin-top: 16px;
+            }
+
+            .shop-messengers {
+                margin-top: 20px;
+                max-width: none;
             }
         }
 
@@ -1011,10 +1121,10 @@
 
     .footer-light {
         .consulting {
-            text-align: center;
+            text-align: left;
 
             h2 {
-                display: inline-block;
+                display: block;
                 font-size: 16px;
             }
 
@@ -1025,6 +1135,7 @@
 
             h4 {
                 font-size: 14px;
+                margin-top: 12px;
             }
 
             .consult-only-h4 {
@@ -1033,6 +1144,13 @@
                 margin-top: 10px;
             }
 
+            .consult-column {
+                padding: 20px 0 8px;
+            }
+
+            .shop-messengers {
+                margin-top: 16px;
+            }
         }
 
         .footer-contact {

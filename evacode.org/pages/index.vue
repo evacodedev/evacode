@@ -2,6 +2,7 @@
     <div>
         <Header/>
         <ShopBeautySlider/>
+        <ShopBeautyJogabi/>
         <section class="products-main-section">
             <div class="container">
                 <ShopBeautyProducts

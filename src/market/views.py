@@ -36,6 +36,7 @@ from .serializers import (
     GroupOfGoodsSerializer,
     _named_label,
     content_language_from_request,
+    serialize_brand_page,
 )
 from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
@@ -139,6 +140,21 @@ def _facet_rows(queryset, lang, order_key=None):
     if order_key:
         rows.sort(key=order_key)
     return rows
+
+
+class BrandPageAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request, slug):
+        lang = content_language_from_request(request)
+        brand = (
+            ProductBrand.objects.filter(slug=slug, page_published=True)
+            .prefetch_related("translations")
+            .first()
+        )
+        if brand is None:
+            return Response({"detail": "Страница бренда не найдена"}, status=status.HTTP_404_NOT_FOUND)
+        return Response(serialize_brand_page(brand, lang))
 
 
 class CatalogFacetsAPIView(APIView):

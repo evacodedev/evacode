@@ -261,17 +261,43 @@ class GroupOfGoodsAdmin(admin.ModelAdmin):
     search_fields = ("name",)
 
 
-class ProductBrandI18nInline(admin.TabularInline):
+class ProductBrandI18nInline(admin.StackedInline):
     model = ProductBrandI18n
     extra = 1
+    fields = (
+        "language",
+        "name",
+        "lead",
+        "history_title",
+        "history",
+        "mission_title",
+        "mission",
+        "partnership_title",
+        "partnership",
+        "facts",
+        "lines",
+        "gallery",
+        "video_title",
+    )
 
 
 @admin.register(ProductBrand)
 class ProductBrandAdmin(admin.ModelAdmin):
-    list_display = ("id", "display_name", "slug", "goods_count")
+    list_display = ("id", "display_name", "slug", "page_published", "goods_count")
     list_display_links = ("id", "display_name")
+    list_filter = ("page_published",)
     search_fields = ("slug", "translations__name")
     ordering = ("id",)
+    fields = (
+        "slug",
+        "page_published",
+        "official_url",
+        "native_caption",
+        "logo",
+        "hero",
+        "history_image",
+        "video_url",
+    )
     inlines = (ProductBrandI18nInline,)
 
     def get_queryset(self, request):
