@@ -341,7 +341,13 @@ const pages = computed(() => {
 });
 
 useHead({
-    titleTemplate: `%s - Магазин`,
+    title: 'Каталог корейской косметики — EvaCode',
+    meta: [
+        {
+            name: 'description',
+            content: 'Каталог EvaCode: люксовая корейская косметика Whoo, O HUI, SU:M37, CNP, Sulwhasoo, Jogabi. Опт и розница, доставка из Кореи.',
+        },
+    ],
 });
 
 </script>

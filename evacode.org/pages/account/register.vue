@@ -78,6 +78,7 @@ definePageMeta({
 useHead({
   titleTemplate: '%s — Регистрация',
 })
+useNoIndex()
 
 const route = useRoute()
 const auth = useAuthStore()

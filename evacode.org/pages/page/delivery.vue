@@ -339,11 +339,11 @@ const focusConsult = () => {
 };
 
 useHead({
-    titleTemplate: `%s - Доставка`,
+    title: 'Доставка и возврат — EvaCode',
     meta: [
         {
             name: 'description',
-            content: 'Evacode - интернет магазин корейской косметики - Доставка',
+            content: 'Доставка EvaCode из Кореи по миру: сроки, оплата, возврат и отмена заказа корейской косметики.',
         },
     ],
 });

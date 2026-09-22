@@ -6,26 +6,39 @@ export default defineNuxtConfig({
         head: {
             charset: 'utf-8',
             viewport: 'width=device-width, initial-scale=1',
-            title: 'Evacode - интернет магазин корейской косметики',
+            title: 'EvaCode — люксовая корейская косметика',
             meta: [
                 {
                     name: 'description',
-                    content: 'Evacode - интернет магазин корейской косметики.- The History of Whoo, O HUI, SU:M37,' +
-                        'CNP, The Saga of Soo, Sulwhasoo, Hera, Amore Pacifi'
+                    content: 'EvaCode — магазин люксовой корейской косметики: The History of Whoo, O HUI, SU:M37, CNP, Sulwhasoo, Hera. Офис в Корее, доставка по миру. Опт и розница. Эксклюзивный дистрибьютор CH6.',
                 },
                 {
-                    name: 'og:description',
-                    content: 'Evacode - интернет магазин корейской косметики.- The History of Whoo, O HUI, SU:M37,' +
-                        'CNP, The Saga of Soo, Sulwhasoo, Hera, Amore Pacifi'
+                    property: 'og:title',
+                    content: 'EvaCode — люксовая корейская косметика',
+                },
+                {
+                    property: 'og:description',
+                    content: 'Люксовая корейская косметика с Кореи: Whoo, O HUI, SU:M37, CNP, Sulwhasoo. Опт и розница, консультанты, доставка по миру.',
+                },
+                {
+                    property: 'og:type',
+                    content: 'website',
+                },
+                {
+                    property: 'og:locale',
+                    content: 'ru_RU',
+                },
+                {
+                    name: 'twitter:card',
+                    content: 'summary_large_image',
+                },
+                {
+                    name: 'twitter:title',
+                    content: 'EvaCode — люксовая корейская косметика',
                 },
                 {
                     name: 'twitter:description',
-                    content: 'Evacode - интернет магазин корейской косметики.- The History of Whoo, O HUI, SU:M37,' +
-                        'CNP, The Saga of Soo, Sulwhasoo, Hera, Amore Pacifi'
-                },
-                {
-                    name: 'og:title',
-                    content: 'Evacode - интернет магазин корейской косметики'
+                    content: 'Люксовая корейская косметика с Кореи. Whoo, O HUI, SU:M37, CNP. Опт и розница, доставка по миру.',
                 },
             ],
             link: [
@@ -73,12 +86,23 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             apiBase: process.env.BASE_API_URL,
-            url: process.env.SITE_URL,
+            url: process.env.SITE_URL || 'https://www.evacode.org',
         }
     },
     site: {
-        url: process.env.SITE_URL,
+        url: process.env.SITE_URL || 'https://www.evacode.org',
         trailingSlash: true,
+        name: 'EvaCode',
+    },
+    sitemap: {
+        exclude: [
+            '/account/**',
+            '/page/account/cart/**',
+            '/page/account/checkout/**',
+            '/page/order-success/**',
+            '/page/consult-success/**',
+            '/page/consult/**',
+        ],
     },
     css: ['@/assets/scss/app.scss'],
     ssr: true,

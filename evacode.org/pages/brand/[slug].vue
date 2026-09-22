@@ -245,11 +245,16 @@ const videoEmbed = computed(() => {
 const videoPoster = computed(() => brand.value?.hero || brand.value?.history_image || '');
 
 useHead({
-    titleTemplate: `%s - ${brand.value.name}`,
+    title: () => (brand.value?.name
+        ? `${brand.value.name} — купить в EvaCode`
+        : 'Бренд — EvaCode'),
     meta: [
         {
             name: 'description',
-            content: brand.value.lead || `${brand.value.name} — корейский уход в EvaCode`,
+            content: () => brand.value?.lead
+                || (brand.value?.name
+                    ? `${brand.value.name} — оригинальный корейский уход в магазине EvaCode. Опт и розница, доставка из Кореи.`
+                    : 'Корейский бренд в магазине EvaCode.'),
         },
     ],
 });

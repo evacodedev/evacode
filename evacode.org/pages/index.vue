@@ -26,6 +26,10 @@
 <script setup>
 import {useRoute} from 'vue-router';
 
+useHead({
+    title: 'EvaCode — люксовая корейская косметика',
+});
+
 const route = useRoute();
 const currentPage = ref(parseFloat(route.query.page) || 1);
 const currentCategory = ref(parseFloat(route.params.id) || null);

@@ -455,13 +455,60 @@ const slideTo = (id) => {
     slideId.value = id;
 };
 
+const stripHtml = (value) => String(value || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const seoDescription = computed(() => {
+    const lead = contentBlocks.value.find((block) => block.kind === 'lead')?.body;
+    const text = stripHtml(lead || product.value?.description || '');
+    const fallback = [brandName.value, product.value?.title, 'купить в EvaCode']
+        .filter(Boolean)
+        .join('. ');
+    const raw = text || fallback;
+    if (raw.length <= 180) {
+        return raw;
+    }
+    return `${raw.slice(0, 177)}…`;
+});
+
 useHead({
+    title: () => (product.value?.title ? `${product.value.title} — EvaCode` : 'Товар — EvaCode'),
     meta: [
-        { name: 'description', content: () => product.value?.title },
-        { name: 'og:description', content: () => product.value?.title },
-        { name: 'twitter:description', content: () => product.value?.title },
-        { name: 'og:title', content: () => product.value?.title },
+        { name: 'description', content: () => seoDescription.value },
+        { property: 'og:title', content: () => product.value?.title || 'EvaCode' },
+        { property: 'og:description', content: () => seoDescription.value },
     ],
-    titleTemplate: () => product.value?.title || 'Товар',
+    script: () => {
+        if (!product.value) {
+            return [];
+        }
+        const site = String(runtimeConfig.public.url || 'https://www.evacode.org').replace(/\/$/, '');
+        const image = product.value.images?.[0]?.url;
+        return [
+            {
+                type: 'application/ld+json',
+                innerHTML: JSON.stringify({
+                    '@context': 'https://schema.org',
+                    '@type': 'Product',
+                    name: product.value.title,
+                    description: seoDescription.value,
+                    image: image || undefined,
+                    brand: brandName.value
+                        ? { '@type': 'Brand', name: brandName.value }
+                        : undefined,
+                    url: `${site}/product/${product.value.id}/`,
+                    offers: {
+                        '@type': 'Offer',
+                        url: `${site}/product/${product.value.id}/`,
+                        availability: outOfStock.value
+                            ? 'https://schema.org/OutOfStock'
+                            : 'https://schema.org/InStock',
+                    },
+                }),
+            },
+        ];
+    },
 });
 </script>

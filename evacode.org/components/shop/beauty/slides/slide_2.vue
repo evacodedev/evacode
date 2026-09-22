@@ -14,7 +14,7 @@
       <div class="row">
         <div class="col">
           <div class="slider-container">
-            <h1 class="slider-headline">Корейская косметика красота, доступная каждому</h1>
+            <p class="slider-headline">Корейская косметика красота, доступная каждому</p>
             <nuxt-link :to="{ path: '/collection/leftsidebar/0' }" class="evacode-btn slider-btn btn-bordered">Каталог</nuxt-link>
           </div>
         </div>

@@ -20,3 +20,6 @@
   </div>
   <Footer />
 </template>
+<script setup>
+useNoIndex()
+</script>

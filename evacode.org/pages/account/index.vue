@@ -162,6 +162,7 @@ definePageMeta({
 useHead({
   titleTemplate: '%s — Личный кабинет',
 })
+useNoIndex()
 
 const CURRENT_STATUSES = new Set(['pending', 'paid'])
 const DONE_STATUSES = new Set(['failed', 'cancelled'])

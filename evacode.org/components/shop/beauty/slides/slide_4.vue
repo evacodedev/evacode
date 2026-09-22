@@ -15,7 +15,7 @@
       <div class="row">
         <div class="col">
           <div class="slider-container">
-            <h1 class="slider-headline">Акция</h1>
+            <p class="slider-headline">Акция</p>
             <p class="slider-description">В честь дня рождения ЕваКод дарим скидку! Вся косметика по оптовой цене</p>
             <nuxt-link :to="{ path: '/collection/leftsidebar/0' }" class="evacode-btn slider-btn btn-bordered">Купить</nuxt-link>
           </div>

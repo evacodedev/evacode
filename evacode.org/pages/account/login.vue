@@ -53,6 +53,7 @@ definePageMeta({
 useHead({
   titleTemplate: '%s — Войти',
 })
+useNoIndex()
 
 const route = useRoute()
 const auth = useAuthStore()

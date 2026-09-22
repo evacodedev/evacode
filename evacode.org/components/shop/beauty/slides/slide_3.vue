@@ -15,7 +15,7 @@
       <div class="row">
         <div class="col">
           <div class="slider-container">
-            <h1 class="slider-headline">Доверьте свою красоту профессионалам!</h1>
+            <p class="slider-headline">Доверьте свою красоту профессионалам!</p>
             <p class="slider-description">Мы гарантируем оригинальность каждого продукта</p>
             <nuxt-link :to="{ path: '/collection/leftsidebar/0' }" class="evacode-btn slider-btn btn-bordered">Каталог</nuxt-link>
           </div>

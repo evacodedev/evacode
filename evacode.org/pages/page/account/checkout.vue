@@ -11,9 +11,10 @@ useHead({
   meta: [
     {
       name: 'description',
-      content: 'Evacode - интернет магазин корейской косметики - Оформить заказ'
+      content: 'Оформление заказа EvaCode'
     },
   ]
 });
+useNoIndex();
 
 </script>

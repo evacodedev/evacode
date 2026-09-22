@@ -8,4 +8,5 @@
 
 <script setup>
 
+useNoIndex()
 </script>

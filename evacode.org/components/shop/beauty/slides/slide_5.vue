@@ -15,7 +15,7 @@
       <div class="row">
         <div class="col">
           <div class="slider-container">
-            <h1 class="slider-headline">Опт и розница</h1>
+            <p class="slider-headline">Опт и розница</p>
             <p class="slider-description">эксклюзивная корейская косметика с выгодой до 60%!</p>
             <nuxt-link :to="{ path: '/collection/leftsidebar/0' }" class="evacode-btn slider-btn btn-bordered">Купить</nuxt-link>
           </div>

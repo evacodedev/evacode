@@ -59,6 +59,9 @@ import {useProductStore} from '~~/store/products'
 import {useCartStore} from '~~/store/cart'
 
 export default {
+    setup() {
+        useNoIndex()
+    },
     computed: {
         cart() {
             return useCartStore().cartItems

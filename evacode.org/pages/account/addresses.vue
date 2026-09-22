@@ -208,6 +208,7 @@ definePageMeta({
 useHead({
   titleTemplate: '%s — Адреса',
 })
+useNoIndex()
 
 const auth = useAuthStore()
 const addresses = ref([])

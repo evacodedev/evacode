@@ -139,12 +139,12 @@ const storyBlocks = [
 ];
 
 useHead({
-    titleTemplate: `%s - ${about.title || 'О нас'}`,
+    title: 'О нас — EvaCode, корейская косметика с 2018 года',
     meta: [
         {
             name: 'description',
-            content: 'Evacode - интернет магазин корейской косметики - О нас'
+            content: 'EvaCode — магазин люксовой корейской косметики. Офис в Южной Корее, поставки LG и Amorepacific, эксклюзив CH6, консультанты и доставка по миру.',
         },
-    ]
+    ],
 });
 </script>

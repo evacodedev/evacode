@@ -123,6 +123,7 @@ definePageMeta({
 useHead({
   titleTemplate: '%s — Личные данные',
 })
+useNoIndex()
 
 const auth = useAuthStore()
 const firstName = ref('')

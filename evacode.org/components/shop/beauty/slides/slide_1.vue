@@ -5,7 +5,7 @@
       <div class="col">
         <div class="slider-container">
           <WidgetsBrandLogo />
-          <h1 class="slider-headline">Премиальное качество!</h1>
+          <h1 class="slider-headline">EvaCode — люксовая корейская косметика</h1>
           <p class="slider-description">люксовая косметика от ведущих корейских производителей</p>
           <nuxt-link :to="{ path: '/collection/leftsidebar/0' }" class="evacode-btn slider-btn">Каталог</nuxt-link>
         </div>
@@ -15,7 +15,7 @@
       <div class="row">
         <div class="col">
           <div class="slider-container">
-            <h1 class="slider-headline">Премиальное качество!</h1>
+            <p class="slider-headline">EvaCode — люксовая корейская косметика</p>
             <p class="slider-description">люксовая косметика от ведущих корейских производителей</p>
             <nuxt-link :to="{ path: '/collection/leftsidebar/0' }" class="evacode-btn slider-btn btn-bordered">Каталог</nuxt-link>
           </div>

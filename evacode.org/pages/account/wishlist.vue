@@ -23,4 +23,5 @@ definePageMeta({
 useHead({
   titleTemplate: '%s — Избранное',
 })
+useNoIndex()
 </script>

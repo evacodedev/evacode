@@ -5,7 +5,7 @@
       <div class="col">
         <div class="slider-container">
           <WidgetsBrandLogo />
-          <h1 class="slider-headline">CH6 Сыворотка для волос</h1>
+          <p class="slider-headline">CH6 Сыворотка для волос</p>
           <p class="slider-description">Функциональная сыворотка-эссенция для кожи головы, которая помогает облегчить симптомы выпадения волос и ускоряет рост волос.</p>
           <p v-if="product" class="slider-headline slider-price">{{ getPrice(product.retail_price) }}</p>
           <nuxt-link :to="{ path: `/product/${productId}` }" class="evacode-btn slider-btn" @click="rememberProduct">Купить</nuxt-link>
@@ -16,7 +16,7 @@
       <div class="row">
         <div class="col">
           <div class="slider-container">
-            <h1 class="slider-headline">CH6 Сыворотка для волос</h1>
+            <p class="slider-headline">CH6 Сыворотка для волос</p>
             <p v-if="product" class="slider-headline slider-price">{{ getPrice(product.retail_price) }}</p>
             <nuxt-link :to="{ path: `/product/${productId}` }" class="evacode-btn slider-btn btn-bordered" @click="rememberProduct">Купить</nuxt-link>
           </div>

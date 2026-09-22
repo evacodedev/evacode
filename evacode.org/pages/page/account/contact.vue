@@ -42,13 +42,13 @@ import {useContactsStore} from '~~/store/contacts'
 const contacts = await useContactsStore().contacts;
 
 useHead({
-    titleTemplate: `%s - Контакты`,
+    title: 'Контакты — EvaCode',
     meta: [
         {
             name: 'description',
-            content: 'Evacode - интернет магазин корейской косметики - Контакты'
+            content: 'Связаться с EvaCode: телефон, WhatsApp, Telegram, email sales@evacode.org. Офис в Ансане, Южная Корея.',
         },
-    ]
+    ],
 });
 </script>
 

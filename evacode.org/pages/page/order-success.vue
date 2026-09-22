@@ -91,6 +91,9 @@ import { useProductStore } from '~~/store/products';
 import { useCartStore } from '~~/store/cart';
 
 export default {
+  setup() {
+    useNoIndex()
+  },
   data() {
     return {
       paidOrder: null,
