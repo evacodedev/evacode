@@ -5,6 +5,9 @@
     <NuxtPage :page-key="(route) => route.path" />
     <WidgetsCartDrawer />
     <WidgetsCartFab />
+    <ClientOnly>
+      <AppHandoff />
+    </ClientOnly>
 </NuxtLayout>
 </template>
 

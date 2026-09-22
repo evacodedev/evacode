@@ -56,6 +56,7 @@ useHead({
 
 const route = useRoute()
 const auth = useAuthStore()
+const { showHandoff, hideHandoff } = useHandoff()
 const email = ref('')
 const password = ref('')
 const submitted = ref(false)
@@ -80,10 +81,16 @@ const onSubmit = async () => {
     return
   }
   pending.value = true
+  showHandoff({
+    title: 'Входим…',
+    note: 'Подождите несколько секунд.',
+  })
   try {
     await auth.login(email.value, password.value)
     await navigateTo(safeAccountNext(route.query.next))
+    hideHandoff()
   } catch (error) {
+    hideHandoff()
     formError.value = accountErrorMessage(error, 'Не удалось войти')
   } finally {
     pending.value = false
@@ -92,5 +99,6 @@ const onSubmit = async () => {
 
 const onGoogleSuccess = async () => {
   await navigateTo(safeAccountNext(route.query.next))
+  hideHandoff()
 }
 </script>

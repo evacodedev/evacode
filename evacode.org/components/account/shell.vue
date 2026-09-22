@@ -17,7 +17,12 @@
             >
               {{ item.label }}
             </nuxt-link>
-            <button type="button" class="account-lux__link account-lux__logout" @click="onLogout">
+            <button
+              type="button"
+              class="account-lux__link account-lux__logout"
+              :disabled="logoutPending"
+              @click="onLogout"
+            >
               Выйти
             </button>
           </nav>
@@ -41,7 +46,9 @@ const props = defineProps({
 })
 
 const auth = useAuthStore()
+const { showHandoff, hideHandoff } = useHandoff()
 const displayName = computed(() => auth.displayName || 'гость')
+const logoutPending = ref(false)
 
 const items = computed(() => [
   { to: '/account/', label: 'Заказы', active: props.current === 'orders' },
@@ -50,8 +57,21 @@ const items = computed(() => [
   { to: '/account/wishlist/', label: 'Избранное', active: props.current === 'wishlist' },
 ])
 
-const onLogout = () => {
-  auth.logout()
-  return navigateTo('/')
+const onLogout = async () => {
+  if (logoutPending.value) {
+    return
+  }
+  logoutPending.value = true
+  showHandoff({
+    title: 'Выходим…',
+    note: 'Возвращаем на главную.',
+  })
+  try {
+    auth.logout()
+    await navigateTo('/')
+  } finally {
+    hideHandoff()
+    logoutPending.value = false
+  }
 }
 </script>

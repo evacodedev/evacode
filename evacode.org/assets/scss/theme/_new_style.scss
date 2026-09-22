@@ -2887,6 +2887,7 @@ $checkout-error: #c0392b;
     }
 }
 
+.app-handoff,
 .checkout-handoff {
     position: fixed;
     inset: 0;
@@ -2900,11 +2901,13 @@ $checkout-error: #c0392b;
     -webkit-backdrop-filter: blur(10px);
 }
 
+.app-handoff__card,
 .checkout-handoff__card {
     text-align: center;
     max-width: 320px;
 }
 
+.app-handoff__icon,
 .checkout-handoff__icon {
     display: inline-flex;
     width: 88px;
@@ -2912,19 +2915,28 @@ $checkout-error: #c0392b;
     color: $checkout-gold;
 }
 
+.app-handoff__icon svg,
 .checkout-handoff__icon svg {
     width: 100%;
     height: 100%;
 }
 
+.app-handoff__track,
 .checkout-handoff__track {
     opacity: 0.22;
 }
 
+.app-handoff__spin,
 .checkout-handoff__spin {
     transform-box: fill-box;
     transform-origin: center;
-    animation: checkout-handoff-spin 1.35s linear infinite;
+    animation: app-handoff-spin 1.35s linear infinite;
+}
+
+@keyframes app-handoff-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 @keyframes checkout-handoff-spin {
@@ -2933,6 +2945,7 @@ $checkout-error: #c0392b;
     }
 }
 
+.app-handoff__title,
 .checkout-handoff__title {
     margin: 20px 0 0;
     font-size: 20px;
@@ -2941,6 +2954,7 @@ $checkout-error: #c0392b;
     color: #1a1a1a;
 }
 
+.app-handoff__note,
 .checkout-handoff__note {
     margin: 10px 0 0;
     font-size: 14px;
@@ -2948,18 +2962,22 @@ $checkout-error: #c0392b;
     color: #6b6b6b;
 }
 
+html.app-handoff-open,
+html.app-handoff-open body,
 html.checkout-handoff-open,
 html.checkout-handoff-open body {
     overflow: hidden;
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .app-handoff,
     .checkout-handoff {
         backdrop-filter: none;
         -webkit-backdrop-filter: none;
         background: rgba(252, 251, 248, 0.92);
     }
 
+    .app-handoff__spin,
     .checkout-handoff__spin {
         animation: none;
     }

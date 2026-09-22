@@ -81,6 +81,7 @@ useHead({
 
 const route = useRoute()
 const auth = useAuthStore()
+const { showHandoff, hideHandoff } = useHandoff()
 const firstName = ref('')
 const email = ref('')
 const password = ref('')
@@ -114,6 +115,10 @@ const onSubmit = async () => {
     return
   }
   pending.value = true
+  showHandoff({
+    title: 'Создаём аккаунт…',
+    note: 'Подождите несколько секунд.',
+  })
   try {
     await auth.register({
       email: email.value,
@@ -122,7 +127,9 @@ const onSubmit = async () => {
       first_name: firstName.value,
     })
     await navigateTo(safeAccountNext(route.query.next))
+    hideHandoff()
   } catch (error) {
+    hideHandoff()
     formError.value = accountErrorMessage(error, 'Не удалось создать аккаунт')
   } finally {
     pending.value = false
@@ -131,5 +138,6 @@ const onSubmit = async () => {
 
 const onGoogleSuccess = async () => {
   await navigateTo(safeAccountNext(route.query.next))
+  hideHandoff()
 }
 </script>

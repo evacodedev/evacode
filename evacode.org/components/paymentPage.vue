@@ -323,31 +323,6 @@
         </aside>
       </form>
     </div>
-    <Teleport to="body">
-      <div
-        v-if="handoffOpen"
-        class="checkout-handoff"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="checkout-handoff-title"
-        aria-busy="true"
-      >
-        <div class="checkout-handoff__card">
-          <span class="checkout-handoff__icon" aria-hidden="true">
-            <svg viewBox="0 0 48 48" fill="none">
-              <circle class="checkout-handoff__track" cx="24" cy="24" r="22.5" stroke="currentColor" stroke-width="1.25"/>
-              <g class="checkout-handoff__spin">
-                <circle cx="24" cy="24" r="22.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="36 108"/>
-              </g>
-              <path d="M16 20h16l-1.2 14.4A2 2 0 0 1 28.81 36H19.19a2 2 0 0 1-1.99-1.6L16 20Z" stroke="currentColor" stroke-width="1.4"/>
-              <path d="M19 20v-3.2A5 5 0 0 1 24 12a5 5 0 0 1 5 4.8V20" stroke="currentColor" stroke-width="1.4"/>
-            </svg>
-          </span>
-          <p id="checkout-handoff-title" class="checkout-handoff__title">{{ handoffTitle }}</p>
-          <p class="checkout-handoff__note">{{ handoffNote }}</p>
-        </div>
-      </div>
-    </Teleport>
   </section>
 </template>
 
@@ -368,6 +343,10 @@ import {
 
 export default {
   components: { MazPhoneNumberInput },
+  setup() {
+    const { showHandoff, hideHandoff } = useHandoff()
+    return { showHandoff, hideHandoff }
+  },
   computed: {
     cart() {
       return useCartStore().cartItems
@@ -608,10 +587,15 @@ export default {
       deep: true,
     },
     handoffOpen(open) {
-      if (typeof document === 'undefined') {
+      if (open) {
+        this.showHandoff({
+          title: this.handoffTitle,
+          note: this.handoffNote,
+          variant: 'checkout',
+        })
         return
       }
-      document.documentElement.classList.toggle('checkout-handoff-open', open)
+      this.hideHandoff()
     },
   },
   async mounted() {
@@ -633,9 +617,7 @@ export default {
     }
   },
   beforeUnmount() {
-    if (typeof document !== 'undefined') {
-      document.documentElement.classList.remove('checkout-handoff-open')
-    }
+    this.hideHandoff()
     if (this.quoteTimer) {
       clearTimeout(this.quoteTimer)
     }

@@ -12,6 +12,7 @@ import { accountErrorMessage, useAuthStore } from '~/store/auth'
 const emit = defineEmits(['success', 'error'])
 
 const auth = useAuthStore()
+const { showHandoff, hideHandoff } = useHandoff()
 const enabled = ref(false)
 const clientId = ref('')
 const error = ref('')
@@ -55,10 +56,15 @@ async function onCredential(response) {
   }
   pending.value = true
   error.value = ''
+  showHandoff({
+    title: 'Входим…',
+    note: 'Подождите несколько секунд.',
+  })
   try {
     await auth.loginWithGoogle(credential)
     emit('success')
   } catch (err) {
+    hideHandoff()
     const message = accountErrorMessage(err, 'Не удалось войти через Google')
     error.value = message
     emit('error', message)
