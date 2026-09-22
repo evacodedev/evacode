@@ -2,6 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import PostViewSet, TagDetailView, TagView, AsideView, FeedBackView, RegisterView, LoginView, ProfileView, AddressListView, AddressDetailView, CommentView, \
     AboutUsView, ContactsView, DeliveryView, BannerView, SlideView,ReviewView, CurrenciesView, SectionWithVideoView
+from .google_auth import GoogleConfigView, GoogleLoginView
 
 router = DefaultRouter()
 router.register('posts', PostViewSet, basename='posts')
@@ -19,6 +20,8 @@ urlpatterns = [
     path("currencies/", CurrenciesView.as_view()),
     path("auth/register/", RegisterView.as_view()),
     path("auth/login/", LoginView.as_view()),
+    path("auth/google/", GoogleLoginView.as_view()),
+    path("auth/google/config/", GoogleConfigView.as_view()),
     path("auth/me/", ProfileView.as_view()),
     path("auth/addresses/", AddressListView.as_view()),
     path("auth/addresses/<int:pk>/", AddressDetailView.as_view()),

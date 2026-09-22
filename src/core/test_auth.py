@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
-from django.test import TestCase
+from django.test import TestCase, override_settings
+from unittest.mock import patch
 
 
 class CustomerAuthApiTests(TestCase):
@@ -294,3 +295,69 @@ class PromoteAccountAdminTests(TestCase):
 
         with self.assertRaises(CommandError):
             call_command("promote_account_admin", "missing@example.com")
+
+
+class GoogleAuthApiTests(TestCase):
+    def test_google_config_disabled_without_client_id(self):
+        with self.settings(GOOGLE_CLIENT_ID=""):
+            response = self.client.get("/api/core/auth/google/config/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"enabled": False, "client_id": ""})
+
+    def test_google_login_unavailable_without_client_id(self):
+        with self.settings(GOOGLE_CLIENT_ID=""):
+            response = self.client.post(
+                "/api/core/auth/google/",
+                data={"credential": "fake"},
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 503)
+
+    @override_settings(GOOGLE_CLIENT_ID="evacode-test.apps.googleusercontent.com")
+    @patch("core.google_auth.id_token.verify_oauth2_token")
+    def test_google_login_creates_user_and_returns_jwt(self, verify_mock):
+        verify_mock.return_value = {
+            "iss": "https://accounts.google.com",
+            "email": "Google.User@Example.com",
+            "email_verified": True,
+            "given_name": "Lana",
+            "family_name": "Kim",
+            "sub": "google-sub-1",
+        }
+        response = self.client.post(
+            "/api/core/auth/google/",
+            data={"credential": "google-id-token"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        payload = response.json()
+        self.assertIn("access", payload)
+        self.assertEqual(payload["user"]["email"], "google.user@example.com")
+        self.assertEqual(payload["user"]["first_name"], "Lana")
+        user = User.objects.get(username="google.user@example.com")
+        self.assertFalse(user.has_usable_password())
+        self.assertTrue(hasattr(user, "account_profile"))
+
+    @override_settings(GOOGLE_CLIENT_ID="evacode-test.apps.googleusercontent.com")
+    @patch("core.google_auth.id_token.verify_oauth2_token")
+    def test_google_login_links_existing_email_account(self, verify_mock):
+        existing = User.objects.create_user("buyer@example.com", "buyer@example.com", "StrongPass123")
+        existing.first_name = "Buyer"
+        existing.save(update_fields=["first_name"])
+        verify_mock.return_value = {
+            "iss": "accounts.google.com",
+            "email": "buyer@example.com",
+            "email_verified": True,
+            "given_name": "FromGoogle",
+            "sub": "google-sub-2",
+        }
+        response = self.client.post(
+            "/api/core/auth/google/",
+            data={"credential": "google-id-token"},
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(User.objects.filter(email__iexact="buyer@example.com").count(), 1)
+        existing.refresh_from_db()
+        self.assertEqual(existing.first_name, "Buyer")
+        self.assertEqual(response.json()["user"]["id"], existing.id)

@@ -56,6 +56,7 @@
               {{ pending ? 'Создаём…' : 'Зарегистрироваться' }}
             </button>
           </form>
+          <AccountGoogleButton @success="onGoogleSuccess" />
           <p class="account-lux__switch">
             Уже есть аккаунт?
             <nuxt-link :to="loginTo">Войти</nuxt-link>
@@ -126,5 +127,9 @@ const onSubmit = async () => {
   } finally {
     pending.value = false
   }
+}
+
+const onGoogleSuccess = async () => {
+  await navigateTo(safeAccountNext(route.query.next))
 }
 </script>

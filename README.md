@@ -131,6 +131,7 @@ cp .env.template .env2
 | `BACKEND_PUBLIC_URL` | публичный адрес backend для платежных callback URL |
 | `FRONTEND_PUBLIC_URL` | адрес витрины для возврата после PayPal |
 | `PAYPAL_CLIENT_ID`, `PAYPAL_SECRET`, `PAYPAL_MODE` | прямой PayPal Checkout (`sandbox` или `live`) |
+| `GOOGLE_CLIENT_ID` | Google Sign-In на login/register (OAuth Web Client ID). Пусто — кнопка скрыта |
 | `BUSINESS_RU_STORE_NAME`, `BUSINESS_RU_STATUS_NAME` | склад и статус для выгрузки оплаченного заказа |
 | `BUSINESS_RU_ORGANIZATION_ID`, `BUSINESS_RU_EMPLOYEE_ID` | организация и сотрудник-автор заказа в Business.Ru |
 

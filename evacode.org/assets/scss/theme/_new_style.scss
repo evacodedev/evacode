@@ -4908,6 +4908,37 @@ html.cart-drawer-open body {
     }
 }
 
+.account-lux__google {
+    margin-top: 8px;
+}
+
+.account-lux__divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0 16px;
+    color: #8a8680;
+    font-size: 13px;
+
+    &::before,
+    &::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #efeae2;
+    }
+
+    span {
+        flex: 0 0 auto;
+    }
+}
+
+.account-lux__google-host {
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+}
+
 .account-lux__consent {
     display: flex;
     align-items: flex-start;

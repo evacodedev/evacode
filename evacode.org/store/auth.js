@@ -124,6 +124,15 @@ export const useAuthStore = defineStore({
       this.ready = true
       this.preloadAddresses()
     },
+    async loginWithGoogle(credential) {
+      const payload = await $fetch(this.apiUrl('/core/auth/google/'), {
+        method: 'POST',
+        body: { credential },
+      })
+      this.setSession(payload)
+      this.ready = true
+      this.preloadAddresses()
+    },
     async register(fields) {
       const payload = await $fetch(this.apiUrl('/core/auth/register/'), {
         method: 'POST',
