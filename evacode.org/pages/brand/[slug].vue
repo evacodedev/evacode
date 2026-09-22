@@ -81,14 +81,16 @@
                             <img
                                 :src="line.image"
                                 :alt="line.title"
-                                width="1400"
-                                height="2100"
+                                width="1200"
+                                height="1500"
                                 loading="lazy"
                                 decoding="async"
                             >
                         </figure>
-                        <h3 class="brand-lux__line-title">{{ line.title }}</h3>
-                        <p class="brand-lux__line-text">{{ line.body }}</p>
+                        <div class="brand-lux__line-copy">
+                            <h3 class="brand-lux__line-title">{{ line.title }}</h3>
+                            <p class="brand-lux__line-text">{{ line.body }}</p>
+                        </div>
                     </li>
                 </ul>
             </div>

@@ -2305,14 +2305,20 @@ section.beauty-about {
     img {
         display: block;
         width: 100%;
-        aspect-ratio: 3 / 4;
+        height: auto;
+        aspect-ratio: 4 / 5;
         object-fit: cover;
+        object-position: center 40%;
         transition: transform 280ms var(--motion-ease);
     }
 
     &:hover img {
         transform: scale(1.03);
     }
+}
+
+.brand-lux__line-copy {
+    min-width: 0;
 }
 
 .brand-lux__line-title {

@@ -15,8 +15,9 @@ export default defineNuxtPlugin((nuxtApp) => {
                 return
             }
 
-            const alreadyInView = el.getBoundingClientRect().top < window.innerHeight * 0.88
+            const alreadyInView = el.getBoundingClientRect().top < window.innerHeight * 0.92
             if (alreadyInView) {
+                el.classList.add('is-revealed')
                 return
             }
 
@@ -33,8 +34,8 @@ export default defineNuxtPlugin((nuxtApp) => {
                     })
                 },
                 {
-                    threshold: 0.15,
-                    rootMargin: '0px 0px -6% 0px',
+                    threshold: 0,
+                    rootMargin: '0px 0px -8% 0px',
                 }
             )
 
