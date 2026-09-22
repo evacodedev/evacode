@@ -114,14 +114,23 @@ def _shipping_telegram_line(order: SiteOrder) -> str:
 
 
 def _order_list_item(order: SiteOrder) -> dict:
-    items = [
-        {
-            "title": item.title,
-            "quantity": item.quantity,
-            "price_krw": item.price_krw,
-        }
-        for item in order.items.all()
-    ]
+    items = []
+    for item in order.items.all():
+        image_url = ""
+        good = getattr(item, "good", None)
+        if good is not None:
+            image = good.images.order_by("sort", "id").first()
+            if image:
+                image_url = image.url
+        items.append(
+            {
+                "title": item.title,
+                "quantity": item.quantity,
+                "price_krw": item.price_krw,
+                "line_total_krw": item.line_total_krw,
+                "image": image_url,
+            }
+        )
     return {
         "id": str(order.public_id),
         "status": order.status,
@@ -133,6 +142,7 @@ def _order_list_item(order: SiteOrder) -> dict:
         "shipping_method": order.shipping_method,
         "business_ru_order_number": order.business_ru_order_number or "",
         "paypal_mode": order.paypal_mode or "",
+        "item_count": sum(item["quantity"] for item in items),
         "items": items,
     }
 
@@ -423,10 +433,64 @@ class MySiteOrdersView(APIView):
             SiteOrder.objects.filter(user__isnull=True, email__iexact=email).update(user=request.user)
         queryset = (
             SiteOrder.objects.filter(Q(user=request.user) | Q(email__iexact=email))
-            .prefetch_related("items")
+            .prefetch_related("items", "items__good__images")
             .order_by("-created_at")
         )
         return JsonResponse({"results": [_order_list_item(order) for order in queryset]})
+
+
+class SiteOrderHelpView(APIView):
+    permission_classes = [IsAuthenticated]
+    authentication_classes = [OptionalJWTAuthentication]
+
+    def post(self, request, public_id):
+        email = (request.user.email or request.user.username or "").strip()
+        order = (
+            SiteOrder.objects.filter(public_id=public_id)
+            .filter(Q(user=request.user) | Q(email__iexact=email))
+            .first()
+        )
+        if not order:
+            return JsonResponse({"error": "Заказ не найден"}, status=404)
+
+        data = request.data if hasattr(request, "data") else {}
+        phone = str(data.get("phone") or "").strip()
+        message = str(data.get("message") or "").strip()
+        errors = {}
+        if not phone:
+            errors["phone"] = "Укажите телефон"
+        if len(message) < 3:
+            errors["message"] = "Напишите вопрос"
+        if errors:
+            return JsonResponse({"errors": errors}, status=400)
+
+        order_label = order.business_ru_order_number or order.public_id
+        lines = [
+            "ПОМОЩЬ С ЗАКАЗОМ:",
+            f"№ {order_label}",
+            f"Клиент: {request.user.get_full_name() or request.user.username}",
+            f"Email: {email}",
+            f"Телефон: {phone}",
+            f"Вопрос: {message}",
+        ]
+        try:
+            from .views import bot, chat_id, keyboard
+        except Exception:
+            bot = None
+            chat_id = None
+            keyboard = None
+        if not chat_id or not bot:
+            return JsonResponse({"error": "Сейчас нельзя отправить обращение"}, status=503)
+        try:
+            async_to_sync(bot.send_message)(
+                chat_id=chat_id,
+                text="\n".join(lines),
+                reply_markup=keyboard,
+            )
+        except Exception:
+            logger.exception("Не удалось отправить помощь по заказу %s", order.public_id)
+            return JsonResponse({"error": "Не удалось отправить обращение"}, status=502)
+        return JsonResponse({"ok": True})
 
 
 class CheckoutSettingsView(APIView):

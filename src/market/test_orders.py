@@ -436,6 +436,42 @@ class SiteOrderApiTests(TestCase):
         orphan.refresh_from_db()
         self.assertEqual(orphan.user_id, order.user_id)
 
+    @patch("market.order_views.async_to_sync")
+    def test_order_help_sends_telegram(self, async_to_sync_mock):
+        from unittest.mock import MagicMock
+
+        token = self._login("buyer@example.com", staff=False)
+        order = SiteOrder.objects.create(
+            first_name="Buyer",
+            phone="+821011122233",
+            phone_digits="821011122233",
+            email="buyer@example.com",
+            country="KR",
+            city="Seoul",
+            address="Street",
+            amount_krw=10000,
+            amount_usd=Decimal("6.25"),
+            status=SiteOrder.Status.PAID,
+            business_ru_order_number="ЗП-265650",
+        )
+        send_mock = MagicMock()
+        async_to_sync_mock.return_value = send_mock
+        with patch("market.views.bot", MagicMock()), patch("market.views.chat_id", "123"), patch(
+            "market.views.keyboard", None
+        ):
+            response = self.client.post(
+                f"/api/market/orders/{order.public_id}/help/",
+                data=json.dumps({"phone": "+821011122233", "message": "Где мой заказ?"}),
+                content_type="application/json",
+                HTTP_AUTHORIZATION=f"Bearer {token}",
+            )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertTrue(response.json().get("ok"))
+        send_mock.assert_called_once()
+        text = send_mock.call_args.kwargs.get("text") or ""
+        self.assertIn("ПОМОЩЬ С ЗАКАЗОМ", text)
+        self.assertIn("ЗП-265650", text)
+
 
 @override_settings(
     EMAIL_HOST_USER="orders@evacode.co.kr",
