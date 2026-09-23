@@ -884,9 +884,7 @@ export default {
     },
     async loadCheckoutSettings() {
       try {
-        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout-settings/`, {
-          headers: useAuthStore().authHeader(),
-        })
+        const data = await useAuthStore().authFetch('/market/checkout-settings/')
         this.paypalEnabled = Boolean(data.paypal_enabled)
         this.telegramEnabled = Boolean(data.telegram_enabled)
         this.paypalSandbox = Boolean(data.paypal_sandbox)
@@ -1071,9 +1069,8 @@ export default {
           id: item.id,
           quantity: item.quantity,
         }))
-        const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/orders/`, {
+        const data = await useAuthStore().authFetch('/market/orders/', {
           method: 'POST',
-          headers: useAuthStore().authHeader(),
           body: {
             cart: cartCheckout,
             user: this.userValues(),

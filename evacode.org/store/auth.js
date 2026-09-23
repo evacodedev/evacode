@@ -2,9 +2,12 @@ import { defineStore } from 'pinia'
 import { normalizeAddressList } from '~/utils/account-address'
 
 let addressesPromise = null
+let refreshPromise = null
 
-const ACCESS_MAX_AGE = 60 * 60
-const REFRESH_MAX_AGE = 60 * 60 * 24 * 2
+/** Access JWT cookie (~1 day). Silently renewed via refresh. */
+const ACCESS_MAX_AGE = 60 * 60 * 24
+/** Refresh JWT cookie — stay signed in until logout, up to 90 days. */
+const REFRESH_MAX_AGE = 60 * 60 * 24 * 90
 
 function cookieOptions(maxAge) {
   return {
@@ -12,6 +15,10 @@ function cookieOptions(maxAge) {
     sameSite: 'lax',
     maxAge,
   }
+}
+
+function isUnauthorized(error) {
+  return Number(error?.statusCode || error?.status || error?.response?.status) === 401
 }
 
 export function accountErrorMessage(error, fallback) {
@@ -76,9 +83,19 @@ export const useAuthStore = defineStore({
       }
       return { Authorization: `Bearer ${token}` }
     },
+    setTokens({ access, refresh } = {}) {
+      if (access) {
+        this.accessCookie().value = access
+      }
+      if (refresh) {
+        this.refreshCookie().value = refresh
+      }
+    },
     setSession(payload) {
-      this.accessCookie().value = payload.access
-      this.refreshCookie().value = payload.refresh
+      this.setTokens({
+        access: payload.access,
+        refresh: payload.refresh,
+      })
       this.user = payload.user || null
       this.addresses = []
       this.addressesLoaded = false
@@ -91,26 +108,106 @@ export const useAuthStore = defineStore({
       this.addresses = []
       this.addressesLoaded = false
       addressesPromise = null
+      refreshPromise = null
     },
     apiUrl(path) {
       return `${useRuntimeConfig().public.apiBase}${path}`
+    },
+    async refreshAccess() {
+      const refresh = this.refreshCookie().value
+      if (!refresh) {
+        return false
+      }
+      if (refreshPromise) {
+        return refreshPromise
+      }
+      refreshPromise = (async () => {
+        try {
+          const data = await $fetch(this.apiUrl('/refresh_token/'), {
+            method: 'POST',
+            body: { refresh },
+          })
+          if (!data?.access) {
+            return false
+          }
+          this.setTokens({
+            access: data.access,
+            refresh: data.refresh || refresh,
+          })
+          return true
+        } catch {
+          return false
+        } finally {
+          refreshPromise = null
+        }
+      })()
+      return refreshPromise
+    },
+    async fetchMe() {
+      return $fetch(this.apiUrl('/core/auth/me/'), {
+        headers: this.authHeader(),
+      })
+    },
+    async authFetch(path, options = {}) {
+      const run = () =>
+        $fetch(this.apiUrl(path), {
+          ...options,
+          headers: {
+            ...(options.headers || {}),
+            ...this.authHeader(),
+          },
+        })
+      try {
+        return await run()
+      } catch (error) {
+        if (!isUnauthorized(error)) {
+          throw error
+        }
+        const renewed = await this.refreshAccess()
+        if (!renewed) {
+          this.clearSession()
+          throw error
+        }
+        return run()
+      }
     },
     async restore() {
       if (this.ready) {
         return
       }
-      const token = this.accessCookie().value
-      if (!token) {
+      let access = this.accessCookie().value
+      const refresh = this.refreshCookie().value
+      if (!access && !refresh) {
         this.user = null
         this.ready = true
         return
       }
       try {
-        this.user = await $fetch(this.apiUrl('/core/auth/me/'), {
-          headers: this.authHeader(),
-        })
+        if (!access) {
+          const renewed = await this.refreshAccess()
+          if (!renewed) {
+            this.clearSession()
+            this.ready = true
+            return
+          }
+          access = this.accessCookie().value
+        }
+        this.user = await this.fetchMe()
         this.preloadAddresses()
-      } catch {
+      } catch (error) {
+        if (isUnauthorized(error) || !access) {
+          const renewed = await this.refreshAccess()
+          if (renewed) {
+            try {
+              this.user = await this.fetchMe()
+              this.preloadAddresses()
+              this.ready = true
+              return
+            } catch {
+              // fall through
+            }
+          }
+        }
         this.clearSession()
       }
       this.ready = true
@@ -143,16 +240,13 @@ export const useAuthStore = defineStore({
       this.preloadAddresses()
     },
     async saveProfile(fields) {
-      this.user = await $fetch(this.apiUrl('/core/auth/me/'), {
+      this.user = await this.authFetch('/core/auth/me/', {
         method: 'PATCH',
-        headers: this.authHeader(),
         body: fields,
       })
     },
     async listAddresses() {
-      return $fetch(this.apiUrl('/core/auth/addresses/'), {
-        headers: this.authHeader(),
-      })
+      return this.authFetch('/core/auth/addresses/')
     },
     async preloadAddresses(force = false) {
       if (!this.isLoggedIn) {
@@ -210,18 +304,16 @@ export const useAuthStore = defineStore({
     },
     async saveAddress(fields, id) {
       const path = id ? `/core/auth/addresses/${id}/` : '/core/auth/addresses/'
-      const saved = await $fetch(this.apiUrl(path), {
+      const saved = await this.authFetch(path, {
         method: id ? 'PATCH' : 'POST',
-        headers: this.authHeader(),
         body: fields,
       })
       this.rememberAddress(saved)
       return saved
     },
     async deleteAddress(id) {
-      await $fetch(this.apiUrl(`/core/auth/addresses/${id}/`), {
+      await this.authFetch(`/core/auth/addresses/${id}/`, {
         method: 'DELETE',
-        headers: this.authHeader(),
       })
       this.addresses = this.addresses.filter((row) => row.id !== id)
     },

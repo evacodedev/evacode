@@ -276,9 +276,8 @@ async function onHelpSubmit() {
   }
   helpPending.value = true
   try {
-    await $fetch(`${useRuntimeConfig().public.apiBase}/market/orders/${helpOrder.value.id}/help/`, {
+    await auth.authFetch(`/market/orders/${helpOrder.value.id}/help/`, {
       method: 'POST',
-      headers: auth.authHeader(),
       body: {
         phone: helpPhone.value.trim(),
         message: helpMessage.value.trim(),
@@ -301,9 +300,7 @@ async function loadOrders() {
   loading.value = true
   loadError.value = ''
   try {
-    const data = await $fetch(`${useRuntimeConfig().public.apiBase}/market/orders/mine/`, {
-      headers: auth.authHeader(),
-    })
+    const data = await auth.authFetch('/market/orders/mine/')
     orders.value = Array.isArray(data?.results) ? data.results : []
     if (orders.value.length && !orders.value.some((order) => CURRENT_STATUSES.has(order.status))) {
       tab.value = 'done'
