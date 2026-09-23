@@ -263,9 +263,15 @@ class CurrenciesView(View):
         ]
         c = ExchangeRates(str(datetime.datetime.now())[:10])
 
+        def admin_rate(key: str) -> float:
+            row = Currency.objects.filter(key=key).order_by("id").first()
+            if row is None or not row.value:
+                raise ValueError(f"Не задан курс {key}")
+            return float(row.value)
+
         for curr in currencies:
             if curr == "RUB":
-                rub_kor = 1 / float(Currency.objects.get(key='krw-rub-kzt').value)
+                rub_kor = 1 / admin_rate("krw-rub-kzt")
                 currency_data.append(
                     {
                         'value': curr,
@@ -277,9 +283,9 @@ class CurrenciesView(View):
                 continue
             try:
                 if curr in ('USD', 'EUR'):
-                    rub_kor = 1 / float(Currency.objects.get(key='krw-rub-eur').value)
+                    rub_kor = 1 / admin_rate("krw-rub-eur")
                 else:
-                    rub_kor = 1 / float(Currency.objects.get(key='krw-rub-kzt').value)
+                    rub_kor = 1 / admin_rate("krw-rub-kzt")
                 print(rub_kor, float(c[curr].rate))
                 currency_data.append(
                     {
