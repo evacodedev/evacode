@@ -36,9 +36,19 @@ defineProps({
     width: auto;
   }
 
+  header :deep(.top-header) {
+    position: relative;
+    z-index: 40;
+  }
+
+  .header-menu-section {
+    position: relative;
+    z-index: 10;
+  }
+
   .header-catalog {
     position: relative;
-    z-index: 30;
+    z-index: 5;
     padding: 16px 0 18px;
     background: #f7f4ef;
     border-bottom: 1px solid #ece8e1;

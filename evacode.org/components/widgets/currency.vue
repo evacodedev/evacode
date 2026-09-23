@@ -46,7 +46,7 @@ onMounted(async () => {
 .currency-switcher {
     flex-shrink: 0;
     position: relative;
-    z-index: 2;
+    z-index: 50;
 }
 
 .currency-switcher :deep(.m-dropdown-trigger),
