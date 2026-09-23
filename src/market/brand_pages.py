@@ -95,15 +95,14 @@ JOGABI_TITLE_Q = (
 )
 
 
-def ensure_jogabi_brand(*, link_goods: bool = True) -> ProductBrand:
-    data = JOGABI_PAGE
+def _upsert_brand_page(data: dict, *, title_q=None, link_goods: bool = True) -> ProductBrand:
     brand, _created = ProductBrand.objects.get_or_create(slug=data["slug"])
     brand.page_published = data["page_published"]
-    brand.official_url = data["official_url"]
-    brand.native_caption = data["native_caption"]
-    brand.logo = data["logo"]
-    brand.hero = data["hero"]
-    brand.history_image = data["history_image"]
+    brand.official_url = data.get("official_url") or ""
+    brand.native_caption = data.get("native_caption") or ""
+    brand.logo = data.get("logo") or ""
+    brand.hero = data.get("hero") or ""
+    brand.history_image = data.get("history_image") or ""
     brand.video_url = data.get("video_url") or ""
     brand.save()
     ProductBrandI18n.objects.update_or_create(
@@ -111,19 +110,112 @@ def ensure_jogabi_brand(*, link_goods: bool = True) -> ProductBrand:
         language="ru",
         defaults={
             "name": data["name"],
-            "lead": data["lead"],
-            "history_title": data["history_title"],
-            "history": data["history"],
-            "mission_title": data["mission_title"],
-            "mission": data["mission"],
-            "facts": data["facts"],
-            "lines": data["lines"],
-            "partnership_title": data["partnership_title"],
-            "partnership": data["partnership"],
-            "gallery": data["gallery"],
+            "lead": data.get("lead") or "",
+            "history_title": data.get("history_title") or "",
+            "history": data.get("history") or "",
+            "mission_title": data.get("mission_title") or "",
+            "mission": data.get("mission") or "",
+            "facts": data.get("facts") or [],
+            "lines": data.get("lines") or [],
+            "partnership_title": data.get("partnership_title") or "",
+            "partnership": data.get("partnership") or "",
+            "gallery": data.get("gallery") or [],
             "video_title": data.get("video_title") or "",
         },
     )
-    if link_goods:
-        GoodsModel.objects.filter(JOGABI_TITLE_Q).update(content_brand=brand)
+    if link_goods and title_q is not None:
+        GoodsModel.objects.filter(title_q).update(content_brand=brand)
     return brand
+
+
+def ensure_jogabi_brand(*, link_goods: bool = True) -> ProductBrand:
+    return _upsert_brand_page(JOGABI_PAGE, title_q=JOGABI_TITLE_Q, link_goods=link_goods)
+
+
+CURACION_IMG = "/images/brands/curacion"
+
+CURACION_PAGE = {
+    "slug": "curacion",
+    "page_published": True,
+    "official_url": "https://91cosmedi.com/en/curacion/",
+    "video_url": "",
+    "native_caption": "큐라씨온",
+    "logo": f"{CURACION_IMG}/philosophy.jpg",
+    "hero": f"{CURACION_IMG}/hero.jpg",
+    "history_image": f"{CURACION_IMG}/history.jpg",
+    "name": "Curación",
+    "lead": (
+        "Lacto-уход Nineone Cosmedi с 2017 года. "
+        "Формулы с ферментированными молочными кислотами — для баланса, влаги и спокойной кожи."
+    ),
+    "history_title": "Имя из исцеления",
+    "history": (
+        "Curación — от испанского «исцеление». Бренд родился у Nineone Cosmedi как премиальный "
+        "эстетический уход для клиник и дома: мягкие формулы с высокой плотностью влаги и питания.\n\n"
+        "В основе — лакто-комплекс: ферментированные молочные кислоты, гиалуроновая кислота и "
+        "экстракты, которые поддерживают барьер и успокаивают кожу после внешних нагрузок."
+    ),
+    "mission_title": "Lacto Care",
+    "mission": (
+        "Линия Lacto Care собрана вокруг одного обещания — восстановить баланс кожи без жёсткого "
+        "стресса. Очищение, тоник, эссенция, крем и маски работают как короткий ритуал: влага, "
+        "питание и спокойствие день за днём."
+    ),
+    "facts": [
+        {"value": "2017", "label": "Nineone Cosmedi запускает Curación."},
+    ],
+    "lines": [
+        {
+            "title": "Milk Cleansing",
+            "body": "Мягкое очищение на лактобактериях: снимает загрязнения и оставляет кожу увлажнённой.",
+            "image": f"{CURACION_IMG}/history.jpg",
+        },
+        {
+            "title": "Calming Toner",
+            "body": "Три ферментированные молочные кислоты и центелла — лёгкое успокоение и влага.",
+            "image": f"{CURACION_IMG}/hero.jpg",
+        },
+        {
+            "title": "Barrier Essence",
+            "body": "Эссенция с двойным действием: питание, влага и поддержка барьера.",
+            "image": f"{CURACION_IMG}/essence.jpg",
+        },
+        {
+            "title": "Repair Cream",
+            "body": "Крем-контроль восстановления: центелла, гиалуроновая кислота и лакто-комплекс.",
+            "image": f"{CURACION_IMG}/cream.jpg",
+        },
+        {
+            "title": "Aquanic Mask",
+            "body": "Кремовая маска для чистой основы тона и мягкого обновления пор.",
+            "image": f"{CURACION_IMG}/mask.jpg",
+        },
+    ],
+    "partnership_title": "Эксклюзив для России и СНГ",
+    "partnership": (
+        "EvaCode и Nineone Cosmedi подписали соглашение об эксклюзивной дистрибуции Curación "
+        "на рынках России и СНГ: прямая поставка, оригинальный лакто-уход и общая ответственность "
+        "за то, как бренд появляется у клиента."
+    ),
+    "gallery": [
+        {
+            "image": f"{CURACION_IMG}/signing-1.jpg",
+            "alt": "Подписание соглашения EvaCode и Curación",
+        },
+        {
+            "image": f"{CURACION_IMG}/signing-2.jpg",
+            "alt": "Эксклюзивное соглашение Curación для России и СНГ",
+        },
+        {
+            "image": f"{CURACION_IMG}/signing-meeting.jpg",
+            "alt": "Встреча EvaCode и команды Curación",
+        },
+    ],
+    "video_title": "",
+}
+
+CURACION_TITLE_Q = Q(title__icontains="curacion") | Q(title__icontains="curación") | Q(title__icontains="큐라")
+
+
+def ensure_curacion_brand(*, link_goods: bool = True) -> ProductBrand:
+    return _upsert_brand_page(CURACION_PAGE, title_q=CURACION_TITLE_Q, link_goods=link_goods)

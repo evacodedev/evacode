@@ -3,6 +3,7 @@
         <Header/>
         <ShopBeautySlider/>
         <ShopBeautyJogabi/>
+        <ShopBeautyCuracion/>
         <section class="products-main-section">
             <div class="container">
                 <ShopBeautyProducts

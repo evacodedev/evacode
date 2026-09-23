@@ -319,6 +319,61 @@
         padding: 64px 0;
     }
 
+    .brand-cura__hero {
+        min-height: min(68vh, 540px);
+    }
+
+    .brand-cura__hero-inner {
+        padding: 32px 20px 40px;
+    }
+
+    .brand-cura__lead,
+    .brand-cura__text,
+    .brand-cura__year-label {
+        font-size: 15px;
+    }
+
+    .brand-cura__year {
+        padding: 56px 0 0;
+    }
+
+    .brand-cura__story,
+    .brand-cura__mission {
+        padding: 48px 0;
+    }
+
+    .brand-cura__story-grid,
+    .brand-cura__mission-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .brand-cura__ritual {
+        padding: 56px 0 32px;
+    }
+
+    .brand-cura__goods {
+        padding: 32px 0 56px;
+    }
+
+    .brand-cura__partner {
+        padding: 48px 0 40px;
+    }
+
+    .brand-cura__gallery {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .brand-cura__gallery-item.is-lead img,
+    .brand-cura__gallery-item:not(.is-lead) img {
+        aspect-ratio: 4 / 3;
+    }
+
+    .brand-cura__cta {
+        padding: 64px 0;
+    }
+
     .home-brand {
         padding: 56px 0 40px;
     }
@@ -429,6 +484,11 @@
 }
 
 @media (max-width: 991px) {
+    .brand-cura__steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 24px;
+    }
+
     .brand-lux__line-grid {
         grid-template-columns: 1fr;
         gap: 28px;
@@ -654,7 +714,63 @@
     }
 }
 
+@media (max-width: 480px) {
+    .brand-cura__step {
+        grid-template-columns: 1fr;
+        grid-template-areas:
+            "num"
+            "photo"
+            "copy"
+            "text";
+        gap: 10px;
+    }
+
+    .brand-cura__step-photo img {
+        aspect-ratio: 16 / 10;
+    }
+}
+
 @media (max-width: 767px) {
+    .brand-cura__steps {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .brand-cura__step {
+        display: grid;
+        grid-template-columns: 120px minmax(0, 1fr);
+        grid-template-areas:
+            "num num"
+            "photo copy"
+            "photo text";
+        column-gap: 16px;
+        row-gap: 6px;
+        align-items: start;
+    }
+
+    .brand-cura__step-num {
+        grid-area: num;
+        margin-bottom: 4px;
+    }
+
+    .brand-cura__step-photo {
+        grid-area: photo;
+        margin: 0;
+
+        img {
+            aspect-ratio: 4 / 3;
+        }
+    }
+
+    .brand-cura__step-title {
+        grid-area: copy;
+        align-self: end;
+    }
+
+    .brand-cura__step-text {
+        grid-area: text;
+    }
+
     .brand-lux__line {
         grid-template-columns: 1fr;
         gap: 14px;

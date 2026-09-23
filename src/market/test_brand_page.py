@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from market.brand_pages import ensure_jogabi_brand
+from market.brand_pages import ensure_curacion_brand, ensure_jogabi_brand
 from market.models import GoodsModel, GroupOfGoods, ProductBrand, ProductBrandI18n
 
 
@@ -24,6 +24,16 @@ class BrandPageApiTests(TestCase):
             stock=3,
             official_price=85000,
             retail_price=85000,
+        )
+        self.cura_good = GoodsModel.objects.create(
+            id=402,
+            title="04 CURACION Lacto Care Barrier Essence",
+            description="Эссенция",
+            category=self.category,
+            type="goods",
+            stock=2,
+            official_price=45000,
+            retail_price=45000,
         )
 
     def test_unpublished_brand_is_404(self):
@@ -60,3 +70,23 @@ class BrandPageApiTests(TestCase):
         self.assertEqual(detail.json()["content_brand"]["page"], True)
         hidden = self.client.get("/api/market/goods/", {"brand": "ohui"})
         self.assertEqual(hidden.json()["count"], 0)
+
+    def test_curacion_page_and_goods_link(self):
+        brand = ensure_curacion_brand()
+        self.cura_good.refresh_from_db()
+        self.assertEqual(self.cura_good.content_brand_id, brand.id)
+        response = self.client.get("/api/market/brands/curacion/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["name"], "Curación")
+        self.assertEqual(payload["native_caption"], "큐라씨온")
+        self.assertEqual(payload["facts"][0]["value"], "2017")
+        self.assertFalse(payload["partnership"])
+        self.assertFalse(payload["video_url"])
+        self.assertEqual(payload["gallery"], [])
+        self.assertEqual(payload["lines"][0]["title"], "Milk Cleansing")
+        goods = self.client.get("/api/market/goods/", {"brand": "curacion"})
+        self.assertEqual(goods.status_code, 200)
+        self.assertEqual(goods.json()["results"][0]["id"], 402)
+        detail = self.client.get("/api/market/goods/402/")
+        self.assertEqual(detail.json()["content_brand"]["page"], True)
