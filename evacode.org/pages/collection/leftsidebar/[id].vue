@@ -4,26 +4,24 @@
         <section class="section-b-space ratio_asos products-section">
             <div class="collection-wrapper">
                 <div class="container">
-                    <WidgetsCatalogFilters>
-                        <template #meta>
-                            <span>Найдено: {{ displayedProductsCount }}</span>
-                            <div class="catalog-toolbar">
-                                <label class="catalog-page-size">
-                                    <span>На странице</span>
-                                    <select v-model="pageSize" class="form-select catalog-sort">
-                                        <option :value="20">20</option>
-                                        <option :value="50">50</option>
-                                        <option :value="100">100</option>
-                                    </select>
-                                </label>
-                                <select v-model="ordering" class="form-select catalog-sort">
-                                    <option value="retail_price">Сначала дешевле</option>
-                                    <option value="-retail_price">Сначала дороже</option>
-                                    <option value="title">По названию</option>
+                    <div class="catalog-page-meta">
+                        <span>Найдено: {{ displayedProductsCount }}</span>
+                        <div class="catalog-toolbar">
+                            <label class="catalog-page-size">
+                                <span>На странице</span>
+                                <select v-model="pageSize" class="form-select catalog-sort">
+                                    <option :value="20">20</option>
+                                    <option :value="50">50</option>
+                                    <option :value="100">100</option>
                                 </select>
-                            </div>
-                        </template>
-                    </WidgetsCatalogFilters>
+                            </label>
+                            <select v-model="ordering" class="form-select catalog-sort">
+                                <option value="retail_price">Сначала дешевле</option>
+                                <option value="-retail_price">Сначала дороже</option>
+                                <option value="title">По названию</option>
+                            </select>
+                        </div>
+                    </div>
                     <div class="collection-content">
                         <div class="page-main-content">
                             <div class="row">

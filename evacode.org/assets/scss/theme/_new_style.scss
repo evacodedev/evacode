@@ -720,6 +720,17 @@ section.products-main-section {
     gap: 12px;
 }
 
+.catalog-page-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px 20px;
+    margin: 20px 0 24px;
+    color: #8a8680;
+    font-size: 13px;
+}
+
 .catalog-sort {
     width: auto;
     min-width: 180px;

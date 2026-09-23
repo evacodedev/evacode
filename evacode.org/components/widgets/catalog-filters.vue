@@ -1,5 +1,5 @@
 <template>
-  <div ref="rootRef" class="catalog-bar-wrap">
+  <div ref="rootRef" class="catalog-bar-wrap" :class="{ 'is-global': global }">
     <div class="catalog-bar-row">
       <div class="catalog-bar">
       <div class="catalog-bar__left">
@@ -52,14 +52,15 @@
         </button>
       </div>
       <form class="catalog-bar__search" @submit.prevent="applySearch">
-        <input
+        <CheckoutField
             v-model="searchInput"
-            class="form-control catalog-bar__q"
+            label="Название товара"
+            name="catalog-q"
             type="search"
-            placeholder="Название товара"
-        >
+            autocomplete="off"
+        />
       </form>
-        <div class="catalog-bar__meta">
+        <div v-if="$slots.meta" class="catalog-bar__meta">
           <slot name="meta"/>
         </div>
       </div>
@@ -183,6 +184,13 @@ import {useRoute, useRouter} from 'vue-router';
 
 const route = useRoute();
 const router = useRouter();
+const props = defineProps({
+  /** Compact bar under global header (no page meta slot). */
+  global: {
+    type: Boolean,
+    default: false,
+  },
+});
 const rootRef = ref(null);
 const openPanel = ref(null);
 const brandSearch = ref('');
@@ -413,12 +421,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px 20px;
   min-width: 0;
+  align-self: center;
 }
 
 .catalog-bar__btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  height: 44px;
   min-height: 44px;
   padding: 0 2px;
   border: 0;
@@ -429,9 +439,10 @@ onBeforeUnmount(() => {
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  line-height: 1;
   cursor: pointer;
   transform: scale(1);
-  transform-origin: center bottom;
+  transform-origin: center;
   transition:
       color 240ms var(--motion-ease),
       border-color 240ms var(--motion-ease),
@@ -481,14 +492,25 @@ onBeforeUnmount(() => {
 }
 
 .catalog-bar__search {
-  flex: 1 1 180px;
-  min-width: 140px;
-  max-width: 280px;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 320px;
   margin-left: auto;
 }
 
-.catalog-bar__q {
-  height: 40px;
+.catalog-bar__search :deep(.checkout-field) {
+  margin-bottom: 0;
+}
+
+.catalog-bar__search :deep(.checkout-field input) {
+  height: 56px;
+  padding: 22px 14px 8px;
+  border-color: #b89254;
+  border-radius: 8px;
+}
+
+.catalog-bar__search :deep(.checkout-field label) {
+  left: 14px;
 }
 
 .catalog-bar__meta {
@@ -654,6 +676,11 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
+}
+
+.catalog-bar-wrap.is-global .catalog-bar__chips {
+  margin-top: 10px;
+  padding-bottom: 10px;
 }
 
 .catalog-chip {
