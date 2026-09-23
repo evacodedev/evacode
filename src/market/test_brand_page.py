@@ -1,6 +1,6 @@
 from django.test import TestCase
 
-from market.brand_pages import ensure_curacion_brand, ensure_jogabi_brand
+from market.brand_pages import ensure_curacion_brand, ensure_jogabi_brand, ensure_tom_tit_tot_brand
 from market.models import GoodsModel, GroupOfGoods, ProductBrand, ProductBrandI18n
 
 
@@ -34,6 +34,16 @@ class BrandPageApiTests(TestCase):
             stock=2,
             official_price=45000,
             retail_price=45000,
+        )
+        self.ttt_good = GoodsModel.objects.create(
+            id=403,
+            title="TOM-TIT-TOT (TTT) Tenseloid Cream",
+            description="Крем",
+            category=self.category,
+            type="goods",
+            stock=4,
+            official_price=55000,
+            retail_price=55000,
         )
 
     def test_unpublished_brand_is_404(self):
@@ -81,12 +91,31 @@ class BrandPageApiTests(TestCase):
         self.assertEqual(payload["name"], "Curación")
         self.assertEqual(payload["native_caption"], "큐라씨온")
         self.assertEqual(payload["facts"][0]["value"], "2017")
-        self.assertFalse(payload["partnership"])
+        self.assertTrue(payload["partnership"])
         self.assertFalse(payload["video_url"])
-        self.assertEqual(payload["gallery"], [])
+        self.assertEqual(len(payload["gallery"]), 3)
         self.assertEqual(payload["lines"][0]["title"], "Milk Cleansing")
         goods = self.client.get("/api/market/goods/", {"brand": "curacion"})
         self.assertEqual(goods.status_code, 200)
         self.assertEqual(goods.json()["results"][0]["id"], 402)
         detail = self.client.get("/api/market/goods/402/")
+        self.assertEqual(detail.json()["content_brand"]["page"], True)
+
+    def test_tom_tit_tot_page_and_goods_link(self):
+        brand = ensure_tom_tit_tot_brand()
+        self.ttt_good.refresh_from_db()
+        self.assertEqual(self.ttt_good.content_brand_id, brand.id)
+        response = self.client.get("/api/market/brands/tom-tit-tot/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["name"], "TOM-TIT-TOT")
+        self.assertEqual(payload["native_caption"], "TTT")
+        self.assertEqual(payload["facts"][0]["value"], "CPNP")
+        self.assertTrue(payload["partnership"])
+        self.assertEqual(len(payload["gallery"]), 3)
+        self.assertEqual(payload["lines"][0]["title"], "Placenta Care")
+        goods = self.client.get("/api/market/goods/", {"brand": "tom-tit-tot"})
+        self.assertEqual(goods.status_code, 200)
+        self.assertEqual(goods.json()["results"][0]["id"], 403)
+        detail = self.client.get("/api/market/goods/403/")
         self.assertEqual(detail.json()["content_brand"]["page"], True)

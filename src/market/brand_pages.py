@@ -219,3 +219,96 @@ CURACION_TITLE_Q = Q(title__icontains="curacion") | Q(title__icontains="curació
 
 def ensure_curacion_brand(*, link_goods: bool = True) -> ProductBrand:
     return _upsert_brand_page(CURACION_PAGE, title_q=CURACION_TITLE_Q, link_goods=link_goods)
+
+
+TTT_IMG = "/images/brands/tom-tit-tot"
+SIGNING_IMG = "/images/brands/curacion"
+
+TOM_TIT_TOT_PAGE = {
+    "slug": "tom-tit-tot",
+    "page_published": True,
+    "official_url": "https://tomtittot.com/",
+    "video_url": "",
+    "native_caption": "TTT",
+    "logo": f"{TTT_IMG}/ceo.jpg",
+    "hero": f"{TTT_IMG}/banner-cpnp.jpg",
+    "history_image": f"{TTT_IMG}/placenta.jpg",
+    "name": "TOM-TIT-TOT",
+    "lead": (
+        "Премиальный корейский уход с высокой концентрацией активных компонентов. "
+        "Стволовые клетки, PDRN, NMN, золото, ниацинамид и растительная плацента — "
+        "ради реальных изменений кожи."
+    ),
+    "history_title": "Имя из сказки",
+    "history": (
+        "TOM-TIT-TOT вдохновлён английской сказкой Tom Tit Tot: герой появляется в самый "
+        "безвыходный момент и доводит до конца то, что одному было не под силу.\n\n"
+        "Так и кожа: когда восстановление, упругость и тон уже не отвечают только на "
+        "ежедневный уход, нужна формула с достаточной дозой активных веществ — не "
+        "красивое имя ингредиента, а его концентрация."
+    ),
+    "mission_title": "Содержание важнее тренда",
+    "mission": (
+        "Мы проектируем состав раньше образа: тренды вторичны, результат — первичен. "
+        "Продукты TOM-TIT-TOT используют и дома, и в эстетических салонах: важны "
+        "стабильность, плотность ухода и ощутимое улучшение состояния кожи."
+    ),
+    "facts": [
+        {"value": "CPNP", "label": "Регистрация в Европейском союзе."},
+        {"value": "FDA", "label": "Соответствие стандартам США."},
+        {"value": "MHLW", "label": "Сертификация для Японии."},
+    ],
+    "lines": [
+        {
+            "title": "Placenta Care",
+            "body": "Растительная плацента, витамин C и ниацинамид — сияние и питание в плотной формуле.",
+            "image": f"{TTT_IMG}/placenta.jpg",
+        },
+        {
+            "title": "V15 Ampoule",
+            "body": "Курсовые ампулы с высокой долей активов для яркости и ровного тона.",
+            "image": f"{TTT_IMG}/ampoule.jpg",
+        },
+        {
+            "title": "Tenseloid",
+            "body": "Крем на пептидах и коллагеновом комплексе — упругость и антивозрастной фокус.",
+            "image": f"{TTT_IMG}/tenseloid.jpg",
+        },
+        {
+            "title": "Intensive Care",
+            "body": "Линии для салона и дома: концентрация, которую выбирают специалисты.",
+            "image": f"{TTT_IMG}/care.jpg",
+        },
+    ],
+    "partnership_title": "Эксклюзив для России и СНГ",
+    "partnership": (
+        "EvaCode и TOM-TIT-TOT подписали соглашение об эксклюзивной дистрибуции "
+        "на рынках России и СНГ: прямая поставка, оригинальный уход и общая ответственность "
+        "за то, как бренд появляется у клиента."
+    ),
+    "gallery": [
+        {
+            "image": f"{SIGNING_IMG}/signing-1.jpg",
+            "alt": "Подписание соглашения EvaCode и TOM-TIT-TOT",
+        },
+        {
+            "image": f"{SIGNING_IMG}/signing-2.jpg",
+            "alt": "Эксклюзивное соглашение TOM-TIT-TOT для России и СНГ",
+        },
+        {
+            "image": f"{SIGNING_IMG}/signing-meeting.jpg",
+            "alt": "Встреча EvaCode и команды бренда",
+        },
+    ],
+    "video_title": "",
+}
+
+TOM_TIT_TOT_TITLE_Q = (
+    Q(title__icontains="tom-tit-tot")
+    | Q(title__icontains="tom tit tot")
+    | Q(title__icontains="(ttt)")
+)
+
+
+def ensure_tom_tit_tot_brand(*, link_goods: bool = True) -> ProductBrand:
+    return _upsert_brand_page(TOM_TIT_TOT_PAGE, title_q=TOM_TIT_TOT_TITLE_Q, link_goods=link_goods)

@@ -4,6 +4,7 @@
         <ShopBeautySlider/>
         <ShopBeautyJogabi/>
         <ShopBeautyCuracion/>
+        <ShopBeautyTomTitTot/>
         <section class="products-main-section">
             <div class="container">
                 <ShopBeautyProducts

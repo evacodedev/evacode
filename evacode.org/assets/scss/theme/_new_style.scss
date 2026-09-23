@@ -2891,6 +2891,344 @@ section.beauty-about {
     }
 }
 
+.brand-ttt__hero {
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    min-height: min(78vh, 720px);
+    overflow: hidden;
+    background: #1a1917;
+}
+
+.brand-ttt__hero-photo {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center bottom;
+}
+
+.brand-ttt__hero-veil {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+        180deg,
+        rgba(26, 25, 23, 0.06) 0%,
+        rgba(26, 25, 23, 0.1) 40%,
+        rgba(26, 25, 23, 0.5) 72%,
+        rgba(26, 25, 23, 0.78) 100%
+    );
+    pointer-events: none;
+}
+
+.brand-ttt__hero-inner {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 48px 32px 56px;
+}
+
+.brand-ttt__mark {
+    display: block;
+    width: auto;
+    height: 28px;
+    margin-bottom: 20px;
+    filter: brightness(0) invert(1);
+}
+
+.brand-ttt__kicker,
+.brand-ttt__eyebrow,
+.brand-ttt__cta-brand {
+    margin: 0 0 12px;
+    color: #b89254;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+}
+
+.brand-ttt__eyebrow--center {
+    text-align: center;
+}
+
+.brand-ttt__title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 300;
+    letter-spacing: 0.06em;
+    line-height: 1.08;
+}
+
+.brand-ttt__lead {
+    max-width: 28em;
+    margin: 18px 0 0;
+    color: rgba(255, 255, 255, 0.88);
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+.brand-ttt__certs {
+    padding: 56px 0;
+    background: #fff;
+}
+
+.brand-ttt__certs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    text-align: center;
+}
+
+.brand-ttt__cert-value {
+    margin: 0;
+    color: #1a1917;
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+}
+
+.brand-ttt__cert-label {
+    max-width: 16em;
+    margin: 10px auto 0;
+    color: #8a8680;
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.brand-ttt__story,
+.brand-ttt__mission {
+    padding: 72px 0;
+}
+
+.brand-ttt__story {
+    background: #f7f4ef;
+}
+
+.brand-ttt__mission {
+    background: #fff;
+}
+
+.brand-ttt__story-grid,
+.brand-ttt__mission-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 48px;
+    align-items: center;
+}
+
+.brand-ttt__mission-grid {
+    grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
+}
+
+.brand-ttt__story-photo,
+.brand-ttt__mission-photo {
+    margin: 0;
+    overflow: hidden;
+    background: #eeeae3;
+
+    img {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 5 / 4;
+        object-fit: cover;
+        object-position: center;
+        transition: transform 280ms var(--motion-ease);
+    }
+
+    &:hover img {
+        transform: scale(1.03);
+    }
+}
+
+.brand-ttt__mission-photo img {
+    aspect-ratio: 4 / 5;
+    object-position: center 20%;
+}
+
+.brand-ttt__heading {
+    margin: 0;
+    color: #1a1917;
+    font-size: clamp(26px, 3vw, 38px);
+    font-weight: 500;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+}
+
+.brand-ttt__heading--center {
+    text-align: center;
+}
+
+.brand-ttt__text {
+    margin: 18px 0 0;
+    color: #1a1917;
+    font-size: 16px;
+    line-height: 1.7;
+    white-space: pre-line;
+}
+
+.brand-ttt__lines {
+    padding: 72px 0 40px;
+    background: #f7f4ef;
+}
+
+.brand-ttt__line-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 20px;
+    margin: 36px 0 0;
+    padding: 0;
+    list-style: none;
+}
+
+.brand-ttt__line-photo {
+    margin: 0;
+    overflow: hidden;
+    background: #eeeae3;
+
+    img {
+        display: block;
+        width: 100%;
+        aspect-ratio: 4 / 5;
+        object-fit: cover;
+        transition: transform 280ms var(--motion-ease);
+    }
+
+    &:hover img {
+        transform: scale(1.03);
+    }
+}
+
+.brand-ttt__line-title {
+    margin: 16px 0 0;
+    color: #1a1917;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.brand-ttt__line-text {
+    margin: 8px 0 0;
+    color: #8a8680;
+    font-size: 14px;
+    line-height: 1.55;
+}
+
+.brand-ttt__partner {
+    padding: 72px 0 56px;
+    background: #fff;
+}
+
+.brand-ttt__partner-text {
+    max-width: 38em;
+    margin: -8px auto 40px;
+    color: #8a8680;
+    font-size: 16px;
+    line-height: 1.7;
+    text-align: center;
+}
+
+.brand-ttt__gallery {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+.brand-ttt__gallery-item {
+    margin: 0;
+    overflow: hidden;
+    background: #eeeae3;
+
+    img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transition: transform 280ms var(--motion-ease);
+    }
+
+    &:hover img {
+        transform: scale(1.03);
+    }
+
+    &.is-lead {
+        grid-column: 1 / -1;
+
+        img {
+            aspect-ratio: 16 / 10;
+            object-position: center 40%;
+        }
+    }
+
+    &:not(.is-lead) img {
+        aspect-ratio: 4 / 3;
+        object-position: center 35%;
+    }
+}
+
+.brand-ttt__goods {
+    padding: 40px 0 72px;
+    background: #f7f4ef;
+}
+
+.brand-ttt__empty {
+    margin: 24px 0 0;
+    color: #8a8680;
+    text-align: center;
+}
+
+.brand-ttt__cta {
+    padding: 88px 0;
+    background: #1a1917;
+    text-align: center;
+}
+
+.brand-ttt__cta .brand-ttt__cta-brand {
+    color: #b89254;
+}
+
+.brand-ttt__cta-title {
+    margin: 0;
+    color: #fff;
+    font-size: clamp(26px, 3.2vw, 40px);
+    font-weight: 400;
+}
+
+.brand-ttt__cta-text {
+    max-width: 28em;
+    margin: 14px auto 0;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 15px;
+    line-height: 1.55;
+}
+
+.brand-ttt__cta-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    margin-top: 28px;
+    padding: 12px 28px;
+    border: 1px solid #fff;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-decoration: none;
+    text-transform: uppercase;
+    transition: background 240ms var(--motion-ease), color 240ms var(--motion-ease);
+
+    &:hover,
+    &:focus {
+        background: #fff;
+        color: #1a1917;
+    }
+}
+
 .home-brand {
     padding: 80px 0 56px;
     background: #f7f4ef;

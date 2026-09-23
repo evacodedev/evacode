@@ -374,6 +374,58 @@
         padding: 64px 0;
     }
 
+    .brand-ttt__hero {
+        min-height: min(68vh, 560px);
+    }
+
+    .brand-ttt__hero-inner {
+        padding: 32px 20px 40px;
+    }
+
+    .brand-ttt__certs-grid {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .brand-ttt__story,
+    .brand-ttt__mission,
+    .brand-ttt__lines {
+        padding: 48px 0;
+    }
+
+    .brand-ttt__story-grid,
+    .brand-ttt__mission-grid {
+        grid-template-columns: 1fr;
+        gap: 24px;
+    }
+
+    .brand-ttt__line-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+
+    .brand-ttt__partner {
+        padding: 48px 0 40px;
+    }
+
+    .brand-ttt__gallery {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .brand-ttt__gallery-item.is-lead img,
+    .brand-ttt__gallery-item:not(.is-lead) img {
+        aspect-ratio: 4 / 3;
+    }
+
+    .brand-ttt__goods {
+        padding: 32px 0 56px;
+    }
+
+    .brand-ttt__cta {
+        padding: 64px 0;
+    }
+
     .home-brand {
         padding: 56px 0 40px;
     }
@@ -734,6 +786,10 @@
     .brand-cura__steps {
         grid-template-columns: 1fr;
         gap: 28px;
+    }
+
+    .brand-ttt__line-grid {
+        grid-template-columns: 1fr;
     }
 
     .brand-cura__step {
