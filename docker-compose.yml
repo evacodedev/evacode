@@ -59,6 +59,22 @@ services:
     volumes:
       - static:/www/data/static
       - media:/www/data/media
+  imgproxy:
+    container_name: evacode-imgproxy
+    image: darthsim/imgproxy:v3.27.1
+    restart: always
+    environment:
+      IMGPROXY_BIND: ":8080"
+      IMGPROXY_ALLOWED_SOURCES: "https://a46291.business.ru/"
+      IMGPROXY_MAX_SRC_RESOLUTION: "50"
+      IMGPROXY_QUALITY: "75"
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_TTL: "2592000"
+      IMGPROXY_DOWNLOAD_TIMEOUT: "15"
+      IMGPROXY_READ_TIMEOUT: "15"
+      IMGPROXY_WRITE_TIMEOUT: "15"
+      IMGPROXY_MAX_SRC_FILE_SIZE: "20971520"
   nginx:
     container_name: evacode-nginx
     build: ./dockerfiles/nginx
@@ -67,9 +83,11 @@ services:
       - 80:80
     depends_on:
       - server
+      - imgproxy
     volumes:
       - static:/www/data/static
       - media:/www/data/media
+      - imgcache:/var/cache/nginx/imgproxy
       - ./data/certbot/conf:/etc/letsencrypt:ro
       - ./data/certbot/www:/var/www/certbot:ro
     command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'
@@ -93,6 +111,8 @@ volumes:
     name: evacode-static
   media:
     name: evacode-media
+  imgcache:
+    name: evacode-imgcache
 networks:
   default:
     driver: bridge

@@ -87,6 +87,7 @@ export default defineNuxtConfig({
         public: {
             apiBase: process.env.BASE_API_URL,
             url: process.env.SITE_URL || 'https://www.evacode.org',
+            imgproxyPrefix: process.env.IMGPROXY_PREFIX || '',
         }
     },
     site: {
