@@ -29,7 +29,7 @@
                                 <div class="footer-title">
                                     <h4>Информация о магазине</h4>
                                 </div>
-                                <div class="footer-contact">
+                                <div id="footer-contacts" class="footer-contact">
                                     <FooterContact/>
                                 </div>
                             </div>

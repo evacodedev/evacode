@@ -4,7 +4,6 @@
       <div class="row">
         <div class="col-xl-3 col-lg-4 col-sm-4 top-header-left-column">
           <div class="top-header-left top-header-v-centered">
-            <WidgetsContactPhone />
           </div>
         </div>
         <div class="col-xl-6 col-lg-4 col-sm-6 col-6 top-header-center-column">

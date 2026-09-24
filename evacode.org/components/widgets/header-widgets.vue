@@ -3,6 +3,9 @@
     <div class="icon-nav">
       <ul class="header-tools">
         <li>
+          <WidgetsContactPhone />
+        </li>
+        <li>
           <nuxt-link
             :to="accountTo"
             class="header-account"

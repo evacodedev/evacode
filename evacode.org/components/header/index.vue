@@ -156,12 +156,12 @@ onBeforeUnmount(() => {
 
   @media (max-width: 991px) {
     .header-catalog {
-      padding: 10px 0 12px;
+      padding: 0;
     }
 
     .header-catalog.is-stuck {
-      padding-top: max(8px, env(safe-area-inset-top, 0px));
-      padding-bottom: 8px;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: 0;
     }
 
     .header-catalog :deep(.container) {
@@ -172,53 +172,25 @@ onBeforeUnmount(() => {
     }
 
     .header-catalog__panel {
-      padding: 10px 12px 12px;
+      padding: 6px 10px;
       border-radius: 0;
       border-left: 0;
       border-right: 0;
     }
 
     .header-catalog__panel :deep(.catalog-bar) {
-      gap: 10px 0;
+      gap: 8px;
+      min-height: 0;
+      padding: 0;
     }
 
-    .header-catalog__panel :deep(.catalog-bar__left) {
-      width: 100%;
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 0;
-      overflow: visible;
-    }
-
-    .header-catalog__panel :deep(.catalog-bar__btn) {
-      width: 100%;
-      justify-content: center;
-      gap: 4px;
-      height: 40px;
-      min-height: 40px;
-      padding: 0 2px;
-      font-size: 11px;
-      letter-spacing: 0.08em;
-      white-space: nowrap;
-    }
-
-    .header-catalog__panel :deep(.catalog-bar__chev) {
-      flex-shrink: 0;
-    }
-
-    .header-catalog__panel :deep(.catalog-bar__search) {
-      width: 100%;
-      max-width: none;
-      margin: 0;
-    }
-
-    .header-catalog__panel :deep(.catalog-bar__search .checkout-field input) {
-      height: 44px;
+    .header-catalog__panel :deep(.catalog-bar__chips) {
+      margin-top: 6px;
     }
 
     .header-catalog__panel :deep(.catalog-pop) {
-      left: 12px;
-      right: 12px;
+      left: 10px;
+      right: 10px;
       width: auto;
       max-width: none;
     }

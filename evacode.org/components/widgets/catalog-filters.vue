@@ -11,7 +11,8 @@
             aria-controls="catalog-pop-kind"
             @click="togglePanel('kind')"
         >
-          <span>Категории</span>
+          <span class="catalog-bar__label catalog-bar__label--full">Категории</span>
+          <span class="catalog-bar__label catalog-bar__label--short">Тип</span>
           <span v-if="selectedKinds.length" class="catalog-bar__n">{{ selectedKinds.length }}</span>
           <span class="catalog-bar__chev" aria-hidden="true">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -27,7 +28,8 @@
             aria-controls="catalog-pop-brand"
             @click="togglePanel('brand')"
         >
-          <span>Бренды</span>
+          <span class="catalog-bar__label catalog-bar__label--full">Бренды</span>
+          <span class="catalog-bar__label catalog-bar__label--short">Бренд</span>
           <span v-if="selectedBrands.length" class="catalog-bar__n">{{ selectedBrands.length }}</span>
           <span class="catalog-bar__chev" aria-hidden="true">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
@@ -43,7 +45,7 @@
             aria-controls="catalog-pop-price"
             @click="togglePanel('price')"
         >
-          <span>Цена</span>
+          <span class="catalog-bar__label">Цена</span>
           <span class="catalog-bar__chev" aria-hidden="true">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none">
               <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -52,13 +54,16 @@
         </button>
       </div>
       <form class="catalog-bar__search" @submit.prevent="applySearch">
-        <CheckoutField
+        <input
             v-model="searchInput"
-            label="Название товара"
-            name="catalog-q"
+            class="catalog-bar__q"
             type="search"
+            name="catalog-q"
+            placeholder="Поиск"
             autocomplete="off"
-        />
+            enterkeyhint="search"
+            aria-label="Название товара"
+        >
       </form>
         <div v-if="$slots.meta" class="catalog-bar__meta">
           <slot name="meta"/>
@@ -411,7 +416,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 20px 28px;
-  min-height: 52px;
+  min-height: 44px;
   padding-bottom: 12px;
   border-bottom: 1px solid #ece8e1;
 }
@@ -491,6 +496,10 @@ onBeforeUnmount(() => {
   }
 }
 
+.catalog-bar__label--short {
+  display: none;
+}
+
 .catalog-bar__search {
   flex: 1 1 220px;
   min-width: 180px;
@@ -498,19 +507,34 @@ onBeforeUnmount(() => {
   margin-left: auto;
 }
 
-.catalog-bar__search :deep(.checkout-field) {
-  margin-bottom: 0;
-}
-
-.catalog-bar__search :deep(.checkout-field input) {
-  height: 56px;
-  padding: 22px 14px 8px;
-  border-color: #b89254;
+.catalog-bar__q {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 14px;
+  border: 1px solid #b89254;
   border-radius: 8px;
-}
+  background: #fff;
+  color: #1a1917;
+  font-size: 15px;
+  line-height: 1.2;
+  appearance: none;
+  box-shadow: none;
+  transition: border-color 240ms var(--motion-ease);
 
-.catalog-bar__search :deep(.checkout-field label) {
-  left: 14px;
+  &::placeholder {
+    color: #8a8680;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #1a1917;
+  }
+
+  &::-webkit-search-decoration,
+  &::-webkit-search-cancel-button {
+    appearance: none;
+  }
 }
 
 .catalog-bar__meta {
@@ -715,43 +739,65 @@ onBeforeUnmount(() => {
 
 @media (max-width: 991px) {
   .catalog-bar {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
     flex-wrap: nowrap;
-    gap: 10px 0;
+    align-items: center;
+    gap: 8px;
+    min-height: 0;
+    padding-bottom: 0;
   }
 
   .catalog-bar__left {
-    width: 100%;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 0;
+    display: flex;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: none;
+    gap: 2px;
     overflow: visible;
   }
 
+  .catalog-bar__label--full {
+    display: none;
+  }
+
+  .catalog-bar__label--short {
+    display: inline;
+  }
+
   .catalog-bar__btn {
-    width: 100%;
+    width: auto;
     justify-content: center;
-    gap: 4px;
-    height: 40px;
-    min-height: 40px;
+    gap: 2px;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 4px;
     font-size: 11px;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.04em;
     white-space: nowrap;
   }
 
+  .catalog-bar__chev svg {
+    width: 10px;
+    height: 10px;
+  }
+
   .catalog-bar__search {
+    flex: 1 1 auto;
+    min-width: 0;
     max-width: none;
-    width: 100%;
+    width: auto;
     margin: 0;
   }
 
+  .catalog-bar__q {
+    height: 36px;
+    padding: 0 10px;
+    border-radius: 6px;
+    font-size: 14px;
+  }
+
   .catalog-bar__meta {
-    width: 100%;
-    margin: 8px 0 0;
-    flex-wrap: wrap;
-    white-space: normal;
-    justify-content: space-between;
+    display: none;
   }
 
   .catalog-pop {
