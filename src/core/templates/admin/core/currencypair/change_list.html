@@ -4,14 +4,14 @@
 <li>
   <form method="post" action="{% url 'admin:core_currencypair_refresh_drafts' %}" style="display:inline;">
     {% csrf_token %}
-    <input type="submit" value="Подтянуть черновик (ЦБ + Frankfurter)" class="default">
+    <input type="submit" value="Подтянуть API курсы (ЦБ + Frankfurter)" class="default">
   </form>
 </li>
 <li>
   <form method="post" action="{% url 'admin:core_currencypair_accept_drafts' %}" style="display:inline;"
-        onsubmit="return confirm('Записать все черновики в рабочие курсы?');">
+        onsubmit="return confirm('Записать все API курсы в коммерческие (витрина / PayPal)?');">
     {% csrf_token %}
-    <input type="submit" value="Принять все черновики" class="default">
+    <input type="submit" value="Принять API → коммерческие" class="default">
   </form>
 </li>
 {{ block.super }}

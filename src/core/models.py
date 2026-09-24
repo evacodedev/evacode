@@ -153,19 +153,21 @@ class CurrencyPair(models.Model):
     name = models.CharField("Название", max_length=64, blank=True)
     symbol = models.CharField("Символ", max_length=8, blank=True)
     rate = models.DecimalField(
-        "Курс (quote за 1 KRW)",
+        "Коммерческий курс",
         max_digits=18,
         decimal_places=10,
+        help_text="Quote за 1 KRW. Используется на витрине, в калькуляторе и PayPal.",
     )
     draft_rate = models.DecimalField(
-        "Черновик курса",
+        "API курс",
         max_digits=18,
         decimal_places=10,
         null=True,
         blank=True,
+        help_text="Черновик с Frankfurter + ЦБ. На витрину не влияет, пока не принят.",
     )
-    draft_source = models.CharField("Источник черновика", max_length=64, blank=True)
-    draft_updated_at = models.DateTimeField("Черновик обновлён", null=True, blank=True)
+    draft_source = models.CharField("Источник API курса", max_length=64, blank=True)
+    draft_updated_at = models.DateTimeField("API курс обновлён", null=True, blank=True)
     sort = models.PositiveSmallIntegerField("Порядок", default=0)
     is_active = models.BooleanField("Активна", default=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)

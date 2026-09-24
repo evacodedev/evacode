@@ -205,3 +205,60 @@ def serialize_rates(*, include_inactive: bool = False) -> dict[str, Any]:
             for p in pairs
         ],
     }
+
+
+def get_quote_rate(quote: str) -> Decimal:
+    """Рабочий курс quote за 1 KRW."""
+    seed_currency_pairs()
+    row = (
+        CurrencyPair.objects.filter(base="KRW", quote=quote.upper(), is_active=True)
+        .order_by("id")
+        .first()
+    )
+    if row is None or not row.rate or row.rate <= 0:
+        raise ValueError(f"Не задана пара KRW/{quote.upper()} в справочнике")
+    return Decimal(str(row.rate))
+
+
+_STOREFRONT_LOCALES = {
+    "KRW": "ko-KR",
+    "RUB": "ru",
+    "USD": "en-US",
+    "EUR": "de-DE",
+    "KZT": "kk-KZ",
+    "KGS": "ky-KG",
+    "UZS": "uz-UZ",
+}
+
+
+def storefront_currency_list(quotes: list[str] | None = None) -> list[dict[str, Any]]:
+    """Формат /core/currencies/ для витрины: curr = quote за 1 KRW."""
+    seed_currency_pairs()
+    wanted = [q.upper() for q in (quotes or ["USD", "RUB", "EUR", "KZT", "UZS", "KGS"])]
+    rows = {
+        p.quote: p
+        for p in CurrencyPair.objects.filter(base="KRW", is_active=True, quote__in=wanted)
+    }
+    out: list[dict[str, Any]] = [
+        {
+            "value": "KRW",
+            "curr": 1,
+            "symbol": "₩",
+            "locale": _STOREFRONT_LOCALES["KRW"],
+        }
+    ]
+    for quote in wanted:
+        pair = rows.get(quote)
+        if pair is None:
+            out.append({"value": quote, "curr": 0, "symbol": "", "locale": ""})
+            continue
+        out.append(
+            {
+                "value": quote,
+                "curr": float(pair.rate),
+                "symbol": pair.symbol or "",
+                "locale": _STOREFRONT_LOCALES.get(quote, ""),
+            }
+        )
+    return out
+

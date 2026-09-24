@@ -236,77 +236,16 @@ class SectionWithVideoView(ModelViewSet):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CurrenciesView(View):
+    """Курсы витрины из пар KRW→quote (без ЦБ и legacy-ключей)."""
 
-    # rare_signs = {
-    #     'UZS': "Soʻm"
-    # }
     def get(self, request):
+        from .currency_pairs import storefront_currency_list
+
         currencies = request.GET.getlist('currencies')
-
-        if not currencies:
-            currencies = [
-                "USD",
-                "RUB",
-                "EUR",
-                "KZT",
-                "UZS",
-                "KGS"
-            ]
-
-        currency_data = [
-            {
-                'value': 'KRW',
-                'curr': 1,
-                'symbol': '₩',
-                'locale': 'ko-KR',
-            }
-        ]
-        c = ExchangeRates(str(datetime.datetime.now())[:10])
-
-        def admin_rate(key: str) -> float:
-            row = Currency.objects.filter(key=key).order_by("id").first()
-            if row is None or not row.value:
-                raise ValueError(f"Не задан курс {key}")
-            return float(row.value)
-
-        for curr in currencies:
-            if curr == "RUB":
-                rub_kor = 1 / admin_rate("krw-rub-kzt")
-                currency_data.append(
-                    {
-                        'value': curr,
-                        'curr': rub_kor,
-                        'symbol': CurrencySymbols.get_symbol(curr),
-                        'locale': 'ru',
-                    }
-                )
-                continue
-            try:
-                if curr in ('USD', 'EUR'):
-                    rub_kor = 1 / admin_rate("krw-rub-eur")
-                else:
-                    rub_kor = 1 / admin_rate("krw-rub-kzt")
-                print(rub_kor, float(c[curr].rate))
-                currency_data.append(
-                    {
-                        'value': curr,
-                        'curr': rub_kor / float(c[curr].rate),
-                        'symbol': CurrencySymbols.get_symbol(curr),
-                        'locale': '',
-                    }
-                )
-            except Exception as e:
-                print(e)
-                currency_data.append(
-                    {
-                        'value': curr,
-                        'curr': 0,
-                        'symbol': '',
-                        'locale': '',
-                    }
-                )
-
-        return JsonResponse({'currencies': currency_data}, status=200)
+        return JsonResponse(
+            {'currencies': storefront_currency_list(currencies or None)},
+            status=200,
+        )
 
 
 @method_decorator(csrf_exempt, name='dispatch')

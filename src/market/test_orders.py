@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 from django.test import TestCase, override_settings
 
-from core.models import Currency, Contacts
+from core.models import CurrencyPair, Contacts
 from market.models import CheckoutSettings, GoodsModel, GroupOfGoods, SiteOrder, SiteOrderItem
 
 
@@ -17,7 +17,17 @@ from market.models import CheckoutSettings, GoodsModel, GroupOfGoods, SiteOrder,
 )
 class SiteOrderApiTests(TestCase):
     def setUp(self):
-        Currency.objects.create(name="eur", key="krw-rub-eur", value=Decimal("13"))
+        CurrencyPair.objects.update_or_create(
+            base="KRW",
+            quote="USD",
+            defaults={
+                "name": "Доллар США",
+                "symbol": "$",
+                "rate": Decimal("0.0008831169"),
+                "sort": 20,
+                "is_active": True,
+            },
+        )
         category = GroupOfGoods.objects.create(
             id=20,
             default_order="1",

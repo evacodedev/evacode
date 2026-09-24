@@ -142,11 +142,11 @@ class CurrencyPairAdmin(admin.ModelAdmin):
             result = refresh_drafts()
             messages.success(
                 request,
-                f"Черновик обновлён: {', '.join(result['updated']) or '—'}"
+                f"API курсы обновлены: {', '.join(result['updated']) or '—'}"
                 + (f"; нет в источнике: {', '.join(result['missing'])}" if result["missing"] else ""),
             )
         except Exception as exc:
-            messages.error(request, f"Не удалось подтянуть курсы: {exc}")
+            messages.error(request, f"Не удалось подтянуть API курсы: {exc}")
         return redirect(list_url)
 
     def accept_drafts_view(self, request):
@@ -155,12 +155,12 @@ class CurrencyPairAdmin(admin.ModelAdmin):
             return redirect(list_url)
         accepted = accept_drafts()
         if accepted:
-            messages.success(request, f"Принято черновиков: {accepted}")
+            messages.success(request, f"API курсы приняты в коммерческие: {accepted}")
         else:
-            messages.warning(request, "Нет черновиков для принятия. Сначала подтяните курсы.")
+            messages.warning(request, "Нет API курсов для принятия. Сначала подтяните их.")
         return redirect(list_url)
 
-    @admin.action(description="Принять черновик выбранных")
+    @admin.action(description="Принять API курс выбранных в коммерческий")
     def accept_selected_drafts(self, request, queryset):
         quotes = list(queryset.values_list("quote", flat=True))
         accepted = accept_drafts(quotes=quotes)

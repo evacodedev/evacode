@@ -21,9 +21,11 @@ const GRAPHIC_SYMBOLS = {
     EUR: '€',
     RUB: '₽',
     KZT: '₸',
+    KGS: 'сом',
+    UZS: 'сум',
 };
 
-const graphicSymbol = (currency) => GRAPHIC_SYMBOLS[currency?.value] || '';
+const graphicSymbol = (currency) => GRAPHIC_SYMBOLS[currency?.value] || currency?.symbol || '';
 
 const productStore = useProductStore();
 const currencies = ref([]);
@@ -32,13 +34,20 @@ const currentSymbol = computed(() => graphicSymbol(currentCurrency.value));
 
 onMounted(async () => {
     const currenciesResp = await useCurrencies().getCurrencies();
-    currencies.value = (currenciesResp || []).map((currency) => {
-        const item = { ...currency, symbol: graphicSymbol(currency) };
-        return {
-            label: item.symbol ? `${item.symbol} ${item.value}` : item.value,
-            action: () => productStore.setCurrency(item),
-        };
-    });
+    const list = (currenciesResp || []).map((currency) => ({
+        ...currency,
+        symbol: graphicSymbol(currency),
+    }));
+    currencies.value = list.map((item) => ({
+        label: item.symbol ? `${item.symbol} ${item.value}` : item.value,
+        action: () => productStore.setCurrency(item),
+    }));
+
+    const selected = productStore.changeCurrency?.value;
+    const fresh = list.find((item) => item.value === selected);
+    if (fresh) {
+        productStore.setCurrency(fresh);
+    }
 });
 </script>
 
