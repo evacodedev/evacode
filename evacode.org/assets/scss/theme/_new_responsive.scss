@@ -82,6 +82,13 @@
     .menu-right.pull-right > .shopping-cart-container {
         display: none;
     }
+
+    /* Currency in topbar sits above fixed sidenav (own stacking context).
+       Hide it while the mobile panel is open — panel has its own switcher. */
+    .top-header:has(.nav-menu.opennav) .top-header-right > .currency-switcher {
+        visibility: hidden;
+        pointer-events: none;
+    }
     .beauty-assortiment {
         .container {
             .row {
