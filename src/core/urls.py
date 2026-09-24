@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import PostViewSet, TagDetailView, TagView, AsideView, FeedBackView, RegisterView, LoginView, ProfileView, AddressListView, AddressDetailView, CommentView, \
-    AboutUsView, ContactsView, DeliveryView, BannerView, SlideView,ReviewView, CurrenciesView, SectionWithVideoView
+    AboutUsView, ContactsView, DeliveryView, BannerView, SlideView,ReviewView, CurrenciesView, CurrencyPairsView, SectionWithVideoView
 from .google_auth import GoogleConfigView, GoogleLoginView
 
 router = DefaultRouter()
@@ -18,6 +18,7 @@ router.register('video-section', SectionWithVideoView, basename='video-section')
 urlpatterns = [
     path("", include(router.urls)),
     path("currencies/", CurrenciesView.as_view()),
+    path("currency-pairs/", CurrencyPairsView.as_view()),
     path("auth/register/", RegisterView.as_view()),
     path("auth/login/", LoginView.as_view()),
     path("auth/google/", GoogleLoginView.as_view()),

@@ -1,7 +1,23 @@
-from django.contrib import admin
+from django.contrib import admin, messages
+from django.shortcuts import redirect
+from django.urls import path, reverse
 from django.utils.safestring import mark_safe
 
-from .models import Post, Contacts, AboutUs, Banner, Delivery, Slide, Review, SectionWithVideo, Currency, AccountProfile, AccountAddress
+from .currency_pairs import accept_drafts, refresh_drafts
+from .models import (
+    Post,
+    Contacts,
+    AboutUs,
+    Banner,
+    Delivery,
+    Slide,
+    Review,
+    SectionWithVideo,
+    Currency,
+    CurrencyPair,
+    AccountProfile,
+    AccountAddress,
+)
 
 
 class PostAdmin(admin.ModelAdmin):
@@ -67,6 +83,90 @@ class CurrencyAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
+
+
+@admin.register(CurrencyPair)
+class CurrencyPairAdmin(admin.ModelAdmin):
+    change_list_template = "admin/core/currencypair/change_list.html"
+    list_display = (
+        "quote",
+        "name",
+        "rate",
+        "draft_rate",
+        "draft_source",
+        "draft_updated_at",
+        "sort",
+        "is_active",
+        "updated_at",
+    )
+    list_editable = ("rate", "sort", "is_active")
+    list_filter = ("is_active", "draft_source")
+    search_fields = ("quote", "name")
+    ordering = ("sort", "quote")
+    readonly_fields = ("draft_rate", "draft_source", "draft_updated_at", "updated_at")
+    fields = (
+        "base",
+        "quote",
+        "name",
+        "symbol",
+        "rate",
+        "draft_rate",
+        "draft_source",
+        "draft_updated_at",
+        "sort",
+        "is_active",
+        "updated_at",
+    )
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "refresh-drafts/",
+                self.admin_site.admin_view(self.refresh_drafts_view),
+                name="core_currencypair_refresh_drafts",
+            ),
+            path(
+                "accept-drafts/",
+                self.admin_site.admin_view(self.accept_drafts_view),
+                name="core_currencypair_accept_drafts",
+            ),
+        ]
+        return extra + urls
+
+    def refresh_drafts_view(self, request):
+        list_url = reverse("admin:core_currencypair_changelist")
+        if request.method != "POST":
+            return redirect(list_url)
+        try:
+            result = refresh_drafts()
+            messages.success(
+                request,
+                f"Черновик обновлён: {', '.join(result['updated']) or '—'}"
+                + (f"; нет в источнике: {', '.join(result['missing'])}" if result["missing"] else ""),
+            )
+        except Exception as exc:
+            messages.error(request, f"Не удалось подтянуть курсы: {exc}")
+        return redirect(list_url)
+
+    def accept_drafts_view(self, request):
+        list_url = reverse("admin:core_currencypair_changelist")
+        if request.method != "POST":
+            return redirect(list_url)
+        accepted = accept_drafts()
+        if accepted:
+            messages.success(request, f"Принято черновиков: {accepted}")
+        else:
+            messages.warning(request, "Нет черновиков для принятия. Сначала подтяните курсы.")
+        return redirect(list_url)
+
+    @admin.action(description="Принять черновик выбранных")
+    def accept_selected_drafts(self, request, queryset):
+        quotes = list(queryset.values_list("quote", flat=True))
+        accepted = accept_drafts(quotes=quotes)
+        self.message_user(request, f"Принято: {accepted}", messages.SUCCESS)
+
+    actions = ("accept_selected_drafts",)
 
 
 admin.site.register(Delivery, DeliveryAdmin)

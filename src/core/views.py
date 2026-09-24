@@ -307,3 +307,14 @@ class CurrenciesView(View):
                 )
 
         return JsonResponse({'currencies': currency_data}, status=200)
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class CurrencyPairsView(View):
+    """Публичные пары KRW→quote для витрины, KZ и агентов."""
+
+    def get(self, request):
+        from .currency_pairs import serialize_rates, seed_currency_pairs
+
+        seed_currency_pairs()
+        return JsonResponse(serialize_rates(), status=200)

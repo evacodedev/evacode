@@ -145,6 +145,43 @@ class Currency(models.Model):
         return f'{self.name} - {self.value}'
 
 
+class CurrencyPair(models.Model):
+    """Официальная пара для витрины/партнёров: сколько quote за 1 KRW."""
+
+    base = models.CharField("База", max_length=3, default="KRW")
+    quote = models.CharField("Котировка", max_length=3)
+    name = models.CharField("Название", max_length=64, blank=True)
+    symbol = models.CharField("Символ", max_length=8, blank=True)
+    rate = models.DecimalField(
+        "Курс (quote за 1 KRW)",
+        max_digits=18,
+        decimal_places=10,
+    )
+    draft_rate = models.DecimalField(
+        "Черновик курса",
+        max_digits=18,
+        decimal_places=10,
+        null=True,
+        blank=True,
+    )
+    draft_source = models.CharField("Источник черновика", max_length=64, blank=True)
+    draft_updated_at = models.DateTimeField("Черновик обновлён", null=True, blank=True)
+    sort = models.PositiveSmallIntegerField("Порядок", default=0)
+    is_active = models.BooleanField("Активна", default=True)
+    updated_at = models.DateTimeField("Обновлено", auto_now=True)
+
+    class Meta:
+        verbose_name = "Пара валют"
+        verbose_name_plural = "Пары валют (KRW→)"
+        ordering = ("sort", "quote")
+        constraints = [
+            models.UniqueConstraint(fields=("base", "quote"), name="uniq_currency_pair_base_quote"),
+        ]
+
+    def __str__(self):
+        return f"{self.base}/{self.quote} = {self.rate}"
+
+
 class AccountProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="account_profile")
     phone = models.CharField("Телефон", max_length=64, blank=True)

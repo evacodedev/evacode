@@ -1,0 +1,18 @@
+{% extends "admin/change_list.html" %}
+
+{% block object-tools-items %}
+<li>
+  <form method="post" action="{% url 'admin:core_currencypair_refresh_drafts' %}" style="display:inline;">
+    {% csrf_token %}
+    <input type="submit" value="Подтянуть черновик (ЦБ + Frankfurter)" class="default">
+  </form>
+</li>
+<li>
+  <form method="post" action="{% url 'admin:core_currencypair_accept_drafts' %}" style="display:inline;"
+        onsubmit="return confirm('Записать все черновики в рабочие курсы?');">
+    {% csrf_token %}
+    <input type="submit" value="Принять все черновики" class="default">
+  </form>
+</li>
+{{ block.super }}
+{% endblock %}

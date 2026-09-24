@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.core.management import BaseCommand
 
+from core.currency_pairs import seed_currency_pairs
 from core.models import Currency
 
 
@@ -21,7 +22,10 @@ _SEED = (
 
 
 class Command(BaseCommand):
-    help = "Создаёт курсы валют, если ключей ещё нет. Не перезаписывает ручные правки."
+    help = (
+        "Создаёт legacy-курсы и пары KRW→*, если ключей ещё нет. "
+        "Не перезаписывает ручные правки."
+    )
 
     def handle(self, *args, **options):
         created_n = 0
@@ -39,8 +43,10 @@ class Command(BaseCommand):
             else:
                 self.stdout.write(f"Kept existing {seed['key']}")
 
+        pairs_created = seed_currency_pairs()
         self.stdout.write(
             self.style.SUCCESS(
-                f"Exchange rates ready ({created_n} created, {len(_SEED) - created_n} unchanged)"
+                f"Legacy rates: {created_n} created, {len(_SEED) - created_n} unchanged; "
+                f"currency pairs: {pairs_created} created"
             )
         )
