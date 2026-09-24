@@ -715,20 +715,35 @@ onBeforeUnmount(() => {
 
 @media (max-width: 991px) {
   .catalog-bar {
-    flex-wrap: wrap;
-    gap: 4px 0;
+    flex-direction: column;
+    align-items: stretch;
+    flex-wrap: nowrap;
+    gap: 10px 0;
   }
 
   .catalog-bar__left {
     width: 100%;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    overflow: visible;
+  }
+
+  .catalog-bar__btn {
+    width: 100%;
+    justify-content: center;
+    gap: 4px;
+    height: 40px;
+    min-height: 40px;
+    font-size: 11px;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
   }
 
   .catalog-bar__search {
     max-width: none;
     width: 100%;
-    margin: 8px 0 0;
+    margin: 0;
   }
 
   .catalog-bar__meta {
@@ -740,6 +755,8 @@ onBeforeUnmount(() => {
   }
 
   .catalog-pop {
+    left: 0;
+    right: 0;
     width: 100%;
   }
 }

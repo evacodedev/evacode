@@ -129,6 +129,38 @@
             </div>
         </section>
 
+        <section v-reveal class="delivery-lux__trust">
+            <div class="container">
+                <p class="delivery-lux__eyebrow">Упаковка</p>
+                <h2 class="delivery-lux__section-title">Ассортимент и бережная доставка</h2>
+                <p class="delivery-lux__trust-text">
+                    Большой ассортимент и покупка в любом объёме. Работаем с проверенными логистами:
+                    доставка в любую точку мира, ответственность за сохранность груза и качественная упаковка
+                    для целостности продукции в пути.
+                </p>
+            </div>
+        </section>
+
+        <section v-reveal class="delivery-lux__pay">
+            <div class="container">
+                <p class="delivery-lux__eyebrow">Оплата</p>
+                <h2 class="delivery-lux__section-title">Удобные способы оплаты</h2>
+                <p class="delivery-lux__pay-lead">Доступны рассрочки и кредит для 🇷🇺 🇰🇿 🇰🇷</p>
+                <div class="delivery-lux__pay-logos" aria-label="Платёжные системы">
+                    <img src="/images/new_evacode/paymentLogos/kaspi.png" alt="Kaspi" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/PayPal%201.png" alt="PayPal" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/mastercard.png" alt="Mastercard" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/Visa.png" alt="Visa" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/MIR.png" alt="Мир" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/sbp_logo.png" alt="СБП" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/UnionPay.png" alt="UnionPay" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/wester_union.png" alt="Western Union" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/ZolotayaKorona.png" alt="Золотая корона" width="96" height="40">
+                    <img src="/images/new_evacode/paymentLogos/Tether_Logo%201.png" alt="Tether" width="96" height="40">
+                </div>
+            </div>
+        </section>
+
         <section v-reveal class="delivery-lux__cta">
             <div class="container">
                 <p class="delivery-lux__cta-brand">EvaCode</p>

@@ -489,14 +489,16 @@ class GoodsModelAdmin(admin.ModelAdmin):
         "content_kind",
         "enrichment_label",
         "stock",
+        "bestseller",
         "queue",
         "weight",
         "retail_price",
     )
-    list_editable = ("queue",)
+    list_editable = ("bestseller", "queue")
     list_filter = (
         BrandFilledFilter,
         PdpPresenceFilter,
+        "bestseller",
         "content_brand",
         "content_kind",
         "pdp_content__enrichment_status",

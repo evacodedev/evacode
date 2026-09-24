@@ -70,7 +70,11 @@ class GoodsAPIView(ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         if getattr(self, "action", None) == "list":
-            return qs.prefetch_related("images")
+            return qs.select_related("content_brand", "content_kind").prefetch_related(
+                "images",
+                "content_brand__translations",
+                "content_kind__translations",
+            )
         return qs.select_related("content_brand", "content_kind", "pdp_content").prefetch_related(
             "images",
             "content_brand__translations",

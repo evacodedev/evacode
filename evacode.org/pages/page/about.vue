@@ -54,6 +54,33 @@
             </div>
         </section>
 
+        <section v-reveal class="about-lux__perks">
+            <div class="container">
+                <p class="about-lux__eyebrow">Преимущества</p>
+                <h2 class="about-lux__section-title">Почему выбирают EvaCode</h2>
+                <ul class="about-lux__perk-grid">
+                    <li v-for="perk in perks" :key="perk.title" class="about-lux__perk">
+                        <img class="about-lux__perk-icon" :src="perk.icon" :alt="perk.title" width="48" height="48">
+                        <h3 class="about-lux__perk-title">{{ perk.title }}</h3>
+                        <p class="about-lux__perk-text">{{ perk.text }}</p>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <section v-reveal class="about-lux__values">
+            <div class="container">
+                <p class="about-lux__eyebrow">О компании</p>
+                <h2 class="about-lux__section-title">Лидерство и забота</h2>
+                <ul class="about-lux__value-grid">
+                    <li v-for="item in valueCards" :key="item.title" class="about-lux__value">
+                        <h3 class="about-lux__value-title">{{ item.title }}</h3>
+                        <p class="about-lux__value-text">{{ item.text }}</p>
+                    </li>
+                </ul>
+            </div>
+        </section>
+
         <section
             v-for="(block, index) in storyBlocks"
             :key="block.title"
@@ -92,7 +119,6 @@
         </section>
     </div>
     <ShopBeautyTestimonials />
-    <ShopBeautyAboutSlider />
     <Footer/>
 </template>
 
@@ -112,6 +138,43 @@ const featuredBrands = [
     'Sulwhasoo',
     'Hera',
     'Amorepacific',
+];
+
+const perks = [
+    {
+        title: 'Доставка по миру',
+        text: 'Отправка из Южной Кореи в вашу страну с аккуратной упаковкой и проверенными логистами.',
+        icon: '/images/new_evacode/Airplane.svg',
+    },
+    {
+        title: 'Сервис 24×7',
+        text: 'Консультанты на связи: подбор ухода, статус заказа и сопровождение до результата.',
+        icon: '/images/new_evacode/24-7.svg',
+    },
+    {
+        title: 'Оригинал и выгода',
+        text: 'Официальные поставщики LG и Amorepacific. Розница и опт со скидкой от официальной цены.',
+        icon: '/images/new_evacode/Shop_bag.svg',
+    },
+];
+
+const valueCards = [
+    {
+        title: 'Лидерство и эксклюзив',
+        text: 'С 2018 года развиваем продажи люксовой корейской косметики. Эксклюзивный дистрибьютор CH6 в РФ, Казахстане, Узбекистане и Кыргызстане.',
+    },
+    {
+        title: 'Индивидуальное обслуживание',
+        text: 'Бесплатная профессиональная консультация по подбору средств и сопровождение до ожидаемого результата.',
+    },
+    {
+        title: 'Оригинальная продукция',
+        text: 'Сертификаты качества, регулярные визиты на производство и личное тестирование перед вводом в ассортимент.',
+    },
+    {
+        title: 'Международная команда',
+        text: 'Консультанты в разных странах: быстрый сервис, разбор ухода, особенности кожи и подбор под ваш запрос.',
+    },
 ];
 
 const storyBlocks = [

@@ -211,6 +211,23 @@
         font-size: 11px;
     }
 
+    .about-lux__perks,
+    .about-lux__values {
+        padding: 48px 0;
+    }
+
+    .about-lux__perk-grid {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        margin-top: 24px;
+    }
+
+    .about-lux__value-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
     .about-lux__story {
         padding: 48px 0;
     }
@@ -442,6 +459,68 @@
 
     .home-brand__more {
         margin-top: 24px;
+    }
+
+    .home-rail {
+        padding: 48px 0 40px;
+    }
+
+    .home-rail__head {
+        grid-template-columns: 1fr;
+        gap: 16px;
+        align-items: start;
+    }
+
+    .home-rail__more {
+        justify-self: start;
+    }
+
+    .home-rail__track {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .home-rail__spotlight {
+        grid-template-columns: 1fr;
+        gap: 28px;
+    }
+
+    .home-rail__spotlight--accent-right {
+        grid-template-columns: 1fr;
+
+        .home-rail__feature,
+        .home-rail__side {
+            order: initial;
+        }
+    }
+
+    .home-rail__feature-stage {
+        padding: 18px 18px 12px;
+    }
+
+    .home-rail__feature-stage .product-detail h6 {
+        font-size: 16px;
+    }
+
+    .home-rail__watermark {
+        font-size: 72px;
+    }
+
+    .home-rail__ritual {
+        letter-spacing: 0.12em;
+    }
+
+    .home-rail__side {
+        padding-top: 0;
+    }
+
+    .home-rail__track--spotlight {
+        grid-template-columns: 1fr;
+    }
+
+    .delivery-lux__trust,
+    .delivery-lux__pay {
+        padding: 48px 0;
     }
 
     .delivery-lux__hero {

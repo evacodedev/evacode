@@ -80,6 +80,15 @@ class GoodsFilterApiTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self._ids(response), [1])
 
+    def test_filter_bestseller(self):
+        response = self.client.get("/api/market/goods/", {"bestseller": "true"})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self._ids(response), [1])
+        payload = response.json()["results"][0]
+        self.assertTrue(payload["bestseller"])
+        self.assertIn("content_brand", payload)
+        self.assertIn("content_kind", payload)
+
     def test_search_by_title(self):
         response = self.client.get("/api/market/goods/", {"search": "whoo"})
         self.assertEqual(self._ids(response), [1])

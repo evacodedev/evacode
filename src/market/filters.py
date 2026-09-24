@@ -1,5 +1,5 @@
 from django.db.models import F, Q
-from django_filters import CharFilter, FilterSet, NumberFilter
+from django_filters import BooleanFilter, CharFilter, FilterSet, NumberFilter
 from rest_framework.filters import OrderingFilter
 
 from .models import GoodsModel
@@ -25,13 +25,23 @@ class GoodsFilter(FilterSet):
     category = CharFilter(field_name="category__id", lookup_expr="exact", required=False)
     brand = CharFilter(method="filter_brand", required=False)
     kind = CharFilter(method="filter_kind", required=False)
+    bestseller = BooleanFilter(field_name="bestseller", required=False)
     search = CharFilter(method="filter_search", required=False)
     min_price = NumberFilter(field_name="retail_price", lookup_expr="gte", required=False)
     max_price = NumberFilter(field_name="retail_price", lookup_expr="lte", required=False)
 
     class Meta:
         model = GoodsModel
-        fields = ["id", "category", "brand", "kind", "search", "min_price", "max_price"]
+        fields = [
+            "id",
+            "category",
+            "brand",
+            "kind",
+            "bestseller",
+            "search",
+            "min_price",
+            "max_price",
+        ]
 
     def filter_search(self, queryset, name, value):
         query = (value or "").strip()

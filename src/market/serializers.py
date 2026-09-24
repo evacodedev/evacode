@@ -139,6 +139,8 @@ class GoodsSerializer(serializers.ModelSerializer):
 class GoodsListSerializer(serializers.ModelSerializer):
     images = serializers.SerializerMethodField()
     excerpt = serializers.SerializerMethodField()
+    content_brand = serializers.SerializerMethodField()
+    content_kind = serializers.SerializerMethodField()
 
     class Meta:
         model = GoodsModel
@@ -154,7 +156,12 @@ class GoodsListSerializer(serializers.ModelSerializer):
             'weight',
             'images',
             'bestseller',
+            'content_brand',
+            'content_kind',
         )
+
+    def _lang(self):
+        return content_language_from_request(self.context.get("request"))
 
     def get_images(self, obj):
         image = next(iter(obj.images.all()), None)
@@ -164,6 +171,12 @@ class GoodsListSerializer(serializers.ModelSerializer):
 
     def get_excerpt(self, obj):
         return _card_excerpt(obj.description)
+
+    def get_content_brand(self, obj):
+        return _named_label(obj.content_brand, self._lang())
+
+    def get_content_kind(self, obj):
+        return _named_label(obj.content_kind, self._lang())
 
 
 class GroupOfGoodsSerializer(serializers.ModelSerializer):
