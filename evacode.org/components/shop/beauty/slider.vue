@@ -11,6 +11,10 @@
             class="swiper-wrapper"
         >
           <swiper-slide class="swiper-slide">
+            <ShopBeautySlidesSlide7 />
+          </swiper-slide>
+
+          <swiper-slide class="swiper-slide">
             <ShopBeautySlidesSlide1 />
           </swiper-slide>
 

@@ -172,6 +172,56 @@ img.slide-main-image {
     object-position: right;
 }
 
+/* Portrait lifestyle hero — frame face, quiet text on light field */
+.slide-7 {
+    img.slide-main-image {
+        object-position: 72% 22%;
+    }
+
+    .slide-7__veil {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        background: linear-gradient(
+            90deg,
+            rgba(247, 244, 239, 0.92) 0%,
+            rgba(247, 244, 239, 0.72) 28%,
+            rgba(247, 244, 239, 0.2) 48%,
+            transparent 62%
+        );
+    }
+
+    > .row,
+    > .container {
+        position: relative;
+        z-index: 1;
+    }
+
+    .slider-headline {
+        background: none;
+        -webkit-text-fill-color: #1a1917;
+        color: #1a1917;
+        font-size: 40px;
+        letter-spacing: 0.02em;
+        margin-top: 40px;
+    }
+
+    .slider-description {
+        background: none;
+        -webkit-text-fill-color: #8a8680;
+        color: #8a8680;
+        text-transform: none;
+        letter-spacing: 0.04em;
+        font-size: 18px;
+        font-weight: 400;
+    }
+
+    .slider-container {
+        width: 520px;
+    }
+}
+
 .slider-container {
     margin: 125px 0 0 125px;
     width: 700px;
