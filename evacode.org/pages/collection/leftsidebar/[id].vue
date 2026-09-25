@@ -338,6 +338,8 @@ const pages = computed(() => {
     return _pages;
 });
 
+const runtimeConfig = useRuntimeConfig();
+
 useHead({
     title: 'Каталог корейской косметики — EvaCode',
     meta: [
@@ -347,7 +349,7 @@ useHead({
         },
     ],
     script: () => {
-        const site = siteOrigin(useRuntimeConfig());
+        const site = siteOrigin(runtimeConfig);
         const items = [
             { name: 'Главная', path: '/' },
             { name: 'Каталог', path: '/collection/leftsidebar/0/' },
