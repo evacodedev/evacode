@@ -71,7 +71,14 @@
             <ul class="account-lux__order-lines">
               <li v-for="(item, index) in order.items" :key="`${order.id}-${index}`" class="account-lux__order-line">
                 <div class="account-lux__order-thumb">
-                  <img v-if="item.image" :src="item.image" :alt="item.title">
+                  <img
+                    v-if="item.image"
+                    :src="catalogImageUrl(item.image, { width: 96, height: 96 })"
+                    :alt="item.title"
+                    width="96"
+                    height="96"
+                    loading="lazy"
+                  >
                 </div>
                 <div class="account-lux__order-line-info">
                   <p class="account-lux__order-line-title">{{ item.title }}</p>

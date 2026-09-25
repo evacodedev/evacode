@@ -1,7 +1,13 @@
 <template>
     <div class="cart-product" v-if="product && product.id">
         <nuxt-link class="product-image-link" :to="{ path: '/product/' + product.id }" @click="rememberProduct">
-            <img :src="product.images[0].url" alt/>
+            <img
+                :src="catalogImageUrl(product.images[0].url, { width: 160, height: 160 })"
+                :alt="product.title || ''"
+                width="160"
+                height="160"
+                loading="lazy"
+            >
         </nuxt-link>
         <table class="table cart-table table-responsive-xs">
             <thead>

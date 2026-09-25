@@ -23,7 +23,7 @@
             <div class="collection-block">
               <div>
                 <nuxt-link :to="{ path: '/collection/leftsidebar/0', query: { category: String(category.id) } }">
-                  <img v-if="category.images[0]" :src="catalogImageUrl(category.images[0].url)" class="img-fluid" :alt="category.name" loading="lazy" />
+                  <img v-if="category.images[0]" :src="catalogImageUrl(category.images[0].url, { width: 600, height: 600 })" class="img-fluid" :alt="category.name" width="600" height="600" loading="lazy" />
                 </nuxt-link>
               </div>
               <div class="collection-content">

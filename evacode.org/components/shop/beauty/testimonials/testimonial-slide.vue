@@ -4,7 +4,7 @@
             <div class="avatar">
                 <img
                     class="customer-avatar"
-                    :src="httpsMedia(testimonial.avatar)"
+                    :src="mediaImageUrl(testimonial.avatar, { width: 140, height: 140 })"
                     :alt="testimonial.name || 'Клиент EvaCode'"
                     width="70"
                     height="70"
@@ -40,7 +40,7 @@
         <img
             v-if="testimonial.review_photo"
             class="testimonial-image"
-            :src="httpsMedia(testimonial.review_photo)"
+            :src="mediaImageUrl(testimonial.review_photo, { width: 800, height: 800 })"
             :alt="'Фото отзыва' + (testimonial.name ? `: ${testimonial.name}` : '')"
             width="400"
             height="400"

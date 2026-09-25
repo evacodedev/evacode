@@ -79,10 +79,10 @@ export default {
     },
     cardImageUrl() {
       if (this.imageSrc) {
-        return catalogImageUrl(this.imageSrc)
+        return catalogImageUrl(this.imageSrc, { width: 720, height: 720 })
       }
       const first = this.product && this.product.images && this.product.images[0]
-      return first && first.url ? catalogImageUrl(first.url) : ''
+      return first && first.url ? catalogImageUrl(first.url, { width: 720, height: 720 }) : ''
     },
     showOfficialPrice() {
       const official = Number(this.product && this.product.official_price)

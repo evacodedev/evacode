@@ -170,7 +170,8 @@ export default {
       }
     },
     itemImage(item) {
-      return item?.images?.[0]?.url || ''
+      const url = item?.images?.[0]?.url || ''
+      return catalogImageUrl(url, { width: 160, height: 160 })
     },
     closeDrawer() {
       useCartStore().closeDrawer()

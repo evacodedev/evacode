@@ -20,8 +20,13 @@
                     </button>
                     <div class="media">
                       <a href="#">
-                        <img :src="product.images[0].url" class="img-fluid"
-                             :alt="product.images[0].alt"/>
+                        <img
+                            :src="catalogImageUrl(product.images[0].url, { width: 160, height: 160 })"
+                            class="img-fluid"
+                            :alt="product.images[0].alt || product.title"
+                            width="160"
+                            height="160"
+                        />
                       </a>
                       <div class="media-body align-self-center text-center">
                         <a href="#">

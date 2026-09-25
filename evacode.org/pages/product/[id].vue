@@ -57,7 +57,13 @@
                         :class="{ 'is-active': slideId === index }"
                         @click="slideTo(index)"
                     >
-                        <img :src="image.url" :alt="product.title"/>
+                        <img
+                            :src="catalogImageUrl(image.url, { width: 160, height: 160 })"
+                            :alt="product.title"
+                            width="160"
+                            height="160"
+                            loading="lazy"
+                        />
                     </button>
                 </div>
                 <div class="product-pdp__stage">
@@ -70,10 +76,14 @@
                     >
                         <SwiperSlide v-for="(image, index) in productImages" :key="image.id || index">
                             <img
-                                :src="image.url"
+                                :src="catalogImageUrl(image.url, { width: 1200, height: 1200 })"
                                 class="product-pdp__photo"
                                 :class="{ 'is-loaded': loadedImages[index] }"
                                 :alt="product.title"
+                                width="1200"
+                                height="1200"
+                                :loading="index === 0 ? 'eager' : 'lazy'"
+                                decoding="async"
                                 @load="markImageLoaded(index)"
                                 @error="markImageLoaded(index)"
                             />
@@ -485,7 +495,13 @@ useHead({
             return [];
         }
         const site = String(runtimeConfig.public.url || 'https://www.evacode.org').replace(/\/$/, '');
-        const image = product.value.images?.[0]?.url;
+        const image = product.value.images?.[0]?.url
+        const imageUrl = image
+            ? (() => {
+                const proxied = catalogImageUrl(image, { width: 1200, height: 1200 })
+                return proxied.startsWith('http') ? proxied : `${site}${proxied}`
+            })()
+            : undefined
         return [
             {
                 type: 'application/ld+json',
@@ -494,7 +510,7 @@ useHead({
                     '@type': 'Product',
                     name: product.value.title,
                     description: seoDescription.value,
-                    image: image || undefined,
+                    image: imageUrl,
                     brand: brandName.value
                         ? { '@type': 'Brand', name: brandName.value }
                         : undefined,

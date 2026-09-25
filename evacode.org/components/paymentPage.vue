@@ -765,7 +765,7 @@ export default {
       }
     },
     itemImage(item) {
-      return item.images?.[0]?.url || item.image || ''
+      return catalogImageUrl(item.images?.[0]?.url || item.image || '', { width: 160, height: 160 })
     },
     packingFromGoods(grams) {
       if (!grams) {

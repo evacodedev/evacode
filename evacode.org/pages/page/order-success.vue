@@ -145,7 +145,7 @@ export default {
   },
   methods: {
     itemImage(item) {
-      return item.image || item.images?.[0]?.url || '';
+      return catalogImageUrl(item.image || item.images?.[0]?.url || '', { width: 160, height: 160 });
     },
     itemPrice(item) {
       if (item.price_krw != null) {

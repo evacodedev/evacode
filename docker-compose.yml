@@ -65,7 +65,8 @@ services:
     restart: always
     environment:
       IMGPROXY_BIND: ":8080"
-      IMGPROXY_ALLOWED_SOURCES: "https://a46291.business.ru/"
+      IMGPROXY_ALLOWED_SOURCES: "local://,https://a46291.business.ru/"
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /files
       IMGPROXY_MAX_SRC_RESOLUTION: "50"
       IMGPROXY_QUALITY: "75"
       IMGPROXY_ENABLE_WEBP_DETECTION: "true"
@@ -75,6 +76,8 @@ services:
       IMGPROXY_READ_TIMEOUT: "15"
       IMGPROXY_WRITE_TIMEOUT: "15"
       IMGPROXY_MAX_SRC_FILE_SIZE: "20971520"
+    volumes:
+      - media:/files:ro
   nginx:
     container_name: evacode-nginx
     build: ./dockerfiles/nginx
