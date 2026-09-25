@@ -346,6 +346,29 @@ useHead({
             content: 'Каталог EvaCode: люксовая корейская косметика Whoo, O HUI, SU:M37, CNP, Sulwhasoo, Jogabi. Опт и розница, доставка из Кореи.',
         },
     ],
+    script: () => {
+        const site = siteOrigin(useRuntimeConfig());
+        const items = [
+            { name: 'Главная', path: '/' },
+            { name: 'Каталог', path: '/collection/leftsidebar/0/' },
+        ];
+        const brand = route.query.brand;
+        const kind = route.query.kind;
+        if (brand) {
+            const slug = String(Array.isArray(brand) ? brand[0] : brand);
+            items.push({
+                name: slugLabel(slug),
+                path: `/collection/leftsidebar/0/?brand=${encodeURIComponent(slug)}`,
+            });
+        } else if (kind) {
+            const slug = String(Array.isArray(kind) ? kind[0] : kind);
+            items.push({
+                name: slugLabel(slug),
+                path: `/collection/leftsidebar/0/?kind=${encodeURIComponent(slug)}`,
+            });
+        }
+        return [jsonLdScript(breadcrumbListLd(site, items))];
+    },
 });
 
 </script>

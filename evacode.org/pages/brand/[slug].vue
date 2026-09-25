@@ -246,18 +246,5 @@ const videoEmbed = computed(() => {
 });
 const videoPoster = computed(() => brand.value?.hero || brand.value?.history_image || '');
 
-useHead({
-    title: () => (brand.value?.name
-        ? `${brand.value.name} — купить в EvaCode`
-        : 'Бренд — EvaCode'),
-    meta: [
-        {
-            name: 'description',
-            content: () => brand.value?.lead
-                || (brand.value?.name
-                    ? `${brand.value.name} — оригинальный корейский уход в магазине EvaCode. Опт и розница, доставка из Кореи.`
-                    : 'Корейский бренд в магазине EvaCode.'),
-        },
-    ],
-});
+useBrandPageSeo(brand);
 </script>

@@ -188,16 +188,5 @@ const origin = computed(() => facts.value[0] || null);
 const lines = computed(() => brand.value?.lines || []);
 const gallery = computed(() => brand.value?.gallery || []);
 
-useHead({
-    title: () => (brand.value?.name
-        ? `${brand.value.name} — купить в EvaCode`
-        : 'Curación — EvaCode'),
-    meta: [
-        {
-            name: 'description',
-            content: () => brand.value?.lead
-                || 'Curación — лакто-уход Nineone Cosmedi в магазине EvaCode.',
-        },
-    ],
-});
+useBrandPageSeo(brand);
 </script>

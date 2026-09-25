@@ -40,7 +40,15 @@
     </div>
     <div v-else class="product-pdp" :class="{ 'is-ready': motionReady }">
         <div class="container">
-            <nav class="product-pdp__nav">
+            <nav class="product-pdp__nav" aria-label="Навигация">
+                <ol class="product-pdp__crumbs">
+                    <li><nuxt-link to="/">Главная</nuxt-link></li>
+                    <li><nuxt-link :to="lastCatalogPath">Каталог</nuxt-link></li>
+                    <li v-if="brandPageHref && brandName">
+                        <nuxt-link :to="brandPageHref">{{ brandName }}</nuxt-link>
+                    </li>
+                    <li v-if="product?.title" aria-current="page">{{ product.title }}</li>
+                </ol>
                 <nuxt-link :to="lastCatalogPath" class="product-pdp__back">
                     <i class="fa fa-angle-left" aria-hidden="true"></i>
                     Назад к списку
@@ -306,6 +314,10 @@ const showNotFound = computed(() =>
     && (status.value === 'success' || status.value === 'error' || Boolean(error.value)),
 );
 const outOfStock = computed(() => product.value?.stock != null && counter.value > product.value.stock);
+const schemaInStock = computed(() => {
+    const stock = product.value?.stock;
+    return stock == null || stock > 0;
+});
 const contentBlocks = computed(() => product.value?.content_blocks || []);
 const brandName = computed(() => product.value?.content_brand?.name || '');
 const brandPageHref = computed(() => {
@@ -489,45 +501,47 @@ useHead({
         { name: 'description', content: () => seoDescription.value },
         { property: 'og:title', content: () => product.value?.title || 'EvaCode' },
         { property: 'og:description', content: () => seoDescription.value },
+        { property: 'og:type', content: 'product' },
     ],
     script: () => {
         if (!product.value) {
             return [];
         }
-        const site = String(runtimeConfig.public.url || 'https://www.evacode.org').replace(/\/$/, '');
-        const image = product.value.images?.[0]?.url
+        const site = siteOrigin(runtimeConfig);
+        const image = product.value.images?.[0]?.url;
         const imageUrl = image
             ? (() => {
                 const proxied = catalogImageUrl(image, {
                     width: 1200,
                     height: 1200,
                     prefix: runtimeConfig.public.imgproxyPrefix,
-                })
-                return proxied.startsWith('http') ? proxied : `${site}${proxied}`
+                });
+                return proxied.startsWith('http') ? proxied : `${site}${proxied}`;
             })()
-            : undefined
+            : undefined;
+
+        const crumbItems = [
+            { name: 'Главная', path: '/' },
+            { name: 'Каталог', path: '/collection/leftsidebar/0/' },
+        ];
+        if (brandPageHref.value && brandName.value) {
+            crumbItems.push({ name: brandName.value, path: brandPageHref.value });
+        }
+        crumbItems.push({
+            name: product.value.title,
+            path: `/product/${product.value.id}/`,
+        });
+
         return [
-            {
-                type: 'application/ld+json',
-                innerHTML: JSON.stringify({
-                    '@context': 'https://schema.org',
-                    '@type': 'Product',
-                    name: product.value.title,
-                    description: seoDescription.value,
-                    image: imageUrl,
-                    brand: brandName.value
-                        ? { '@type': 'Brand', name: brandName.value }
-                        : undefined,
-                    url: `${site}/product/${product.value.id}/`,
-                    offers: {
-                        '@type': 'Offer',
-                        url: `${site}/product/${product.value.id}/`,
-                        availability: outOfStock.value
-                            ? 'https://schema.org/OutOfStock'
-                            : 'https://schema.org/InStock',
-                    },
-                }),
-            },
+            jsonLdScript(breadcrumbListLd(site, crumbItems)),
+            jsonLdScript(productLd({
+                site,
+                product: product.value,
+                description: seoDescription.value,
+                imageUrl,
+                brandName: brandName.value,
+                inStock: schemaInStock.value,
+            })),
         ];
     },
 });

@@ -196,16 +196,5 @@ const facts = computed(() => brand.value?.facts || []);
 const lines = computed(() => brand.value?.lines || []);
 const gallery = computed(() => brand.value?.gallery || []);
 
-useHead({
-    title: () => (brand.value?.name
-        ? `${brand.value.name} — купить в EvaCode`
-        : 'TOM-TIT-TOT — EvaCode'),
-    meta: [
-        {
-            name: 'description',
-            content: () => brand.value?.lead
-                || 'TOM-TIT-TOT — премиальный корейский уход в магазине EvaCode.',
-        },
-    ],
-});
+useBrandPageSeo(brand);
 </script>
