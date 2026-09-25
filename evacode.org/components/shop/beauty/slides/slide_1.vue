@@ -1,6 +1,13 @@
 <template>
   <div class="evacode-slide slide-1">
-    <img class="slide-main-image" src="/images/new_evacode/Slides/slide_1.jpg" alt="">
+    <img
+      class="slide-main-image"
+      src="/images/new_evacode/Slides/slide_1.webp"
+      alt="EvaCode — люксовая корейская косметика"
+      width="1920"
+      height="600"
+      fetchpriority="high"
+    >
     <div class="row">
       <div class="col">
         <div class="slider-container">

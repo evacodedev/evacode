@@ -1,5 +1,5 @@
 const PRODUCTION_SITE = 'https://www.evacode.org';
-const OG_IMAGE = '/images/new_evacode/Slides/slide_1.jpg';
+const OG_IMAGE = '/images/new_evacode/Slides/slide_1.webp';
 
 const stripSlash = (value) => String(value || '').replace(/\/$/, '');
 

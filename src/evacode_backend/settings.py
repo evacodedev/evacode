@@ -202,6 +202,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 MEDIA_URL = "/media/"  # <- добавьте путь к папке с медифайлами
 MEDIA_ROOT = os.getenv('DJANGO_MEDIA_ROOT')  # и путь до нее
 
+# TLS terminates at nginx; absolute URLs (media, pagination) must stay https.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+USE_X_FORWARDED_HOST = True
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.0/howto/static-files/
 

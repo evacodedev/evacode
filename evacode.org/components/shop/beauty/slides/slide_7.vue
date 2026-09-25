@@ -1,6 +1,13 @@
 <template>
   <div class="evacode-slide slide-7">
-    <img class="slide-main-image" src="/images/new_evacode/Slides/slide_7.jpg" alt="">
+    <img
+      class="slide-main-image"
+      src="/images/new_evacode/Slides/slide_7.webp"
+      alt="Ритуал корейской красоты — крем и уход"
+      width="1280"
+      height="720"
+      fetchpriority="high"
+    >
     <div class="slide-7__veil" aria-hidden="true"></div>
     <div class="row">
       <div class="col">

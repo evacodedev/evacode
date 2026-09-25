@@ -2,7 +2,9 @@
 <NuxtLayout >
     <Head></Head>
     <NuxtLoadingIndicator :height="2" :duration="2000" :throttle="200" color="#B89254" />
-    <NuxtPage :page-key="(route) => route.path" />
+    <main id="main-content">
+      <NuxtPage :page-key="(route) => route.path" />
+    </main>
     <WidgetsCartDrawer />
     <WidgetsCartFab />
     <ClientOnly>

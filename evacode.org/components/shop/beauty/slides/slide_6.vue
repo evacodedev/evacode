@@ -1,6 +1,13 @@
 <template>
   <div class="evacode-slide slide-6">
-    <img class="slide-main-image" src="/images/new_evacode/Slides/slide_6.jpg" alt="">
+    <img
+      class="slide-main-image"
+      src="/images/new_evacode/Slides/slide_6.webp"
+      alt="CH6 — сыворотка для волос"
+      width="1920"
+      height="600"
+      loading="lazy"
+    >
     <div class="row">
       <div class="col">
         <div class="slider-container">

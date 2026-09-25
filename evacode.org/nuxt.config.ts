@@ -4,6 +4,9 @@
 export default defineNuxtConfig({
     app: {
         head: {
+            htmlAttrs: {
+                lang: 'ru',
+            },
             charset: 'utf-8',
             viewport: 'width=device-width, initial-scale=1',
             title: 'EvaCode — люксовая корейская косметика',
@@ -43,9 +46,11 @@ export default defineNuxtConfig({
             ],
             link: [
                 {rel: 'icon', type: 'image/png', href: '/images/evacode/favicon.ico'},
-                {rel: 'stylesheet',  href: 'https://fonts.googleapis.com/css2?family=Rubik:wght@100;200;300;400;700;900&display=swap'},
-                {rel: 'stylesheet',  href: 'https://fonts.googleapis.com/css2?family=Lato:wght@100;200;300;400;700;900&display=swap'},
-                {rel: 'stylesheet',  href: 'https://fonts.googleapis.com/css2?family=Inter:wght@100;200;300;400;700;900&display=swap'}
+                // Lato is self-hosted (latofonts.scss). Inter only — two weights.
+                {
+                    rel: 'stylesheet',
+                    href: 'https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap',
+                },
             ],
             script:[
                 {
