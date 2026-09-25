@@ -55,7 +55,7 @@
               </label>
             </div>
             <p class="rates-lux__hint">
-              Введите сумму в выбранной валюте — ниже пересчёт по всем курсам EvaCode.
+              Пересчёт по коммерческому курсу EvaCode; сумма округляется вверх по правилам валюты.
             </p>
           </div>
 
@@ -80,7 +80,7 @@
                   </td>
                   <td>{{ formatRatePerThousand(row.ratePerKrw) }}</td>
                   <td class="rates-lux__amount">
-                    {{ formatMoney(amountKrw * row.ratePerKrw, row.quote, row.symbol) }}
+                    {{ formatMoney(rowAmount(row), row.quote, row.symbol) }}
                   </td>
                 </tr>
               </tbody>
@@ -88,9 +88,9 @@
           </div>
 
           <p class="rates-lux__note">
-            В API и админке курс хранится за 1 ₩; здесь для удобства — за 1000 ₩.
-            Курсы утверждаются EvaCode и могут отличаться от биржевых.
-            Партнёрам: <code>GET /api/core/currency-pairs/</code>
+            В API — коммерческий курс за 1 ₩ (уже с наценкой из админки).
+            Округление вверх — на итоговой цене. Партнёрам:
+            <code>GET /api/core/currency-pairs/</code>
           </p>
         </template>
       </div>
@@ -99,6 +99,8 @@
 </template>
 
 <script setup>
+import { convertKrwWithCurr, roundQuotePrice } from '~/utils/currencyPrice';
+
 useHead({
   title: 'Курсы валют — EvaCode',
   meta: [
@@ -123,6 +125,11 @@ const rates = ref([]);
 const updatedAt = ref(null);
 const pending = ref(true);
 const error = ref('');
+
+const rateOfRow = (row) => {
+  const rate = Number(row?.rate);
+  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+};
 
 const inputOptions = computed(() => [
   KRW_ROW,
@@ -153,12 +160,12 @@ const parsedAmount = computed(() => {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 });
 
-/** Всегда пересчитываем через воны: amount_quote / rate(KRW→quote). */
+/** Через воны: введённая сумма / коммерческий rate. */
 const amountKrw = computed(() => {
   const amount = parsedAmount.value;
   if (inputQuote.value === 'KRW') return amount;
-  const rate = Number(inputMeta.value.rate);
-  if (!Number.isFinite(rate) || rate <= 0) return 0;
+  const rate = rateOfRow(inputMeta.value);
+  if (!(rate > 0)) return 0;
   return amount / rate;
 });
 
@@ -168,13 +175,18 @@ const displayRows = computed(() => [
     name: 'Корейская вона',
     symbol: '₩',
     ratePerKrw: 1,
+    curr: 1,
   },
-  ...rates.value.map((row) => ({
-    quote: row.quote,
-    name: row.name || row.quote,
-    symbol: row.symbol || row.quote,
-    ratePerKrw: Number(row.rate),
-  })),
+  ...rates.value.map((row) => {
+    const rate = Number(row.rate);
+    return {
+      quote: row.quote,
+      name: row.name || row.quote,
+      symbol: row.symbol || row.quote,
+      ratePerKrw: rate,
+      curr: rate,
+    };
+  }),
 ]);
 
 const formatRatePerThousand = (ratePerKrw) => {
@@ -189,11 +201,10 @@ const formatRatePerThousand = (ratePerKrw) => {
 const formatMoney = (value, currency, symbol) => {
   const n = Number(value);
   if (!Number.isFinite(n)) return '—';
-  const digits = currency === 'KRW' || currency === 'UZS' || currency === 'KZT' || currency === 'KGS' ? 0 : 2;
-  const rounded = digits === 0 ? Math.round(n) : Math.round(n * 100) / 100;
-  const formatted = rounded.toLocaleString('ru-RU', {
-    minimumFractionDigits: digits === 0 ? 0 : 2,
-    maximumFractionDigits: digits === 0 ? 0 : 2,
+  const digits = currency === 'USD' || currency === 'EUR' ? 2 : 0;
+  const formatted = n.toLocaleString('ru-RU', {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
   });
   const sym = symbol || currency;
   if (currency === 'USD' || currency === 'EUR') {
@@ -201,6 +212,8 @@ const formatMoney = (value, currency, symbol) => {
   }
   return `${formatted} ${sym}`;
 };
+
+const rowAmount = (row) => convertKrwWithCurr(amountKrw.value, row.quote, row.curr);
 
 const formatUpdated = (iso) => {
   try {
@@ -217,18 +230,16 @@ const formatUpdated = (iso) => {
 };
 
 const formatInputValue = (value, quote) => {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return '0';
+  const rounded = roundQuotePrice(quote, value);
   const digits = quote === 'USD' || quote === 'EUR' ? 2 : 0;
-  if (digits === 0) return String(Math.round(n));
-  return (Math.round(n * 100) / 100).toFixed(2);
+  if (digits === 0) return String(Math.round(rounded));
+  return Number(rounded).toFixed(2);
 };
 
 const rateOf = (quote) => {
   if (quote === 'KRW') return 1;
   const row = rates.value.find((item) => item.quote === quote);
-  const rate = Number(row?.rate);
-  return Number.isFinite(rate) && rate > 0 ? rate : 0;
+  return rateOfRow(row);
 };
 
 const toKrw = (amount, quote) => {

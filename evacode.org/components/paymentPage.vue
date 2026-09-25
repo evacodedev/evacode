@@ -259,7 +259,21 @@
                 <span class="checkout-choice__mark" aria-hidden="true" />
               </label>
             </div>
-            <p v-if="paypalError" class="checkout-v2__pay-error">{{ paypalError }}</p>
+            <div v-if="paypalError" class="checkout-v2__pay-help" role="alert">
+              <p class="checkout-v2__pay-error">{{ paypalError }}</p>
+              <p class="checkout-v2__pay-help-note">
+                Напишите консультантам — поможем оформить заказ без PayPal.
+              </p>
+              <WidgetsMessengerLinks
+                class="checkout-v2__pay-help-contacts"
+                phone="+8210-7652-8595"
+                phone-href="tel:+821076528595"
+                email="sales@evacode.org"
+              />
+              <p v-if="telegramEnabled" class="checkout-v2__pay-help-note">
+                Или выберите «Заказ в Telegram» выше и отправьте заказ с сайта.
+              </p>
+            </div>
             <button
               class="checkout-v2__cta"
               type="submit"
@@ -605,15 +619,17 @@ export default {
       this.$router.replace('/page/account/cart')
       return
     }
-    this.loadCheckoutSettings()
     this.loadDestinations()
     this.loadSavedAddresses()
     this.fetchQuote()
+    await this.loadCheckoutSettings()
     const paypalStatus = this.$route.query.paypal
     if (paypalStatus === 'cancel') {
-      this.paypalError = 'Оплата в PayPal отменена'
-    } else if (paypalStatus === 'fail') {
-      this.paypalError = 'Не удалось подтвердить оплату. Заказ сохранён, попробуйте ещё раз.'
+      this.setPaypalConsultError('Оплата в PayPal отменена. В ряде стран, включая Россию, PayPal может быть недоступен.')
+    } else if (paypalStatus === 'fail' || paypalStatus === 'missing') {
+      this.setPaypalConsultError(
+        'Не удалось подтвердить оплату через PayPal. В ряде стран, включая Россию, PayPal может быть недоступен.'
+      )
     }
   },
   beforeUnmount() {
@@ -893,7 +909,9 @@ export default {
         this.telegramEnabled = false
         this.paypalSandbox = false
       }
-      if (this.paypalEnabled && !this.telegramEnabled) {
+      if (this.paypalError && this.telegramEnabled) {
+        this.paymentMethod = 'telegram'
+      } else if (this.paypalEnabled && !this.telegramEnabled) {
         this.paymentMethod = 'paypal'
       } else if (!this.paypalEnabled && this.telegramEnabled) {
         this.paymentMethod = 'telegram'
@@ -1087,12 +1105,22 @@ export default {
           window.location.href = data.approve_url
           return
         }
-        this.paypalError = 'PayPal не вернул ссылку на оплату'
+        this.setPaypalConsultError('PayPal не вернул ссылку на оплату. В ряде стран, включая Россию, сервис может быть недоступен.')
         this.paypalLoading = false
       } catch (error) {
-        this.paypalError = error?.data?.error || 'Не удалось создать оплату. Попробуйте ещё раз.'
+        this.setPaypalConsultError(
+          error?.data?.error
+            || 'Не удалось создать оплату через PayPal. В ряде стран, включая Россию, сервис может быть недоступен.'
+        )
         this.paypalLoading = false
       }
+    },
+    setPaypalConsultError(message) {
+      this.paypalError = message
+      if (this.telegramEnabled) {
+        this.paymentMethod = 'telegram'
+      }
+      this.hideHandoff()
     },
     getPrice(price) {
       return useProductStore().getPrice(price)

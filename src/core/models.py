@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -146,28 +148,35 @@ class Currency(models.Model):
 
 
 class CurrencyPair(models.Model):
-    """Официальная пара для витрины/партнёров: сколько quote за 1 KRW."""
+    """Официальная пара: исконный API (ЦБ+Frankfurter) × коэффициент → коммерческий."""
 
     base = models.CharField("База", max_length=3, default="KRW")
     quote = models.CharField("Котировка", max_length=3)
     name = models.CharField("Название", max_length=64, blank=True)
     symbol = models.CharField("Символ", max_length=8, blank=True)
-    rate = models.DecimalField(
-        "Коммерческий курс",
-        max_digits=18,
-        decimal_places=10,
-        help_text="Quote за 1 KRW. Используется на витрине, в калькуляторе и PayPal.",
-    )
     draft_rate = models.DecimalField(
-        "API курс",
+        "Исконный курс (API)",
         max_digits=18,
         decimal_places=10,
         null=True,
         blank=True,
-        help_text="Черновик с Frankfurter + ЦБ. На витрину не влияет, пока не принят.",
+        help_text="Курс с Frankfurter + ЦБ. Подтягивается кнопкой в админке.",
     )
-    draft_source = models.CharField("Источник API курса", max_length=64, blank=True)
-    draft_updated_at = models.DateTimeField("API курс обновлён", null=True, blank=True)
+    draft_source = models.CharField("Источник API", max_length=64, blank=True)
+    draft_updated_at = models.DateTimeField("API обновлён", null=True, blank=True)
+    markup = models.DecimalField(
+        "Коэффициент",
+        max_digits=8,
+        decimal_places=4,
+        default=Decimal("1.0000"),
+        help_text="Только в админке: коммерческий = исконный API × коэффициент. На витрину не уходит.",
+    )
+    rate = models.DecimalField(
+        "Коммерческий курс",
+        max_digits=18,
+        decimal_places=10,
+        help_text="Исконный API × коэффициент. Используется на витрине, в калькуляторе и PayPal.",
+    )
     sort = models.PositiveSmallIntegerField("Порядок", default=0)
     is_active = models.BooleanField("Активна", default=True)
     updated_at = models.DateTimeField("Обновлено", auto_now=True)
@@ -179,6 +188,15 @@ class CurrencyPair(models.Model):
         constraints = [
             models.UniqueConstraint(fields=("base", "quote"), name="uniq_currency_pair_base_quote"),
         ]
+
+    def apply_commercial_from_api(self) -> bool:
+        """Коммерческий = исконный API × коэффициент. False, если API ещё нет."""
+        from core.currency_pricing import compute_commercial_rate
+
+        if self.draft_rate is None or self.draft_rate <= 0:
+            return False
+        self.rate = compute_commercial_rate(self.draft_rate, self.markup)
+        return True
 
     def __str__(self):
         return f"{self.base}/{self.quote} = {self.rate}"

@@ -1,4 +1,4 @@
-"""Пары KRW→quote: сид, черновик из Frankfurter+ЦБ, сериализация для API."""
+"""Пары KRW→quote: сид, исконный из Frankfurter+ЦБ, коммерческий = API × коэффициент."""
 
 from __future__ import annotations
 
@@ -17,13 +17,14 @@ from core.models import CurrencyPair
 FRANKFURTER_URL = "https://api.frankfurter.dev/v1/latest"
 RATE_QUANT = Decimal("0.0000000001")
 
-# Стартовая сетка (этап A): quote за 1 KRW, из коммерческого прайса 77_000 ₩.
+# Стартовая сетка до первого API: коммерческий rate + коэффициент.
 PAIR_SEED: tuple[dict[str, Any], ...] = (
     {
         "quote": "RUB",
         "name": "Российский рубль",
         "symbol": "₽",
         "rate": Decimal("0.0740779221"),
+        "markup": Decimal("1.0550"),
         "sort": 10,
     },
     {
@@ -31,6 +32,7 @@ PAIR_SEED: tuple[dict[str, Any], ...] = (
         "name": "Доллар США",
         "symbol": "$",
         "rate": Decimal("0.0008831169"),
+        "markup": Decimal("1.0700"),
         "sort": 20,
     },
     {
@@ -38,6 +40,7 @@ PAIR_SEED: tuple[dict[str, Any], ...] = (
         "name": "Евро",
         "symbol": "€",
         "rate": Decimal("0.0007662338"),
+        "markup": Decimal("1.0700"),
         "sort": 30,
     },
     {
@@ -45,6 +48,7 @@ PAIR_SEED: tuple[dict[str, Any], ...] = (
         "name": "Казахстанский тенге",
         "symbol": "₸",
         "rate": Decimal("0.3927922078"),
+        "markup": Decimal("1.0550"),
         "sort": 40,
     },
     {
@@ -52,6 +56,7 @@ PAIR_SEED: tuple[dict[str, Any], ...] = (
         "name": "Киргизский сом",
         "symbol": "сом",
         "rate": Decimal("0.0766753247"),
+        "markup": Decimal("1.0550"),
         "sort": 50,
     },
     {
@@ -59,6 +64,7 @@ PAIR_SEED: tuple[dict[str, Any], ...] = (
         "name": "Узбекский сум",
         "symbol": "сум",
         "rate": Decimal("10.3770129870"),
+        "markup": Decimal("1.0550"),
         "sort": 60,
     },
 )
@@ -69,7 +75,7 @@ def _q(value: Decimal | float | str) -> Decimal:
 
 
 def seed_currency_pairs() -> int:
-    """Создаёт пары, если ключей ещё нет. Существующие rate не трогает."""
+    """Создаёт пары, если ключей ещё нет. Существующие курсы/наценку не трогает."""
     created_n = 0
     for seed in PAIR_SEED:
         _, created = CurrencyPair.objects.get_or_create(
@@ -79,6 +85,7 @@ def seed_currency_pairs() -> int:
                 "name": seed["name"],
                 "symbol": seed["symbol"],
                 "rate": seed["rate"],
+                "markup": seed.get("markup", Decimal("1.0000")),
                 "sort": seed["sort"],
                 "is_active": True,
             },
@@ -146,7 +153,7 @@ def build_draft_rates() -> dict[str, tuple[Decimal, str]]:
 
 
 def refresh_drafts() -> dict[str, Any]:
-    """Пишет draft_rate у активных пар. Живой rate не меняет."""
+    """Пишет исконный draft_rate (API). Коммерческий rate не меняет."""
     seed_currency_pairs()
     drafts = build_draft_rates()
     now = timezone.now()
@@ -172,13 +179,14 @@ def refresh_drafts() -> dict[str, Any]:
 
 
 def accept_drafts(*, quotes: list[str] | None = None) -> int:
-    """Копирует draft_rate → rate. Если quotes задан — только эти котировки."""
+    """Коммерческий rate = исконный API (draft_rate) × коэффициент."""
     qs = CurrencyPair.objects.filter(base="KRW", is_active=True).exclude(draft_rate__isnull=True)
     if quotes:
         qs = qs.filter(quote__in=quotes)
     accepted = 0
     for pair in qs:
-        pair.rate = pair.draft_rate
+        if not pair.apply_commercial_from_api():
+            continue
         pair.save(update_fields=["rate", "updated_at"])
         accepted += 1
     return accepted
@@ -208,7 +216,7 @@ def serialize_rates(*, include_inactive: bool = False) -> dict[str, Any]:
 
 
 def get_quote_rate(quote: str) -> Decimal:
-    """Рабочий курс quote за 1 KRW."""
+    """Коммерческий курс quote за 1 KRW (для операций)."""
     seed_currency_pairs()
     row = (
         CurrencyPair.objects.filter(base="KRW", quote=quote.upper(), is_active=True)
@@ -218,6 +226,17 @@ def get_quote_rate(quote: str) -> Decimal:
     if row is None or not row.rate or row.rate <= 0:
         raise ValueError(f"Не задана пара KRW/{quote.upper()} в справочнике")
     return Decimal(str(row.rate))
+
+
+def convert_krw_amount(amount_krw: int | Decimal | float | str, quote: str) -> Decimal:
+    """KRW → quote по коммерческому курсу, затем округление вверх."""
+    from core.currency_pricing import round_quote_price
+
+    code = (quote or "KRW").upper()
+    if code == "KRW":
+        return round_quote_price("KRW", amount_krw)
+    rate = get_quote_rate(code)
+    return round_quote_price(code, Decimal(str(amount_krw)) * rate)
 
 
 _STOREFRONT_LOCALES = {
@@ -232,7 +251,7 @@ _STOREFRONT_LOCALES = {
 
 
 def storefront_currency_list(quotes: list[str] | None = None) -> list[dict[str, Any]]:
-    """Формат /core/currencies/ для витрины: curr = quote за 1 KRW."""
+    """Формат /core/currencies/: curr = коммерческий rate; витрина округляет сумму отдельно."""
     seed_currency_pairs()
     wanted = [q.upper() for q in (quotes or ["USD", "RUB", "EUR", "KZT", "UZS", "KGS"])]
     rows = {

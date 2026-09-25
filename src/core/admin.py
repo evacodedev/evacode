@@ -91,32 +91,46 @@ class CurrencyPairAdmin(admin.ModelAdmin):
     list_display = (
         "quote",
         "name",
-        "rate",
         "draft_rate",
+        "markup",
+        "rate",
         "draft_source",
         "draft_updated_at",
         "sort",
         "is_active",
         "updated_at",
     )
-    list_editable = ("rate", "sort", "is_active")
+    list_editable = ("markup", "sort", "is_active")
     list_filter = ("is_active", "draft_source")
     search_fields = ("quote", "name")
     ordering = ("sort", "quote")
-    readonly_fields = ("draft_rate", "draft_source", "draft_updated_at", "updated_at")
+    readonly_fields = (
+        "draft_rate",
+        "draft_source",
+        "draft_updated_at",
+        "rate",
+        "updated_at",
+    )
     fields = (
         "base",
         "quote",
         "name",
         "symbol",
-        "rate",
         "draft_rate",
         "draft_source",
         "draft_updated_at",
+        "markup",
+        "rate",
         "sort",
         "is_active",
         "updated_at",
     )
+
+    def save_model(self, request, obj, form, change):
+        # Смена коэффициента сразу пересчитывает коммерческий, если API уже подтянут.
+        if obj.draft_rate:
+            obj.apply_commercial_from_api()
+        super().save_model(request, obj, form, change)
 
     def get_urls(self):
         urls = super().get_urls()
@@ -142,8 +156,9 @@ class CurrencyPairAdmin(admin.ModelAdmin):
             result = refresh_drafts()
             messages.success(
                 request,
-                f"API курсы обновлены: {', '.join(result['updated']) or '—'}"
-                + (f"; нет в источнике: {', '.join(result['missing'])}" if result["missing"] else ""),
+                f"Исконные API курсы обновлены: {', '.join(result['updated']) or '—'}"
+                + (f"; нет в источнике: {', '.join(result['missing'])}" if result["missing"] else "")
+                + ". Нажмите «Коммерческий = API × коэффициент», чтобы применить.",
             )
         except Exception as exc:
             messages.error(request, f"Не удалось подтянуть API курсы: {exc}")
@@ -155,16 +170,23 @@ class CurrencyPairAdmin(admin.ModelAdmin):
             return redirect(list_url)
         accepted = accept_drafts()
         if accepted:
-            messages.success(request, f"API курсы приняты в коммерческие: {accepted}")
+            messages.success(
+                request,
+                f"Коммерческий курс = исконный API × коэффициент: обновлено пар — {accepted}",
+            )
         else:
-            messages.warning(request, "Нет API курсов для принятия. Сначала подтяните их.")
+            messages.warning(request, "Нет исконных API курсов. Сначала подтяните ЦБ + Frankfurter.")
         return redirect(list_url)
 
-    @admin.action(description="Принять API курс выбранных в коммерческий")
+    @admin.action(description="Коммерческий = API × коэффициент (выбранные)")
     def accept_selected_drafts(self, request, queryset):
         quotes = list(queryset.values_list("quote", flat=True))
         accepted = accept_drafts(quotes=quotes)
-        self.message_user(request, f"Принято: {accepted}", messages.SUCCESS)
+        self.message_user(
+            request,
+            f"Коммерческий пересчитан: {accepted}",
+            messages.SUCCESS,
+        )
 
     actions = ("accept_selected_drafts",)
 

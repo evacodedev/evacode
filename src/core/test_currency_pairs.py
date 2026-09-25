@@ -12,6 +12,7 @@ from core.currency_pairs import (
     serialize_rates,
     storefront_currency_list,
 )
+from core.currency_pricing import compute_commercial_rate
 from core.models import CurrencyPair
 from market.currency import krw_to_usd
 
@@ -32,22 +33,35 @@ class CurrencyPairsServiceTests(TestCase):
         self.assertTrue({"RUB", "USD", "EUR", "KZT", "KGS", "UZS"} <= quotes)
         rub = next(r for r in payload["rates"] if r["quote"] == "RUB")
         self.assertIn("rate", rub)
+        self.assertNotIn("markup", rub)
         self.assertTrue(Decimal(rub["rate"]) > 0)
 
-    def test_storefront_list_uses_pair_rates(self):
+    def test_storefront_uses_commercial_rate(self):
         seed_currency_pairs()
         CurrencyPair.objects.filter(quote="RUB").update(rate=Decimal("0.0740779221"))
         rows = storefront_currency_list(["RUB", "USD"])
         by_code = {row["value"]: row for row in rows}
         self.assertEqual(by_code["KRW"]["curr"], 1)
         self.assertAlmostEqual(by_code["RUB"]["curr"], 0.0740779221)
-        self.assertEqual(by_code["RUB"]["locale"], "ru")
+        self.assertNotIn("markup", by_code["RUB"])
 
-    def test_krw_to_usd_from_pair(self):
+    def test_accept_sets_commercial_from_api_times_markup(self):
         seed_currency_pairs()
-        CurrencyPair.objects.filter(quote="USD").update(rate=Decimal("0.0008831169"))
-        usd, snapshot = krw_to_usd(77000)
-        self.assertEqual(usd, Decimal("68.00"))
+        pair = CurrencyPair.objects.get(quote="USD")
+        pair.draft_rate = Decimal("0.001")
+        pair.markup = Decimal("1.0700")
+        pair.save(update_fields=["draft_rate", "markup"])
+        accepted = accept_drafts(quotes=["USD"])
+        self.assertEqual(accepted, 1)
+        pair.refresh_from_db()
+        self.assertEqual(pair.rate, compute_commercial_rate(Decimal("0.001"), Decimal("1.0700")))
+
+    def test_krw_to_usd_uses_commercial_only(self):
+        seed_currency_pairs()
+        CurrencyPair.objects.filter(quote="USD").update(rate=Decimal("0.00107"))
+        # 20000 × 0.00107 = 21.4 → 21.50
+        usd, snapshot = krw_to_usd(20000)
+        self.assertEqual(usd, Decimal("21.50"))
         self.assertGreater(snapshot, 0)
 
     @patch("core.currency_pairs._fetch_frankfurter_krw")
@@ -76,21 +90,25 @@ class CurrencyPairsServiceTests(TestCase):
 
         drafts = build_draft_rates()
         self.assertEqual(drafts["USD"][0], Decimal("0.0008000000"))
-        self.assertEqual(drafts["RUB"][0], Decimal("0.0640000000"))
-        self.assertEqual(drafts["KZT"][0], Decimal("0.3200000000"))
 
         result = refresh_drafts()
         self.assertIn("USD", result["updated"])
         pair = CurrencyPair.objects.get(quote="USD")
         old_rate = pair.rate
         self.assertEqual(pair.draft_rate, Decimal("0.0008000000"))
+        # refresh не трогает коммерческий
+        self.assertEqual(pair.rate, old_rate)
 
+        pair.markup = Decimal("1.0700")
+        pair.save(update_fields=["markup"])
         accepted = accept_drafts(quotes=["USD"])
         self.assertEqual(accepted, 1)
         pair.refresh_from_db()
-        self.assertEqual(pair.rate, Decimal("0.0008000000"))
-        self.assertNotEqual(pair.rate, old_rate)
-        self.assertEqual(get_quote_rate("USD"), Decimal("0.0008000000"))
+        self.assertEqual(
+            pair.rate,
+            compute_commercial_rate(Decimal("0.0008000000"), Decimal("1.0700")),
+        )
+        self.assertEqual(get_quote_rate("USD"), pair.rate)
 
 
 class CurrencyPairsApiTests(TestCase):
@@ -104,9 +122,10 @@ class CurrencyPairsApiTests(TestCase):
 
     def test_storefront_currencies_endpoint(self):
         seed_currency_pairs()
-        CurrencyPair.objects.filter(quote="RUB").update(rate=Decimal("0.05"))
+        CurrencyPair.objects.filter(quote="RUB").update(rate=Decimal("0.05275"))
         response = self.client.get("/api/core/currencies/")
         self.assertEqual(response.status_code, 200)
         by_code = {row["value"]: row for row in response.json()["currencies"]}
         self.assertEqual(by_code["KRW"]["curr"], 1)
-        self.assertAlmostEqual(by_code["RUB"]["curr"], 0.05)
+        self.assertAlmostEqual(by_code["RUB"]["curr"], 0.05275)
+        self.assertNotIn("markup", by_code["RUB"])

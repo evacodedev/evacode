@@ -1,6 +1,6 @@
 import useLocalStorage from './useLocalStorage';
 
-const STORAGE_KEY = '_evacodeCurrencies_v2';
+const STORAGE_KEY = '_evacodeCurrencies_v4';
 const TTL_MS = 60 * 60 * 1000; // 1 hour
 
 export default function useCurrencies() {
