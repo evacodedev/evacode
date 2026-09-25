@@ -10,8 +10,15 @@ function toBase64Url(value) {
   return btoa(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
 }
 
-function imgproxyPrefix() {
-  return String(useRuntimeConfig().public.imgproxyPrefix || '').replace(/\/$/, '')
+function resolvePrefix(explicit) {
+  if (explicit != null) {
+    return String(explicit || '').replace(/\/$/, '')
+  }
+  try {
+    return String(useRuntimeConfig().public.imgproxyPrefix || '').replace(/\/$/, '')
+  } catch {
+    return ''
+  }
 }
 
 function normalizeBusinessRu(source) {
@@ -23,8 +30,9 @@ function normalizeBusinessRu(source) {
 
 /**
  * Business.Ru CDN → /img/ (webp). Without IMGPROXY_PREFIX returns the original URL.
+ * Pass opts.prefix when calling outside setup (e.g. useHead callbacks).
  * @param {string} source
- * @param {{ width?: number, height?: number, quality?: number }} [opts]
+ * @param {{ width?: number, height?: number, quality?: number, prefix?: string }} [opts]
  */
 export function catalogImageUrl(source, opts = {}) {
   if (!source) {
@@ -34,7 +42,7 @@ export function catalogImageUrl(source, opts = {}) {
   const height = opts.height ?? 800
   const quality = opts.quality ?? 75
   const url = normalizeBusinessRu(source)
-  const prefix = imgproxyPrefix()
+  const prefix = resolvePrefix(opts.prefix)
   if (!prefix || !url.startsWith(ALLOWED_PREFIX)) {
     return url
   }
@@ -44,6 +52,8 @@ export function catalogImageUrl(source, opts = {}) {
 /**
  * Local /media/ files via imgproxy local:// (reviews, uploads).
  * Requires media volume mounted on imgproxy with IMGPROXY_LOCAL_FILESYSTEM_ROOT.
+ * @param {string} source
+ * @param {{ width?: number, height?: number, quality?: number, prefix?: string }} [opts]
  */
 export function mediaImageUrl(source, opts = {}) {
   if (!source) {
@@ -52,7 +62,7 @@ export function mediaImageUrl(source, opts = {}) {
   const width = opts.width ?? 400
   const height = opts.height ?? 400
   const quality = opts.quality ?? 75
-  const prefix = imgproxyPrefix()
+  const prefix = resolvePrefix(opts.prefix)
   const safe = httpsMedia(source)
   if (!prefix) {
     return safe

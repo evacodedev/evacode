@@ -498,7 +498,11 @@ useHead({
         const image = product.value.images?.[0]?.url
         const imageUrl = image
             ? (() => {
-                const proxied = catalogImageUrl(image, { width: 1200, height: 1200 })
+                const proxied = catalogImageUrl(image, {
+                    width: 1200,
+                    height: 1200,
+                    prefix: runtimeConfig.public.imgproxyPrefix,
+                })
                 return proxied.startsWith('http') ? proxied : `${site}${proxied}`
             })()
             : undefined
