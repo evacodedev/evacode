@@ -17,6 +17,7 @@ from rest_framework.response import Response
 import logging
 
 from .sitemap import catalog_sitemap_urls
+from .home import build_home_page
 from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
 from .pagination import CustomPagination, AllObjectPagination
@@ -152,6 +153,13 @@ class CatalogSitemapAPIView(APIView):
 
     def get(self, request):
         return Response({"urls": catalog_sitemap_urls()})
+
+
+class HomePageAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response(build_home_page(request))
 
 
 class BrandPageAPIView(APIView):

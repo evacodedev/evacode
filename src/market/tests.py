@@ -229,6 +229,102 @@ class CatalogContentFilterApiTests(TestCase):
         )
 
 
+class HomePageApiTests(TestCase):
+    def setUp(self):
+        category, _ = GroupOfGoods.objects.update_or_create(
+            id=20,
+            defaults={
+                "default_order": "1",
+                "deleted": False,
+                "name": "Уход",
+                "updated": "2024-01-01T00:00:00Z",
+            },
+        )
+        GoodsModel.objects.filter(id__in=(101, 102, 103)).delete()
+        curacion, _ = ProductBrand.objects.update_or_create(
+            slug="curacion",
+            defaults={"page_published": True},
+        )
+        ProductBrandI18n.objects.update_or_create(
+            brand=curacion,
+            language="ru",
+            defaults={"name": "Curación", "lead": "Лакто-уход"},
+        )
+        ProductBrand.objects.update_or_create(
+            slug="jogabi",
+            defaults={"page_published": True},
+        )
+        ProductBrand.objects.update_or_create(
+            slug="tom-tit-tot",
+            defaults={"page_published": False},
+        )
+        cream, _ = ProductKind.objects.update_or_create(slug="cream")
+        ProductKindI18n.objects.update_or_create(
+            kind=cream, language="ru", defaults={"name": "крем"}
+        )
+        eye, _ = ProductKind.objects.update_or_create(slug="eye_cream")
+        ProductKindI18n.objects.update_or_create(
+            kind=eye, language="ru", defaults={"name": "крем для глаз"}
+        )
+        ProductKind.objects.update_or_create(slug="set")
+        GoodsModel.objects.create(
+            id=101,
+            title="Hit cream",
+            description="hit",
+            category=category,
+            type="goods",
+            stock=5,
+            bestseller=True,
+            retail_price=10000,
+            content_brand=curacion,
+            content_kind=cream,
+        )
+        GoodsModel.objects.create(
+            id=102,
+            title="Eye cream",
+            description="eye",
+            category=category,
+            type="goods",
+            stock=4,
+            bestseller=False,
+            retail_price=12000,
+            content_brand=curacion,
+            content_kind=eye,
+        )
+        GoodsModel.objects.create(
+            id=103,
+            title="Another cream",
+            description="similar",
+            category=category,
+            type="goods",
+            stock=3,
+            bestseller=False,
+            retail_price=9000,
+            content_brand=curacion,
+            content_kind=cream,
+        )
+
+    def test_home_bundle_shape(self):
+        response = self.client.get("/api/market/home/")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual([item["id"] for item in payload["bestsellers"]], [101])
+        self.assertIn(103, [item["id"] for item in payload["recommend"]])
+        self.assertNotIn(101, [item["id"] for item in payload["recommend"]])
+        self.assertEqual(payload["kinds"]["cream"]["chosen"]["slug"], "cream")
+        self.assertEqual(
+            [item["id"] for item in payload["kinds"]["cream"]["results"]],
+            [103, 101],
+        )
+        self.assertEqual(payload["brands"]["curacion"]["brand"]["name"], "Curación")
+        self.assertEqual(
+            [item["id"] for item in payload["brands"]["curacion"]["results"]],
+            [103, 102, 101],
+        )
+        self.assertIsNone(payload["brands"]["tom-tit-tot"]["brand"])
+        self.assertEqual(payload["brands"]["tom-tit-tot"]["results"], [])
+
+
 class ParseWeightGramsTests(TestCase):
     def test_parse_weight_grams(self):
         self.assertEqual(parse_weight_grams("150"), 150)

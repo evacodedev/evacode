@@ -17,18 +17,7 @@
 </template>
 
 <script setup>
-const apiBase = useRuntimeConfig().public.apiBase;
-
-const { data, pending } = await useAsyncData(
-    'home-featured-bestsellers',
-    () =>
-        $fetch(`${apiBase}/market/goods`, {
-            query: {
-                bestseller: true,
-                page_size: 12,
-            },
-        }).catch(() => ({ results: [] })),
-);
-
-const products = computed(() => data.value?.results || []);
+const { payload, pending } = useHomePageSection()
+const products = computed(() => payload.value?.bestsellers || [])
 </script>
+

@@ -12,6 +12,7 @@ from .views import (
     GoodsKrwPricesView,
     CatalogFacetsAPIView,
     BrandPageAPIView,
+    HomePageAPIView,
     Checkout,
     CatalogSitemapAPIView,
 )
@@ -35,6 +36,7 @@ urlpatterns = [
     path("", include(router.urls)),
     path('categories/', GroupListAPIView.as_view()),
     path('catalog-filters/', CatalogFacetsAPIView.as_view()),
+    path('home/', HomePageAPIView.as_view()),
     path('sitemap/', CatalogSitemapAPIView.as_view()),
     path('brands/<str:slug>/', BrandPageAPIView.as_view()),
     path('update_data/', update_data),

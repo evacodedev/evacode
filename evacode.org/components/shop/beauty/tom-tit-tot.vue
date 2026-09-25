@@ -61,26 +61,12 @@
 </template>
 
 <script setup>
-const runtimeConfig = useRuntimeConfig();
-const apiBase = runtimeConfig.public.apiBase;
+const { payload, pending } = useHomePageSection();
+const block = computed(() => payload.value?.brands?.['tom-tit-tot'] || null);
+const brand = computed(() => block.value?.brand || null);
 
-const { data: brand } = await useAsyncData(
-    'home-brand-tom-tit-tot',
-    () => $fetch(`${apiBase}/market/brands/tom-tit-tot/`).catch(() => null),
-);
-
-const { data: goodsResponse, pending: goodsPending } = await useAsyncData(
-    'home-brand-tom-tit-tot-goods',
-    () => $fetch(`${apiBase}/market/goods`, {
-        query: {
-            brand: 'tom-tit-tot',
-            page_size: 4,
-            ordering: 'title',
-        },
-    }).catch(() => ({ results: [] })),
-);
-
-const products = computed(() => goodsResponse.value?.results || []);
+const products = computed(() => block.value?.results || []);
+const goodsPending = pending;
 const brandName = computed(() => brand.value?.name || 'TOM-TIT-TOT');
 const lead = computed(() => brand.value?.lead || '');
 const cover = computed(() => brand.value?.history_image || brand.value?.hero || '');

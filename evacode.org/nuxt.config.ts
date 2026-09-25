@@ -117,6 +117,13 @@ export default defineNuxtConfig({
     },
     css: ['@/assets/scss/app.scss'],
     ssr: true,
+    // Keep global CSS as a cacheable /_nuxt/*.css file instead of ~900KB inline.
+    features: {
+        inlineStyles: false,
+    },
+    experimental: {
+        inlineSSRStyles: false,
+    },
     modules: [
         'maz-ui/nuxt',
         'nuxt3-localforage',

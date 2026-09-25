@@ -17,37 +17,7 @@
 </template>
 
 <script setup>
-const apiBase = useRuntimeConfig().public.apiBase;
-
-const { data, pending } = await useAsyncData('home-recommend-bundle', async () => {
-    const hitsPayload = await $fetch(`${apiBase}/market/goods`, {
-        query: { bestseller: true, page_size: 12 },
-    }).catch(() => ({ results: [] }));
-
-    const hits = hitsPayload?.results || [];
-    const hitIds = new Set(hits.map((item) => item.id));
-    const brands = [...new Set(hits.map((item) => item.content_brand?.slug).filter(Boolean))].slice(0, 6);
-    const kinds = [...new Set(hits.map((item) => item.content_kind?.slug).filter(Boolean))].slice(0, 6);
-
-    if (!brands.length && !kinds.length) {
-        return { results: [] };
-    }
-
-    const query = { page_size: 24 };
-    if (brands.length) {
-        query.brand = brands.join(',');
-    }
-    if (kinds.length) {
-        query.kind = kinds.join(',');
-    }
-
-    const similarPayload = await $fetch(`${apiBase}/market/goods`, { query }).catch(() => ({ results: [] }));
-    const results = (similarPayload?.results || [])
-        .filter((item) => !hitIds.has(item.id))
-        .slice(0, 9);
-
-    return { results };
-});
-
-const products = computed(() => data.value?.results || []);
+const { payload, pending } = useHomePageSection()
+const products = computed(() => payload.value?.recommend || [])
 </script>
+
