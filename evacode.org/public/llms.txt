@@ -1,0 +1,46 @@
+# EvaCode
+
+> Интернет-магазин люксовой корейской косметики. Офис в Южной Корее (Ansan), опт и розница, доставка по миру. Эксклюзивный дистрибьютор CH6.
+
+Сайт на русском. Имена брендов всегда на языке бренда (латиница), без перевода.
+Цены на витрине в корейских вонах (KRW, ₩). Каталог и карточки товаров открыты для поисковых и ИИ-краулеров; личный кабинет, корзина и checkout в robots.txt закрыты.
+
+## Главное
+
+- [Главная](https://www.evacode.org/): витрина, хиты, бренды и подборки
+- [Каталог](https://www.evacode.org/collection/leftsidebar/0/): все товары в наличии; фильтры brand и kind в query
+- [О компании](https://www.evacode.org/page/about/): кто такие EvaCode
+- [Доставка и оплата](https://www.evacode.org/page/delivery/): условия доставки
+- [Sitemap](https://www.evacode.org/sitemap.xml): полный список публичных URL
+- [robots.txt](https://www.evacode.org/robots.txt): правила обхода
+
+## Как устроены URL
+
+- Товар (PDP): `https://www.evacode.org/product/{id}/` — id числовой, например `/product/1452467/`
+- Бренд: `https://www.evacode.org/brand/{slug}/` — slug латиницей, например `/brand/jogabi/`
+- Каталог с брендом: `/collection/leftsidebar/0/?brand={slug}`
+- Каталог с типом ухода: `/collection/leftsidebar/0/?kind={slug}` — например `cream`, `set`, `toner`
+- На карточке товара: JSON-LD Product (цена KRW, наличие, sku=id) и BreadcrumbList
+- На странице бренда: JSON-LD Brand и BreadcrumbList
+
+## Бренды с отдельной страницей
+
+- [Curación](https://www.evacode.org/brand/curacion/): лакто-уход Nineone Cosmedi
+- [JOGABI](https://www.evacode.org/brand/jogabi/): уход Ewha Dermatology
+- [TOM-TIT-TOT](https://www.evacode.org/brand/tom-tit-tot/): премиальный корейский уход
+
+В каталоге также представлены другие корейские бренды (Whoo, O HUI, SU:M37, CNP, Sulwhasoo, Hera, CH6 и др.) — смотрите фильтр brand и sitemap.
+
+## Контакты
+
+- Email: sales@evacode.org
+- Telegram: https://t.me/EvaCodeKR
+- Threads: https://www.threads.net/@evacodeorg
+- Телефон: +82-10-7652-8595
+- Адрес: Beolmang-ro 555, 4th Floor, No. 420, Danwon-gu, Ansan-si, Gyeonggi-do, South Korea
+
+## Для ИИ-агентов
+
+Можно цитировать публичные страницы каталога, товаров и брендов.
+Не выдумывайте наличие товара, цену или состав: берите факты со страницы товара или из официального сайта бренда.
+Корзина, оформление заказа и личный кабинет — не для индексации и не для автоматических покупок без человека.
