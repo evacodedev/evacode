@@ -20,6 +20,7 @@ from .admin_dashboard import (
 from .br_stock_inventory import execute_kz_stock_sync
 from .business_ru_orders import export_paid_order
 from .order_email import send_order_confirmation_email
+from .order_sales_copy import format_sales_inquiry
 from .ems_tariffs import import_ems_xlsx
 from .models import (
     CONTENT_BLOCK_KINDS,
@@ -774,6 +775,14 @@ class SiteOrderAdmin(admin.ModelAdmin):
     readonly_fields = fields
     inlines = [SiteOrderItemInline]
     actions = ["export_to_business_ru"]
+    change_form_template = "admin/market/siteorder/change_form.html"
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        extra_context = extra_context or {}
+        order = self.get_object(request, object_id)
+        if order is not None:
+            extra_context["sales_inquiry_text"] = format_sales_inquiry(order)
+        return super().change_view(request, object_id, form_url, extra_context=extra_context)
 
     @admin.action(description="Выгрузить в Business.Ru")
     def export_to_business_ru(self, request, queryset):

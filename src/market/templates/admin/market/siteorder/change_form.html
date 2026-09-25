@@ -1,0 +1,51 @@
+{% extends "admin/change_form.html" %}
+{% block after_field_sets %}
+{{ block.super }}
+{% if sales_inquiry_text %}
+<div class="module aligned" id="sales-inquiry-module">
+  <h2>Для отдела продаж</h2>
+  <div class="form-row">
+    <div>
+      <label>Обращение клиента</label>
+      <textarea id="sales-inquiry-text" rows="16" readonly style="width:100%;font-family:monospace;font-size:13px;line-height:1.4;">{{ sales_inquiry_text }}</textarea>
+      <p style="margin-top:8px;">
+        <button type="button" class="button default" id="sales-inquiry-copy">Скопировать обращение</button>
+        <span id="sales-inquiry-status" style="margin-left:10px;color:#666;"></span>
+      </p>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var btn = document.getElementById("sales-inquiry-copy");
+  var area = document.getElementById("sales-inquiry-text");
+  var status = document.getElementById("sales-inquiry-status");
+  if (!btn || !area) return;
+  btn.addEventListener("click", function () {
+    var text = area.value;
+    function ok() {
+      status.textContent = "Скопировано";
+      setTimeout(function () { status.textContent = ""; }, 2000);
+    }
+    function fail() {
+      area.focus();
+      area.select();
+      status.textContent = "Выделите текст и Ctrl+C";
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(ok).catch(fail);
+    } else {
+      try {
+        area.focus();
+        area.select();
+        document.execCommand("copy");
+        ok();
+      } catch (e) {
+        fail();
+      }
+    }
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}
