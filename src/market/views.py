@@ -16,6 +16,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 import logging
 
+from .sitemap import catalog_sitemap_urls
 from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
 from .pagination import CustomPagination, AllObjectPagination
@@ -144,6 +145,13 @@ def _facet_rows(queryset, lang, order_key=None):
     if order_key:
         rows.sort(key=order_key)
     return rows
+
+
+class CatalogSitemapAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        return Response({"urls": catalog_sitemap_urls()})
 
 
 class BrandPageAPIView(APIView):

@@ -103,7 +103,12 @@ export default defineNuxtConfig({
             '/page/order-success/**',
             '/page/consult-success/**',
             '/page/consult/**',
+            '/page/404/**',
         ],
+        sources: [
+            '/api/__sitemap__/urls',
+        ],
+        cacheMaxAgeSeconds: 600,
     },
     css: ['@/assets/scss/app.scss'],
     ssr: true,
