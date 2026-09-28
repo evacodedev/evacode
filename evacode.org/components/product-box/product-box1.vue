@@ -85,6 +85,9 @@ export default {
       return first && first.url ? catalogImageUrl(first.url, { width: 720, height: 720 }) : ''
     },
     showOfficialPrice() {
+      if (!SHOW_OFFICIAL_PRICE) {
+        return false
+      }
       const official = Number(this.product && this.product.official_price)
       const retail = Number(this.product && this.product.retail_price)
       return Number.isFinite(official) && official > retail

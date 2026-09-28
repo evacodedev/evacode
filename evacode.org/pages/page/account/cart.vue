@@ -18,7 +18,7 @@
                             <tr>
                                 <td class="total-sum">
                                     <h2>{{ getPrice(cartTotal) }}
-                                        <del>{{ getPrice(cartOfficialTotal) }}</del>
+                                        <del v-if="SHOW_OFFICIAL_PRICE">{{ getPrice(cartOfficialTotal) }}</del>
                                     </h2>
                                 </td>
                             </tr>

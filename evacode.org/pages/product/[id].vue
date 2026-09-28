@@ -112,9 +112,9 @@
                 <h1 class="product-pdp__title">{{ product.title }}</h1>
                 <p v-if="metaLine" class="product-pdp__meta">{{ metaLine }}</p>
                 <div class="product-pdp__price">
-                    <span v-if="product.official_price" class="product-pdp__was">{{ getPrice(product.official_price) }}</span>
+                    <span v-if="SHOW_OFFICIAL_PRICE && product.official_price" class="product-pdp__was">{{ getPrice(product.official_price) }}</span>
                     <strong v-if="product.retail_price != null">{{ getPrice(product.retail_price) }}</strong>
-                    <span v-if="discountPercent" class="product-pdp__off">−{{ discountPercent }}%</span>
+                    <span v-if="SHOW_OFFICIAL_PRICE && discountPercent" class="product-pdp__off">−{{ discountPercent }}%</span>
                 </div>
                 <p v-if="product.stock != null && product.stock < 8" class="product-pdp__stock">
                     Осталось {{ product.stock }} шт.

@@ -52,7 +52,7 @@
                         <div class="col-xs-3">
                             <h2 class="td-color">
                                 {{ getPrice(product.retail_price * product.quantity) }}
-                                <del>{{ getPrice(product.official_price * product.quantity) }}</del>
+                                <del v-if="SHOW_OFFICIAL_PRICE">{{ getPrice(product.official_price * product.quantity) }}</del>
                             </h2>
                         </div>
                         <div class="col-xs-3">
@@ -66,7 +66,7 @@
                 </td>
                 <td>
                     <h2>{{ getPrice(product.retail_price) }}
-                        <del>{{ getPrice(product.official_price) }}</del>
+                        <del v-if="SHOW_OFFICIAL_PRICE">{{ getPrice(product.official_price) }}</del>
                     </h2>
                 </td>
                 <td>
@@ -100,7 +100,7 @@
                 <td>
                     <h2>
                         {{ getPrice(product.retail_price * product.quantity) }}
-                        <del>{{ getPrice(product.official_price * product.quantity) }}</del>
+                        <del v-if="SHOW_OFFICIAL_PRICE">{{ getPrice(product.official_price * product.quantity) }}</del>
                     </h2>
                 </td>
             </tr>

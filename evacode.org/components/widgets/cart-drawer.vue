@@ -66,7 +66,7 @@
                   </div>
                   <p class="cart-drawer__price">
                     {{ getPrice(item.retail_price) }}
-                    <del v-if="item.official_price && item.official_price > item.retail_price">
+                    <del v-if="SHOW_OFFICIAL_PRICE && item.official_price && item.official_price > item.retail_price">
                       {{ getPrice(item.official_price) }}
                     </del>
                   </p>

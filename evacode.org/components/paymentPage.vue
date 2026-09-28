@@ -303,7 +303,7 @@
               </div>
               <div class="checkout-v2__item-price">
                 <span>{{ getPrice(item.retail_price * item.quantity) }}</span>
-                <del v-if="item.official_price">{{ getPrice(item.official_price * item.quantity) }}</del>
+                <del v-if="SHOW_OFFICIAL_PRICE && item.official_price">{{ getPrice(item.official_price * item.quantity) }}</del>
               </div>
             </li>
           </ul>
