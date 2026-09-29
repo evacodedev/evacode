@@ -69,8 +69,7 @@ Frontend получает публичные данные через REST API. �
 ├── dockerfiles/                  # Dockerfile backend и Nginx-конфигурация
 ├── docker-compose.yml            # production-стек
 ├── docker-compose.dev.yml        # backend/БД/Nginx для разработки
-├── .env.template                 # шаблон backend-конфигурации
-└── init-letsencrypt.sh           # первичная настройка Let's Encrypt
+└── .env.template                 # шаблон backend-конфигурации
 ```
 
 `evacode.org` — обычная папка, а не Git-сабмодуль. Изменения frontend и backend коммитятся и пушатся из корня этого репозитория.
@@ -230,17 +229,25 @@ Production Compose запускает PostgreSQL, Gunicorn, Nginx, Nuxt и се�
 
 1. Подготовьте `.env`, `.env2` и `evacode.org/.env`.
 2. Для `.env` укажите `DB_HOST=db`; для `.env2` укажите `DB_HOST=localhost`.
-3. Настройте DNS-записи `evacode.org` и `www.evacode.org` на IP сервера.
-4. Подготовьте TLS-сертификаты в `data/certbot/conf` либо включите и настройте Certbot.
+3. Настройте DNS-записи `evacode.co.kr`, `www.evacode.co.kr`, `evacode.org` и `www.evacode.org` на IP сервера. Основной домен — `evacode.co.kr`; страницы `evacode.org` отдают 301 на него, `/api/` на старом домене отвечает на месте.
+4. Подготовьте сертификаты Let's Encrypt в `data/certbot/conf`.
 
 Nginx ожидает сертификаты по путям:
 
 ```text
-data/certbot/conf/live/www.evacode.org/fullchain.pem
-data/certbot/conf/live/www.evacode.org/privkey.pem
+data/certbot/conf/live/evacode.co.kr/fullchain.pem   # evacode.co.kr, www.evacode.co.kr
+data/certbot/conf/live/evacode.co.kr/privkey.pem
+data/certbot/conf/live/evacode.org/fullchain.pem     # evacode.org, www.evacode.org
+data/certbot/conf/live/evacode.org/privkey.pem
 ```
 
-Сервис Certbot сейчас закомментирован в `docker-compose.yml`, поэтому автоматическое продление сертификатов не выполняется. До запуска HTTPS убедитесь, что сертификаты существуют и действительны.
+Сервис Certbot в `docker-compose.yml` закомментирован. Продление идёт из cron root на сервере (дважды в сутки, лог `/var/log/evacode-certbot.log`):
+
+```bash
+docker run --rm -v /root/evacode/data/certbot/conf:/etc/letsencrypt -v /root/evacode/data/certbot/www:/var/www/certbot certbot/certbot renew --quiet
+```
+
+Nginx перечитывает сертификаты каждые 6 часов. Новый сертификат выпускается через webroot тем же образом (`certonly --webroot -w /var/www/certbot -d ...`).
 
 ### Сборка и запуск
 

@@ -109,8 +109,7 @@ services:
       - ./data/certbot/conf:/etc/letsencrypt:ro
       - ./data/certbot/www:/var/www/certbot:ro
     command: /bin/sh -c 'while :; do sleep 6h & wait $${!}; nginx -s reload; done & nginx -g "daemon off;"'
-  # certbot: temporarily disabled — using purchased certificate until 2026-06-19 17:56 UTC
-  # Re-enable after LE rate limit resets and run: bash init-letsencrypt.sh
+  # certbot: disabled — renewal runs from root cron on the host (see README, "Запуск production-версии")
   # certbot:
   #   image: certbot/certbot
   #   volumes:

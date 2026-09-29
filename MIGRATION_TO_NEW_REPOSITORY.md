@@ -102,7 +102,7 @@ docker compose config --quiet
 
 - в `.env` переменная `DB_HOST` должна быть `db`;
 - в `.env2` переменная `DB_HOST` должна быть `localhost`;
-- в `evacode.org/.env` должны быть production URL, например `https://www.evacode.org/api` и `https://www.evacode.org`;
+- в `evacode.org/.env` должны быть production URL, например `https://evacode.co.kr/api` и `https://evacode.co.kr`;
 - если используется YooKassa, в `.env` должны быть `YOOKASSA_SHOP_ID` и `YOOKASSA_API_TOKEN`.
 
 ## 5. Переключите контейнеры на новую рабочую копию

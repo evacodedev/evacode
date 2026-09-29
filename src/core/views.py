@@ -16,7 +16,8 @@ from babel import Locale, UnknownLocaleError
 from .serializers import TagSerializer, ContactSerailizer
 from taggit.models import Tag
 from rest_framework.views import View, APIView
-from django.core.mail import send_mail
+from django.conf import settings
+from django.core.mail import EmailMessage
 from .serializers import RegisterSerializer, AccountUserSerializer, AccountAddressSerializer, LoginSerializer, CommentSerializer
 from .models import Comment, Contacts, AboutUs, Banner, Delivery, SectionWithVideo, AccountAddress
 from django_filters import FilterSet, CharFilter
@@ -27,6 +28,8 @@ from babel import Locale, UnknownLocaleError
 import locale
 from pycbrf import ExchangeRates
 import datetime
+
+FEEDBACK_EMAIL = 'orders@evacode.co.kr'
 
 
 class BannerFilter(FilterSet):
@@ -99,11 +102,18 @@ class FeedBackView(APIView):
         if serializer_class.is_valid():
             data = serializer_class.validated_data
             name = data.get('name')
-            from_email = data.get('email')
+            reply_to = data.get('email')
             subject = data.get('subject')
             message = data.get('message')
-            send_mail(f'От {name} | {subject}', message, from_email, ['amromashov@gmail.com'])
+            EmailMessage(
+                f'От {name} | {subject}',
+                message,
+                settings.DEFAULT_FROM_EMAIL,
+                [FEEDBACK_EMAIL],
+                reply_to=[reply_to] if reply_to else None,
+            ).send()
             return Response({"success": "Sent"})
+        return Response(serializer_class.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class PostViewSet(viewsets.ModelViewSet):
