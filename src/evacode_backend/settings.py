@@ -365,6 +365,28 @@ CRM_STOCK_URL = os.getenv(
     "CRM_STOCK_URL", "https://crm.evacode.kz/api/v1/evacodeorg/stock"
 ).strip()
 CRM_STOCK_TOKEN = os.getenv("CRM_STOCK_TOKEN", "").strip()
+BUSINESS_RU_RU_STORE_ID = os.getenv("BUSINESS_RU_RU_STORE_ID", "903587").strip()
+BUSINESS_RU_RU_CURRENCY_ID = os.getenv("BUSINESS_RU_RU_CURRENCY_ID", "1").strip()
+BUSINESS_RU_RU_PURCHASE_PRICE_TYPE_ID = os.getenv(
+    "BUSINESS_RU_RU_PURCHASE_PRICE_TYPE_ID", "903632"
+).strip()
+BUSINESS_RU_RU_PRICE_TYPE_WHOLESALE_SMALL = os.getenv(
+    "BUSINESS_RU_RU_PRICE_TYPE_WHOLESALE_SMALL", "976958"
+).strip()
+BUSINESS_RU_RU_PRICE_TYPE_WHOLESALE_MEDIUM = os.getenv(
+    "BUSINESS_RU_RU_PRICE_TYPE_WHOLESALE_MEDIUM", "1710631"
+).strip()
+BUSINESS_RU_RU_PRICE_TYPE_WHOLESALE_LARGE = os.getenv(
+    "BUSINESS_RU_RU_PRICE_TYPE_WHOLESALE_LARGE", "976962"
+).strip()
+BUSINESS_RU_RU_PRICE_TYPE_RETAIL = os.getenv(
+    "BUSINESS_RU_RU_PRICE_TYPE_RETAIL", "913538"
+).strip()
+RU_STOCK_URL = os.getenv(
+    "RU_STOCK_URL", "https://evacode.ip-host.ru/evacode_trade11/hs/market/goods/"
+).strip()
+RU_STOCK_USER = os.getenv("RU_STOCK_USER", "").strip()
+RU_STOCK_PASSWORD = os.getenv("RU_STOCK_PASSWORD", "").strip()
 BUSINESS_RU_STATUS_ID = os.getenv("BUSINESS_RU_STATUS_ID", "273").strip()
 BUSINESS_RU_ORGANIZATION_ID = os.getenv("BUSINESS_RU_ORGANIZATION_ID", "").strip()
 BUSINESS_RU_EMPLOYEE_ID = os.getenv("BUSINESS_RU_EMPLOYEE_ID", "").strip()

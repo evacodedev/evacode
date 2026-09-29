@@ -59,6 +59,21 @@ services:
     volumes:
       - static:/www/data/static
       - media:/www/data/media
+  ru_stock_sync:
+    container_name: ru_stock_sync
+    build:
+      context: .
+      network: host
+      dockerfile: dockerfiles/Dockerfile
+    command: python manage.py sync_ru_stock
+    restart: always
+    depends_on:
+      - server
+    env_file:
+      - .env
+    volumes:
+      - static:/www/data/static
+      - media:/www/data/media
   imgproxy:
     container_name: evacode-imgproxy
     image: darthsim/imgproxy:v3.27.1

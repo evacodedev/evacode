@@ -474,6 +474,75 @@ class ApiKzSyncSettings(models.Model):
         return obj
 
 
+class ApiRuSync(models.Model):
+    store_id = models.CharField(max_length=32, blank=True, db_index=True, verbose_name="ID склада BR")
+    run_at = models.DateTimeField(auto_now_add=True, verbose_name="Запуск")
+    ok = models.BooleanField(default=False, verbose_name="Успешно")
+    message = models.TextField(blank=True, verbose_name="Результат")
+    inventory_id = models.CharField(max_length=32, blank=True, verbose_name="ID инвентаризации BR")
+    inventory_number = models.CharField(max_length=32, blank=True, verbose_name="№ инвентаризации")
+    posting_id = models.CharField(max_length=32, blank=True, verbose_name="ID оприходования BR")
+    posting_number = models.CharField(max_length=32, blank=True, verbose_name="№ оприходования")
+    charge_id = models.CharField(max_length=32, blank=True, verbose_name="ID списания BR")
+    charge_number = models.CharField(max_length=32, blank=True, verbose_name="№ списания")
+    prices_updated = models.PositiveIntegerField(default=0, verbose_name="Цен обновлено")
+    prices_unchanged = models.PositiveIntegerField(default=0, verbose_name="Цен без изменений")
+    prices_failed = models.PositiveIntegerField(default=0, verbose_name="Цен с ошибкой")
+    prices_goods = models.PositiveIntegerField(default=0, verbose_name="Товаров с ценами")
+    prices_list_id = models.CharField(max_length=32, blank=True, verbose_name="ID назначения цен BR")
+    prices_list_number = models.CharField(max_length=32, blank=True, verbose_name="№ назначения цен")
+
+    class Meta:
+        verbose_name = "Запуск синхронизации RU"
+        verbose_name_plural = "История синхронизаций RU"
+        ordering = ("-run_at", "-id")
+
+    def __str__(self):
+        when = self.run_at.strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
+        return f"Россия {when}"
+
+
+class ApiRuSyncSettings(models.Model):
+    WEEKDAY_CHOICES = ApiKzSyncSettings.WEEKDAY_CHOICES
+
+    enabled = models.BooleanField(
+        default=False,
+        verbose_name="Расписание включено",
+        help_text="Пока выключено, фоновый воркер не запускает синхронизацию. Ручной запуск из истории работает всегда.",
+    )
+    weekdays = models.CharField(
+        max_length=32,
+        blank=True,
+        default="",
+        verbose_name="Дни недели",
+        help_text="Можно выбрать несколько дней. Время одно на все выбранные дни.",
+    )
+    run_time = models.TimeField(
+        default=dt_time(3, 0),
+        verbose_name="Время запуска",
+        help_text="Часы и минуты в поясе сервера — смотрите часы на этой странице.",
+    )
+
+    class Meta:
+        verbose_name = "Расписание синхронизации RU"
+        verbose_name_plural = "Расписание синхронизации RU"
+
+    def __str__(self):
+        return "Расписание синхронизации RU"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        obj, _ = cls.objects.get_or_create(
+            pk=1,
+            defaults={"enabled": False, "weekdays": "", "run_time": dt_time(3, 0)},
+        )
+        return obj
+
+
 class ProductContent(models.Model):
     good = models.OneToOneField(
         GoodsModel,

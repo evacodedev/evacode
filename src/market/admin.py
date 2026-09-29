@@ -18,6 +18,7 @@ from .admin_dashboard import (
     patch_admin_index,
 )
 from .br_stock_inventory import execute_kz_stock_sync
+from .br_ru_stock_inventory import execute_ru_stock_sync
 from .business_ru_orders import export_paid_order
 from .order_email import send_order_confirmation_email
 from .order_sales_copy import format_sales_inquiry
@@ -26,6 +27,8 @@ from .models import (
     CONTENT_BLOCK_KINDS,
     ApiKzSync,
     ApiKzSyncSettings,
+    ApiRuSync,
+    ApiRuSyncSettings,
     EmsDestination,
     EmsRate,
     EmsRateColumn,
@@ -250,6 +253,146 @@ class ApiKzSyncAdmin(admin.ModelAdmin):
         if result.get("ok") and result.get("log") is not None:
             messages.success(request, result["message"])
             return redirect(reverse("admin:market_apikzsync_change", args=[result["log"].pk]))
+        messages.error(request, result["message"])
+        return redirect(list_url)
+
+
+class ApiRuSyncSettingsForm(forms.ModelForm):
+    weekdays = forms.MultipleChoiceField(
+        choices=ApiRuSyncSettings.WEEKDAY_CHOICES,
+        widget=forms.CheckboxSelectMultiple,
+        required=False,
+        label="Дни недели",
+        help_text="Можно выбрать несколько дней. Время одно на все выбранные дни.",
+    )
+
+    class Meta:
+        model = ApiRuSyncSettings
+        fields = ("enabled", "weekdays", "run_time")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        raw = ""
+        if self.instance and self.instance.pk:
+            raw = self.instance.weekdays or ""
+        elif "weekdays" in self.initial:
+            raw = self.initial.get("weekdays") or ""
+        if isinstance(raw, str):
+            self.initial["weekdays"] = [item for item in raw.split(",") if item != ""]
+        self.fields["run_time"].initial = self.fields["run_time"].initial or dt_time(3, 0)
+
+    def clean_weekdays(self):
+        days = self.cleaned_data.get("weekdays") or []
+        return ",".join(str(day) for day in days)
+
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get("enabled") and not cleaned.get("weekdays"):
+            self.add_error("weekdays", "Выберите хотя бы один день недели.")
+        return cleaned
+
+
+@admin.register(ApiRuSyncSettings)
+class ApiRuSyncSettingsAdmin(admin.ModelAdmin):
+    form = ApiRuSyncSettingsForm
+    change_form_template = "admin/market/apirusyncsettings/change_form.html"
+    list_display = ("enabled", "weekdays", "run_time")
+    fields = ("enabled", "weekdays", "run_time")
+
+    def has_add_permission(self, request):
+        try:
+            return not ApiRuSyncSettings.objects.exists()
+        except (ProgrammingError, OperationalError):
+            return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+    def changelist_view(self, request, extra_context=None):
+        obj = ApiRuSyncSettings.load()
+        return redirect(reverse("admin:market_apirusyncsettings_change", args=[obj.pk]))
+
+    def render_change_form(self, request, context, add=False, change=False, form_url="", obj=None):
+        now = timezone.localtime()
+        context["server_tz"] = timezone.get_current_timezone_name()
+        context["server_time_display"] = now.strftime("%Y-%m-%d %H:%M:%S")
+        context["server_time_iso"] = now.isoformat()
+        return super().render_change_form(request, context, add, change, form_url, obj)
+
+
+@admin.register(ApiRuSync)
+class ApiRuSyncAdmin(admin.ModelAdmin):
+    change_list_template = "admin/market/apirusync/change_list.html"
+    list_display = (
+        "run_at",
+        "store_id",
+        "ok",
+        "inventory_number",
+        "posting_number",
+        "charge_number",
+        "prices_updated",
+        "prices_unchanged",
+        "prices_failed",
+    )
+    list_filter = ("ok",)
+    search_fields = (
+        "store_id",
+        "inventory_id",
+        "inventory_number",
+        "posting_id",
+        "posting_number",
+        "charge_id",
+        "charge_number",
+        "prices_list_id",
+        "prices_list_number",
+        "message",
+    )
+    fields = (
+        "run_at",
+        "store_id",
+        "ok",
+        "inventory_id",
+        "inventory_number",
+        "posting_id",
+        "posting_number",
+        "charge_id",
+        "charge_number",
+        "prices_updated",
+        "prices_unchanged",
+        "prices_failed",
+        "prices_goods",
+        "prices_list_id",
+        "prices_list_number",
+        "message",
+    )
+    readonly_fields = fields
+    ordering = ("-run_at", "-id")
+
+    def has_add_permission(self, request):
+        return False
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "sync/",
+                self.admin_site.admin_view(self.sync_view),
+                name="market_apirusync_sync",
+            ),
+        ]
+        return extra + urls
+
+    def sync_view(self, request):
+        list_url = reverse("admin:market_apirusync_changelist")
+        if request.method != "POST":
+            return redirect(list_url)
+        result = execute_ru_stock_sync()
+        if result.get("busy"):
+            messages.warning(request, result["message"])
+            return redirect(list_url)
+        if result.get("ok") and result.get("log") is not None:
+            messages.success(request, result["message"])
+            return redirect(reverse("admin:market_apirusync_change", args=[result["log"].pk]))
         messages.error(request, result["message"])
         return redirect(list_url)
 
@@ -811,6 +954,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
 _EMS_MODELS = {"emsratecolumn", "emsrate", "emsdestination"}
 _SETTINGS_MODELS = {"partnerapikey"}
 _API_KZ_MODELS = {"apikzsync", "apikzsyncsettings"}
+_API_RU_MODELS = {"apirusync", "apirusyncsettings"}
 _PAYMENTS_MODELS = ("siteorder", "checkoutsettings")
 
 _original_get_app_list = admin.site.get_app_list
@@ -833,6 +977,7 @@ def get_app_list(request, app_label=None):
     ems_models = []
     settings_models = []
     api_kz_models = []
+    api_ru_models = []
     payments_by_name = {}
     for app in app_list:
         if app.get("app_label") != "market":
@@ -846,6 +991,8 @@ def get_app_list(request, app_label=None):
                 settings_models.append(model)
             elif object_name in _API_KZ_MODELS:
                 api_kz_models.append(model)
+            elif object_name in _API_RU_MODELS:
+                api_ru_models.append(model)
             elif object_name in _PAYMENTS_MODELS:
                 payments_by_name[object_name] = model
             else:
@@ -859,6 +1006,7 @@ def get_app_list(request, app_label=None):
         group
         for group in (
             _app_group("API KZ", "api_kz", api_kz_models),
+            _app_group("API RU", "api_ru", api_ru_models),
             _app_group("EMS", "ems", ems_models),
             _app_group("Оплаты", "payments", payments_models),
             _app_group("SETTINGS", "settings", settings_models),
