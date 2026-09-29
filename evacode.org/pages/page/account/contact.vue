@@ -46,7 +46,7 @@ useHead({
     meta: [
         {
             name: 'description',
-            content: 'Связаться с EvaCode: телефон, WhatsApp, Telegram, email sales@evacode.org. Офис в Ансане, Южная Корея.',
+            content: 'Связаться с EvaCode: телефон, WhatsApp, Telegram, email orders@evacode.co.kr. Офис в Ансане, Южная Корея.',
         },
     ],
 });

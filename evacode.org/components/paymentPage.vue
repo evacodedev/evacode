@@ -268,7 +268,7 @@
                 class="checkout-v2__pay-help-contacts"
                 phone="+8210-7652-8595"
                 phone-href="tel:+821076528595"
-                email="sales@evacode.org"
+                email="orders@evacode.co.kr"
               />
               <p v-if="telegramEnabled" class="checkout-v2__pay-help-note">
                 Или выберите «Заказ в Telegram» выше и отправьте заказ с сайта.

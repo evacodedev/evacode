@@ -36,7 +36,7 @@ export default defineNuxtPlugin(() => {
                     alternateName: ['Evacode', 'ЕваКод'],
                     url: `${site}/`,
                     logo: `${site}/images/new_evacode/evacode_header_logo.svg`,
-                    email: 'sales@evacode.org',
+                    email: 'orders@evacode.co.kr',
                     telephone: '+82-10-7652-8595',
                     description:
                         'Интернет-магазин люксовой корейской косметики. Офис в Южной Корее, опт и розница, доставка по миру. Эксклюзивный дистрибьютор CH6.',

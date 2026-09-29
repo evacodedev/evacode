@@ -181,7 +181,7 @@
                                     variant="pdp"
                                     phone="+8210-7652-8595"
                                     phone-href="tel:+821076528595"
-                                    email="sales@evacode.org"
+                                    email="orders@evacode.co.kr"
                                 />
                             </div>
                         </div>
