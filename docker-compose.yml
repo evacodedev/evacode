@@ -96,6 +96,7 @@ services:
   nginx:
     container_name: evacode-nginx
     build: ./dockerfiles/nginx
+    restart: always
     ports:
       - 443:443
       - 80:80
