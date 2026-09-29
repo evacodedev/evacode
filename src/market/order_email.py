@@ -193,6 +193,109 @@ def build_order_confirmation_bodies(order) -> tuple[str, str]:
     return text, html
 
 
+ORDER_HELP_EMAIL = "orders@evacode.co.kr"
+
+
+def _local_dt(value) -> str:
+    if not value:
+        return "—"
+    return timezone.localtime(value).strftime("%Y-%m-%d %H:%M")
+
+
+def _value(value) -> str:
+    text = str(value or "").strip()
+    return text or "—"
+
+
+def build_order_help_body(order, user, phone: str, message: str) -> str:
+    br_number = _br_order_number(order)
+    items = list(order.items.all())
+    account_name = (user.get_full_name() or "").strip() or user.username
+    account_email = (user.email or user.username or "").strip()
+    address = ", ".join(
+        part for part in [order.postal_code, order.country, order.city, order.address] if part
+    )
+    if order.shipping_method == METHOD_PICKUP:
+        shipping = "Самовывоз"
+    else:
+        destination = order.country or order.shipping_destination or ""
+        shipping = f"EMS{f' ({destination})' if destination else ''}"
+    admin_url = (
+        f"{str(settings.BACKEND_PUBLIC_URL or '').rstrip('/')}/admin/market/siteorder/{order.pk}/change/"
+    )
+
+    lines = [
+        "ВОПРОС КЛИЕНТА",
+        message,
+        "",
+        "КЛИЕНТ",
+        f"Имя в аккаунте: {_value(account_name)}",
+        f"Email аккаунта: {_value(account_email)}",
+        f"Телефон для связи (из формы): {_value(phone)}",
+        f"Телефон в заказе: {_value(order.phone)}",
+        f"ID пользователя на сайте: {user.pk}",
+        "",
+        "ЗАКАЗ",
+        f"Номер Business.Ru: {_value(br_number)}",
+        f"Код заказа на сайте: {order.public_id}",
+        f"Статус: {order.get_status_display()}",
+        f"Создан: {_local_dt(order.created_at)}",
+        f"Оплачен: {_local_dt(order.paid_at)}",
+        f"Получатель: {_value(order.first_name)}, {_value(order.phone)}, {_value(order.email)}",
+        f"Получение: {shipping}",
+        f"Адрес: {_value(address)}",
+        f"Комментарий к заказу: {_value(order.comment)}",
+        "",
+        "СОСТАВ",
+    ]
+    for item in items:
+        lines.append(
+            f"• {item.title} (ID товара {item.good_id_snapshot}) — {item.quantity} шт × "
+            f"{_format_krw(item.price_krw)} = {_format_krw(item.line_total_krw)}"
+        )
+    if not items:
+        lines.append("—")
+    lines.extend(
+        [
+            f"Товары: {_format_krw(order.goods_krw)}",
+            f"Доставка: {_format_krw(order.shipping_krw)}",
+            f"Итого: {_format_krw(order.amount_krw)} ({order.amount_usd} USD)",
+            f"Вес: {f'{order.weight_grams} г' if order.weight_grams else '—'}",
+            "",
+            "ОПЛАТА PAYPAL",
+            f"Режим: {_value(order.paypal_mode)}",
+            f"PayPal order: {_value(order.paypal_order_id)}",
+            f"Capture: {_value(order.paypal_capture_id)}",
+            f"Чек: {_value(order.paypal_receipt_url)}",
+            "",
+            "BUSINESS.RU",
+            f"Заказ покупателя: {_value(order.business_ru_order_number)} (id {_value(order.business_ru_order_id)})",
+            f"Входящая оплата: {_value(order.business_ru_payment_number)}",
+            f"Резерв: {_value(order.business_ru_reservation_number)}",
+            f"Ошибка выгрузки: {_value(order.business_ru_error)}",
+            f"Письмо клиенту отправлено: {_local_dt(order.confirmation_email_sent_at)}",
+            "",
+            f"Заказ в админке: {admin_url}",
+            f"Обращение из личного кабинета, {_local_dt(timezone.now())} (Сеул).",
+            "Ответ на это письмо уйдёт клиенту.",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def send_order_help_email(order, user, phone: str, message: str) -> None:
+    br_number = _br_order_number(order)
+    account_email = (user.email or "").strip() or (order.email or "").strip()
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "") or settings.EMAIL_HOST_USER
+    EmailMultiAlternatives(
+        subject=f"Помощь клиенту — заказ {br_number or order.public_id}",
+        body=build_order_help_body(order, user, phone, message),
+        from_email=from_email,
+        to=[ORDER_HELP_EMAIL],
+        reply_to=[account_email] if account_email else None,
+    ).send(fail_silently=False)
+
+
 def send_order_confirmation_email(order, *, force: bool = False) -> bool:
     if order.status != order.Status.PAID:
         return False

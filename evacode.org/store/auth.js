@@ -23,7 +23,7 @@ function isUnauthorized(error) {
 
 export function accountErrorMessage(error, fallback) {
   const data = error?.data
-  if (!data) {
+  if (!data || typeof data !== 'object') {
     return fallback
   }
   if (typeof data.detail === 'string') {

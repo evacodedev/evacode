@@ -446,9 +446,13 @@ class SiteOrderApiTests(TestCase):
         orphan.refresh_from_db()
         self.assertEqual(orphan.user_id, order.user_id)
 
-    @patch("market.order_views.async_to_sync")
-    def test_order_help_sends_telegram(self, async_to_sync_mock):
-        from unittest.mock import MagicMock
+    @override_settings(
+        EMAIL_HOST_USER="orders@evacode.co.kr",
+        DEFAULT_FROM_EMAIL="Evacode <orders@evacode.co.kr>",
+        BACKEND_PUBLIC_URL="https://evacode.co.kr",
+    )
+    def test_order_help_sends_email(self):
+        from django.core import mail
 
         token = self._login("buyer@example.com", staff=False)
         order = SiteOrder.objects.create(
@@ -464,23 +468,32 @@ class SiteOrderApiTests(TestCase):
             status=SiteOrder.Status.PAID,
             business_ru_order_number="ЗП-265650",
         )
-        send_mock = MagicMock()
-        async_to_sync_mock.return_value = send_mock
-        with patch("market.views.bot", MagicMock()), patch("market.views.chat_id", "123"), patch(
-            "market.views.keyboard", None
-        ):
-            response = self.client.post(
-                f"/api/market/orders/{order.public_id}/help/",
-                data=json.dumps({"phone": "+821011122233", "message": "Где мой заказ?"}),
-                content_type="application/json",
-                HTTP_AUTHORIZATION=f"Bearer {token}",
-            )
+        SiteOrderItem.objects.create(
+            order=order,
+            good_id_snapshot=101,
+            title="Тестовый крем",
+            quantity=1,
+            price_krw=10000,
+            line_total_krw=10000,
+        )
+        response = self.client.post(
+            f"/api/market/orders/{order.public_id}/help/",
+            data=json.dumps({"phone": "+821099988877", "message": "Где мой заказ?"}),
+            content_type="application/json",
+            HTTP_AUTHORIZATION=f"Bearer {token}",
+        )
         self.assertEqual(response.status_code, 200, response.content)
         self.assertTrue(response.json().get("ok"))
-        send_mock.assert_called_once()
-        text = send_mock.call_args.kwargs.get("text") or ""
-        self.assertIn("ПОМОЩЬ С ЗАКАЗОМ", text)
-        self.assertIn("ЗП-265650", text)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.to, ["orders@evacode.co.kr"])
+        self.assertEqual(message.reply_to, ["buyer@example.com"])
+        self.assertIn("Помощь клиенту", message.subject)
+        self.assertIn("ЗП-265650", message.subject)
+        self.assertIn("Где мой заказ?", message.body)
+        self.assertIn("+821099988877", message.body)
+        self.assertIn("Тестовый крем", message.body)
+        self.assertIn(f"/admin/market/siteorder/{order.pk}/change/", message.body)
 
 
 @override_settings(

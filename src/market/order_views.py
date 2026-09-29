@@ -22,7 +22,7 @@ from django.db.models import Q
 from .auth import OptionalJWTAuthentication
 
 from .business_ru_orders import export_paid_order
-from .order_email import send_order_confirmation_email
+from .order_email import send_order_confirmation_email, send_order_help_email
 from .currency import krw_to_usd
 from .models import CheckoutSettings, SiteOrder, SiteOrderItem
 from .paypal import (
@@ -464,32 +464,14 @@ class SiteOrderHelpView(APIView):
         if errors:
             return JsonResponse({"errors": errors}, status=400)
 
-        order_label = order.business_ru_order_number or order.public_id
-        lines = [
-            "ПОМОЩЬ С ЗАКАЗОМ:",
-            f"№ {order_label}",
-            f"Клиент: {request.user.get_full_name() or request.user.username}",
-            f"Email: {email}",
-            f"Телефон: {phone}",
-            f"Вопрос: {message}",
-        ]
         try:
-            from .views import bot, chat_id, keyboard
-        except Exception:
-            bot = None
-            chat_id = None
-            keyboard = None
-        if not chat_id or not bot:
-            return JsonResponse({"error": "Сейчас нельзя отправить обращение"}, status=503)
-        try:
-            async_to_sync(bot.send_message)(
-                chat_id=chat_id,
-                text="\n".join(lines),
-                reply_markup=keyboard,
-            )
+            send_order_help_email(order, request.user, phone, message)
         except Exception:
             logger.exception("Не удалось отправить помощь по заказу %s", order.public_id)
-            return JsonResponse({"error": "Не удалось отправить обращение"}, status=502)
+            return JsonResponse(
+                {"error": "Не удалось отправить обращение. Напишите нам на orders@evacode.co.kr"},
+                status=502,
+            )
         return JsonResponse({"ok": True})
 
 
