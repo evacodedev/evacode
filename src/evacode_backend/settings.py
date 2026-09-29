@@ -71,6 +71,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:3001",
     "https://evacode.org",
     "https://www.evacode.org",
+    "https://evacode.co.kr",
+    "https://www.evacode.co.kr",
 ]
 
 CORS_ORIGIN_WHITELIST = [
@@ -322,9 +324,10 @@ DATE_INPUT_FORMATS = [
 DJANGO_MEDIA_ROOT = os.getenv('DJANGO_MEDIA_ROOT')
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://evacode.co.kr",
+    "https://www.evacode.co.kr",
     "https://www.evacode.org",
     "https://evacode.org",
-    "https://www.evacode.org",
     "https://79.174.95.27"
 ]
 
