@@ -4,8 +4,8 @@ from django.conf import settings
 from django.conf.urls.static import static
 from rest_framework.routers import DefaultRouter
 from .views import (
-    update_data,
-    get_all_goods,
+    UpdateDataView,
+    AllGoodsView,
     GroupListAPIView,
     GoodsAPIView,
     GoodsByBarcodeView,
@@ -41,8 +41,8 @@ urlpatterns = [
     path('sitemap/', CatalogSitemapAPIView.as_view()),
     path('yandex-feed/', YandexFeedView.as_view()),
     path('brands/<str:slug>/', BrandPageAPIView.as_view()),
-    path('update_data/', update_data),
-    path('get_all_goods/', get_all_goods),
+    path('update_data/', UpdateDataView.as_view()),
+    path('get_all_goods/', AllGoodsView.as_view()),
     path('checkout/', Checkout.as_view()),
     path('checkout-settings/', CheckoutSettingsView.as_view()),
     path('orders/', CreateSiteOrderView.as_view()),

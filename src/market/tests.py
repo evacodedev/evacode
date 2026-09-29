@@ -992,3 +992,72 @@ class GoodsKrwPricesApiTests(TestCase):
             lookup_cls.return_value.get.return_value = None
             response = self.client.get("/api/market/goods/11/prices/", **self.auth)
         self.assertEqual(response.status_code, 404)
+
+
+class AllGoodsApiTests(TestCase):
+    url = "/api/market/get_all_goods/"
+
+    def setUp(self):
+        self.key = PartnerApiKey.objects.create(name="Тест", token="test-partner-token")
+
+    def test_requires_token(self):
+        self.assertEqual(self.client.get(self.url).status_code, 401)
+
+    def test_rejects_invalid_token(self):
+        self.assertEqual(self.client.get(self.url, HTTP_X_API_KEY="wrong").status_code, 401)
+
+    def test_accepts_partner_key(self):
+        response = self.client.get(self.url, HTTP_X_API_KEY=self.key.token)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"result": []})
+
+    def test_accepts_partner_bearer_token(self):
+        response = self.client.get(self.url, HTTP_AUTHORIZATION=f"Bearer {self.key.token}")
+        self.assertEqual(response.status_code, 200)
+
+    def test_accepts_staff_session(self):
+        self.client.force_login(User.objects.create_user("admin", password="x", is_staff=True))
+        self.assertEqual(self.client.get(self.url).status_code, 200)
+
+    def test_rejects_regular_user(self):
+        self.client.force_login(User.objects.create_user("buyer", password="x"))
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+
+
+class UpdateDataApiTests(TestCase):
+    url = "/api/market/update_data/"
+
+    def test_rejects_anonymous(self):
+        with patch("market.views.BusinessRuService") as service_cls:
+            response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 401)
+        service_cls.assert_not_called()
+
+    def test_rejects_partner_key(self):
+        key = PartnerApiKey.objects.create(name="Тест", token="test-partner-token")
+        with patch("market.views.BusinessRuService") as service_cls:
+            response = self.client.post(self.url, HTTP_X_API_KEY=key.token)
+        self.assertEqual(response.status_code, 401)
+        service_cls.assert_not_called()
+
+    def test_rejects_regular_user(self):
+        self.client.force_login(User.objects.create_user("buyer", password="x"))
+        with patch("market.views.BusinessRuService") as service_cls:
+            response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 403)
+        service_cls.assert_not_called()
+
+    def test_get_is_not_allowed(self):
+        self.client.force_login(User.objects.create_user("admin", password="x", is_staff=True))
+        with patch("market.views.BusinessRuService") as service_cls:
+            response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
+        service_cls.assert_not_called()
+
+    def test_staff_runs_import(self):
+        self.client.force_login(User.objects.create_user("admin", password="x", is_staff=True))
+        with patch("market.views.BusinessRuService") as service_cls:
+            response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 200)
+        service_cls.return_value.group_to_model.assert_called_once()
+        service_cls.return_value.goods_to_model.assert_called_once()

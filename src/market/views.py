@@ -12,7 +12,9 @@ from dotenv import load_dotenv
 import os
 
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.authentication import SessionAuthentication
+from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework.response import Response
 import logging
 
@@ -22,7 +24,7 @@ from .home import build_home_page
 from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
 from .pagination import CustomPagination, AllObjectPagination
-from .auth import PartnerApiKeyAuthentication
+from .auth import IsPartnerOrStaff, OptionalJWTAuthentication, PartnerApiKeyAuthentication
 from .utils import (
     BusinessRuBarcodeLookup,
     BusinessRuGoodPricesLookup,
@@ -275,15 +277,22 @@ class Checkout(View):
             return JsonResponse({'error': 'Запрос должен содержать данные JSON'}, status=400)
 
 
-def update_data(request):
-    b = BusinessRuService()
-    b.group_to_model()
-    b.goods_to_model()
-    return HttpResponse(content='Data updated!', status=200)
+class UpdateDataView(APIView):
+    permission_classes = [IsAdminUser]
+    authentication_classes = [JWTAuthentication, SessionAuthentication]
+
+    def post(self, request):
+        b = BusinessRuService()
+        b.group_to_model()
+        b.goods_to_model()
+        return HttpResponse(content='Data updated!', status=200)
 
 
-def get_all_goods(request):
-    mast_point = GoodsSerializer(GoodsModel.objects.filter(stock__gt=0), many=True).data
-    data = {'result': mast_point}
-    # out.write(json.dumps(data, ensure_ascii=False))
-    return JsonResponse(data, safe=False)
+class AllGoodsView(APIView):
+    permission_classes = [IsPartnerOrStaff]
+    # OptionalJWT goes first: both it and the partner key read "Authorization: Bearer".
+    authentication_classes = [OptionalJWTAuthentication, PartnerApiKeyAuthentication, SessionAuthentication]
+
+    def get(self, request):
+        mast_point = GoodsSerializer(GoodsModel.objects.filter(stock__gt=0), many=True).data
+        return JsonResponse({'result': mast_point}, safe=False)

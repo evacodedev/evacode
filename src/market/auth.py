@@ -1,5 +1,6 @@
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.permissions import BasePermission
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 
@@ -36,6 +37,14 @@ class PartnerApiKeyAuthentication(BaseAuthentication):
 
     def authenticate_header(self, request):
         return "Bearer"
+
+
+class IsPartnerOrStaff(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        if isinstance(user, PartnerPrincipal):
+            return True
+        return bool(user and user.is_authenticated and user.is_staff)
 
 
 class OptionalJWTAuthentication(JWTAuthentication):
