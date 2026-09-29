@@ -605,7 +605,7 @@ def create_stock_inventory(client: BusinessRuOrderClient | None = None, *, dry_r
             "responsible_employee_id": cfg["employee_id"],
             "currency_id": cfg["currency_id"],
             "held": 0,
-            "comment": f"Синк CRM {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "comment": f"Синк CRM {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
         },
     )
     inventory_id = str(_result_id(created) or "")

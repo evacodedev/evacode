@@ -1,5 +1,4 @@
 from contextlib import contextmanager
-from datetime import datetime
 import os
 
 import requests
@@ -358,7 +357,7 @@ def create_ru_stock_inventory(client: BusinessRuOrderClient | None = None, *, dr
             "responsible_employee_id": cfg["employee_id"],
             "currency_id": cfg["currency_id"],
             "held": 0,
-            "comment": f"Синк 1C RU {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "comment": f"Синк 1C RU {timezone.localtime().strftime('%Y-%m-%d %H:%M')}",
         },
     )
     inventory_id = str(_result_id(created) or "")

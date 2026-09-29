@@ -3,6 +3,7 @@ import secrets
 
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 
 PUBLIC_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -421,7 +422,7 @@ class ApiKzSync(models.Model):
         ordering = ("-run_at", "-id")
 
     def __str__(self):
-        when = self.run_at.strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
+        when = timezone.localtime(self.run_at).strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
         return f"{self.get_warehouse_code_display()} {when}"
 
 
@@ -498,7 +499,7 @@ class ApiRuSync(models.Model):
         ordering = ("-run_at", "-id")
 
     def __str__(self):
-        when = self.run_at.strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
+        when = timezone.localtime(self.run_at).strftime("%Y-%m-%d %H:%M") if self.run_at else "—"
         return f"Россия {when}"
 
 
