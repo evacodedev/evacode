@@ -54,7 +54,7 @@ export default defineNuxtConfig({
             ],
             script:[
                 {
-                    src: 'https://www.googletagmanager.com/gtag/js?id=G-22XGNP36M1',
+                    src: 'https://www.googletagmanager.com/gtag/js?id=G-E4E77PDL4D',
                     tagPosition: 'bodyOpen',
                 },
                 {
@@ -62,28 +62,31 @@ export default defineNuxtConfig({
                             `window.dataLayer = window.dataLayer || [];
                             function gtag(){dataLayer.push(arguments);}
                             gtag("js", new Date());
-                            gtag("config", "G-22XGNP36M1");`,
+                            gtag("config", "G-E4E77PDL4D");`,
                     tagPosition: 'bodyOpen',
                 },
                 {
                     type: 'text/javascript',
                     innerHTML: `
                         (function(m,e,t,r,i,k,a){m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
-                        m[i].l=1*new Date();k=e.createElement(t),a=e.getElementsByTagName(t)[0];
-                        k.async=1;k.src=r;a.parentNode.insertBefore(k,a)})
-                        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
-                        ym(99607281, "init", {
+                        m[i].l=1*new Date();
+                        for (var j = 0; j < document.scripts.length; j++) {if (document.scripts[j].src === r) { return; }}
+                        k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)})
+                        (window, document, "script", "https://mc.yandex.ru/metrika/tag.js?id=113153235", "ym");
+                        ym(113153235, "init", {
+                            ssr:true,
+                            webvisor:true,
                             clickmap:true,
-                            trackLinks:true,
+                            ecommerce:"dataLayer",
                             accurateTrackBounce:true,
-                            webvisor:true
+                            trackLinks:true
                         });
                       `,
                 },
             ],
             noscript: [
                 {
-                    children: '<div><img src="https://mc.yandex.ru/watch/99607281" style="position:absolute; left:-9999px;" alt="" /></div>',
+                    children: '<div><img src="https://mc.yandex.ru/watch/113153235" style="position:absolute; left:-9999px;" alt="" /></div>',
                 },
             ],
         },
