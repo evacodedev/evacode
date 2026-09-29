@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from market.models import (
     ApiKzSync,
+    ApiRuSync,
     GoodsModel,
     GroupOfGoods,
     ProductBrand,
@@ -88,6 +89,21 @@ class AdminDashboardTests(TestCase):
                 "(нет излишков), списание не создано (нет недостач)"
             ),
         )
+        ApiRuSync.objects.create(
+            ok=True,
+            store_id="903587",
+            inventory_id="99",
+            inventory_number="INV-1",
+            prices_updated=47,
+            prices_unchanged=0,
+            prices_failed=0,
+            prices_goods=47,
+            message=(
+                "склад 903587: остатки 10, API 47, строк описи 10, излишки 0, недостачи 2, "
+                "инвентаризация id=99 № INV-1 (проведено), оприходование не создано "
+                "(нет излишков), списание id=55 № CH-1 (проведено), цены: обновлено 47"
+            ),
+        )
         ProductContentAgentSettings.load()
 
     def test_superuser_sees_dashboard_kpis(self):
@@ -102,9 +118,12 @@ class AdminDashboardTests(TestCase):
         self.assertContains(response, "Агент контента выключен")
         self.assertContains(response, "Последний синк KZ с ошибкой")
         self.assertContains(response, "Синхронизация KZ")
+        self.assertContains(response, "Синхронизация RU")
         self.assertContains(response, "Инвентаризация")
         self.assertContains(response, "Остатки")
         self.assertContains(response, "API KZ")
+        self.assertContains(response, "API RU")
+        self.assertContains(response, "903587")
 
     def test_staff_without_order_perm_hides_orders(self):
         user = User.objects.create_user("mgr", "m@a.test", "pass", is_staff=True)

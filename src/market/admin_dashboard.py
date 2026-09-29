@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from .models import (
     ApiKzSync,
+    ApiRuSync,
     GoodsModel,
     ProductContent,
     ProductContentAgentSettings,
@@ -198,11 +199,13 @@ def build_admin_dashboard(request):
         "show_orders": False,
         "show_catalog": False,
         "show_kz": False,
+        "show_ru": False,
         "day": None,
         "alerts": [],
         "orders": {},
         "catalog": {},
         "kz": {},
+        "ru": {},
     }
     user = getattr(request, "user", None)
     if not user or not user.is_authenticated:
@@ -220,10 +223,12 @@ def _build_admin_dashboard(user):
     show_catalog = user.has_perm("market.view_goodsmodel")
     show_content = user.has_perm("market.view_productcontent")
     show_kz = user.has_perm("market.view_apikzsync")
+    show_ru = user.has_perm("market.view_apirusync")
     alerts = []
     orders = {}
     catalog = {}
     kz = {}
+    ru = {}
 
     if show_orders:
         created_qs = SiteOrder.objects.filter(today)
@@ -423,15 +428,38 @@ def _build_admin_dashboard(user):
                     }
                 )
 
+    if show_ru:
+        last = ApiRuSync.objects.order_by("-run_at", "-id").first()
+        ru = {
+            "last": None,
+            "url": _changelist("admin:market_apirusync_changelist"),
+        }
+        if last:
+            ru["last"] = {
+                "ok": last.ok,
+                "when": timezone.localtime(last.run_at).strftime("%Y-%m-%d %H:%M") if last.run_at else "—",
+                "rows": kz_sync_rows(last),
+            }
+            if not last.ok:
+                alerts.append(
+                    {
+                        "tone": "danger",
+                        "text": f"Последний синк RU с ошибкой ({ru['last']['when']}).",
+                        "url": ru["url"],
+                    }
+                )
+
     return {
         "show_orders": show_orders,
         "show_catalog": show_catalog,
         "show_kz": show_kz,
+        "show_ru": show_ru,
         "day": day.isoformat(),
         "alerts": alerts,
         "orders": orders,
         "catalog": catalog,
         "kz": kz,
+        "ru": ru,
     }
 
 

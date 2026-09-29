@@ -342,6 +342,31 @@
     </div>
   </div>
   {% endif %}
+
+  {% if dash.show_ru %}
+  <div class="evacode-dash-kz-wrap">
+    <div class="evacode-dash-panel">
+      <h3>Синхронизация RU {% if dash.ru.last %}<a href="{{ dash.ru.url }}">история</a>{% endif %}</h3>
+      {% if dash.ru.last %}
+      <p class="{% if dash.ru.last.ok %}ok{% else %}bad{% endif %}">
+        {{ dash.ru.last.when }} — {% if dash.ru.last.ok %}успешно{% else %}ошибка{% endif %}
+      </p>
+      <table class="evacode-dash-kz">
+        <tbody>
+          {% for row in dash.ru.last.rows %}
+          <tr>
+            <th>{{ row.label }}</th>
+            <td>{{ row.value }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="muted">Запусков ещё не было. <a href="{{ dash.ru.url }}">История</a></p>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 {% endwith %}
