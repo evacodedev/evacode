@@ -15,6 +15,7 @@ from .views import (
     HomePageAPIView,
     Checkout,
     CatalogSitemapAPIView,
+    YandexFeedView,
 )
 from .order_views import (
     CheckoutSettingsView,
@@ -38,6 +39,7 @@ urlpatterns = [
     path('catalog-filters/', CatalogFacetsAPIView.as_view()),
     path('home/', HomePageAPIView.as_view()),
     path('sitemap/', CatalogSitemapAPIView.as_view()),
+    path('yandex-feed/', YandexFeedView.as_view()),
     path('brands/<str:slug>/', BrandPageAPIView.as_view()),
     path('update_data/', update_data),
     path('get_all_goods/', get_all_goods),

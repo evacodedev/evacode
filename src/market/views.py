@@ -17,6 +17,7 @@ from rest_framework.response import Response
 import logging
 
 from .sitemap import catalog_sitemap_urls
+from .yandex_feed import cached_yandex_feed
 from .home import build_home_page
 from .filters import GoodsFilter, GoodsOrderingFilter
 from django_filters import rest_framework as filters
@@ -153,6 +154,16 @@ class CatalogSitemapAPIView(APIView):
 
     def get(self, request):
         return Response({"urls": catalog_sitemap_urls()})
+
+
+class YandexFeedView(View):
+    def get(self, request):
+        try:
+            body = cached_yandex_feed()
+        except ValueError:
+            logger.exception("Yandex feed: нет курса KRW/RUB")
+            return HttpResponse("Feed unavailable", status=503, content_type="text/plain; charset=utf-8")
+        return HttpResponse(body, content_type="application/xml; charset=utf-8")
 
 
 class HomePageAPIView(APIView):
