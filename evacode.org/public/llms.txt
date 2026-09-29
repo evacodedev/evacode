@@ -7,17 +7,17 @@
 
 ## Главное
 
-- [Главная](https://www.evacode.org/): витрина, хиты, бренды и подборки
-- [Каталог](https://www.evacode.org/collection/leftsidebar/0/): все товары в наличии; фильтры brand и kind в query
-- [О компании](https://www.evacode.org/page/about/): кто такие EvaCode
-- [Доставка и оплата](https://www.evacode.org/page/delivery/): условия доставки
-- [Sitemap](https://www.evacode.org/sitemap.xml): полный список публичных URL
-- [robots.txt](https://www.evacode.org/robots.txt): правила обхода
+- [Главная](https://evacode.co.kr/): витрина, хиты, бренды и подборки
+- [Каталог](https://evacode.co.kr/collection/leftsidebar/0/): все товары в наличии; фильтры brand и kind в query
+- [О компании](https://evacode.co.kr/page/about/): кто такие EvaCode
+- [Доставка и оплата](https://evacode.co.kr/page/delivery/): условия доставки
+- [Sitemap](https://evacode.co.kr/sitemap.xml): полный список публичных URL
+- [robots.txt](https://evacode.co.kr/robots.txt): правила обхода
 
 ## Как устроены URL
 
-- Товар (PDP): `https://www.evacode.org/product/{id}/` — id числовой, например `/product/1452467/`
-- Бренд: `https://www.evacode.org/brand/{slug}/` — slug латиницей, например `/brand/jogabi/`
+- Товар (PDP): `https://evacode.co.kr/product/{id}/` — id числовой, например `/product/1452467/`
+- Бренд: `https://evacode.co.kr/brand/{slug}/` — slug латиницей, например `/brand/jogabi/`
 - Каталог с брендом: `/collection/leftsidebar/0/?brand={slug}`
 - Каталог с типом ухода: `/collection/leftsidebar/0/?kind={slug}` — например `cream`, `set`, `toner`
 - На карточке товара: JSON-LD Product (цена KRW, наличие, sku=id) и BreadcrumbList
@@ -25,9 +25,9 @@
 
 ## Бренды с отдельной страницей
 
-- [Curación](https://www.evacode.org/brand/curacion/): лакто-уход Nineone Cosmedi
-- [JOGABI](https://www.evacode.org/brand/jogabi/): уход Ewha Dermatology
-- [TOM-TIT-TOT](https://www.evacode.org/brand/tom-tit-tot/): премиальный корейский уход
+- [Curación](https://evacode.co.kr/brand/curacion/): лакто-уход Nineone Cosmedi
+- [JOGABI](https://evacode.co.kr/brand/jogabi/): уход Ewha Dermatology
+- [TOM-TIT-TOT](https://evacode.co.kr/brand/tom-tit-tot/): премиальный корейский уход
 
 В каталоге также представлены другие корейские бренды (Whoo, O HUI, SU:M37, CNP, Sulwhasoo, Hera, CH6 и др.) — смотрите фильтр brand и sitemap.
 

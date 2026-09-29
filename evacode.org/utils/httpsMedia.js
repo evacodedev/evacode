@@ -3,5 +3,5 @@ export function httpsMedia(url) {
   if (!url) {
     return ''
   }
-  return String(url).replace(/^http:\/\/(www\.)?evacode\.org/i, 'https://www.evacode.org')
+  return String(url).replace(/^http:\/\/((?:www\.)?evacode\.(?:org|co\.kr))/i, 'https://$1')
 }

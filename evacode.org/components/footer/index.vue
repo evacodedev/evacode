@@ -42,7 +42,7 @@
                     <div class="row">
                         <div class="col-xl-6 col-md-6 col-sm-12">
                             <div class="footer-end">
-                                <p><i class="fa fa-copyright" aria-hidden="true"></i> evacode.org {{ date.getFullYear() }} </p>
+                                <p><i class="fa fa-copyright" aria-hidden="true"></i> evacode.co.kr {{ date.getFullYear() }} </p>
                             </div>
                         </div>
                     </div>

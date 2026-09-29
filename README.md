@@ -155,8 +155,8 @@ SITE_URL=http://localhost:3000
 Для production укажите публичный HTTPS-адрес:
 
 ```dotenv
-BASE_API_URL=https://www.evacode.org/api
-SITE_URL=https://www.evacode.org
+BASE_API_URL=https://evacode.co.kr/api
+SITE_URL=https://evacode.co.kr
 ```
 
 Nuxt читает эти значения во время запуска/сборки. Подготовьте `evacode.org/.env` **до** выполнения `docker compose build frontend`.
@@ -258,7 +258,7 @@ docker compose logs -f --tail=100 server frontend nginx
 Production URL:
 
 ```text
-https://www.evacode.org
+https://evacode.co.kr
 ```
 
 ## Работа с Docker

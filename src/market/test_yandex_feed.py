@@ -59,7 +59,7 @@ class YandexFeedTests(TestCase):
         offer = shop.find("offers/offer")
         self.assertEqual(offer.findtext("name"), "Крем <Gold>")
         self.assertEqual(offer.findtext("vendor"), "THE HISTORY OF WHOO")
-        self.assertEqual(offer.findtext("url"), f"https://www.evacode.org/product/{self.good.id}/")
+        self.assertEqual(offer.findtext("url"), f"https://evacode.co.kr/product/{self.good.id}/")
         self.assertEqual(offer.findtext("currencyId"), "RUR")
         self.assertEqual(offer.findtext("price"), str(int(convert_krw_amount(120000, "RUB"))))
         self.assertEqual(

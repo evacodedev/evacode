@@ -46,7 +46,7 @@ def build_order_confirmation_bodies(order) -> tuple[str, str]:
     lines = [
         f"Здравствуйте, {order.first_name}!",
         "",
-        "Ваш заказ на evacode.org оплачен.",
+        "Ваш заказ на evacode.co.kr оплачен.",
         f"Номер заказа: {br_number}" if br_number else "Номер заказа уточняется.",
         f"Сумма: {_format_krw(order.amount_krw)} ({order.amount_usd} USD)",
         "",
@@ -83,7 +83,7 @@ def build_order_confirmation_bodies(order) -> tuple[str, str]:
         )
         if address:
             lines.append(f"Адрес: {address}")
-    lines.extend(["", "Спасибо за покупку!", "Evacode", "https://www.evacode.org"])
+    lines.extend(["", "Спасибо за покупку!", "Evacode", "https://evacode.co.kr"])
     text = "\n".join(lines)
 
     rows = []

@@ -1,4 +1,4 @@
-const PRODUCTION_SITE = 'https://www.evacode.org'
+const PRODUCTION_SITE = 'https://evacode.co.kr'
 
 export function siteOrigin(config) {
   return String(config?.public?.url || PRODUCTION_SITE).replace(/\/$/, '') || PRODUCTION_SITE

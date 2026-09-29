@@ -13,7 +13,7 @@ from core.currency_pricing import round_quote_price
 from market.models import GoodsModel, GroupOfGoods, ImageModel
 from market.product_content import strip_html
 
-SITE_URL = "https://www.evacode.org"
+SITE_URL = "https://evacode.co.kr"
 FEED_CURRENCY = "RUB"
 YML_CURRENCY = "RUR"
 DESCRIPTION_MAX_LEN = 3000

@@ -9,7 +9,7 @@ RUN npm install -g bun
 
 RUN bun install
 
-ENV SITE_URL=https://www.evacode.org
+ENV SITE_URL=https://evacode.co.kr
 ENV IMGPROXY_PREFIX=/img
 
 RUN bun run build

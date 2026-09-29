@@ -91,12 +91,12 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             apiBase: process.env.BASE_API_URL,
-            url: process.env.SITE_URL || 'https://www.evacode.org',
+            url: process.env.SITE_URL || 'https://evacode.co.kr',
             imgproxyPrefix: process.env.IMGPROXY_PREFIX || '',
         }
     },
     site: {
-        url: process.env.SITE_URL || 'https://www.evacode.org',
+        url: process.env.SITE_URL || 'https://evacode.co.kr',
         trailingSlash: true,
         name: 'EvaCode',
     },

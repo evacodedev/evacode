@@ -12,7 +12,7 @@ schema_view = get_schema_view(
     openapi.Info(
         title="Evacode API",
         default_version='v1',
-        description="This is API for site evacode.org",
+        description="This is API for site evacode.co.kr",
         terms_of_service="https://www.example.com/terms/",
         contact=openapi.Contact(email="contact@example.com"),
         license=openapi.License(name="Awesome License"),

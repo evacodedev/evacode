@@ -21,7 +21,7 @@ CONFIRM_RETRY_DELAY_SECONDS = 1
 
 
 def _default_home_url():
-    return getattr(settings, "EVACODE_FRONTEND_URL", "https://www.evacode.org")
+    return getattr(settings, "EVACODE_FRONTEND_URL", "https://evacode.co.kr")
 
 
 def _parse_error(response):

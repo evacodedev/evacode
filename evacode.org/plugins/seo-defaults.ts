@@ -1,4 +1,4 @@
-const PRODUCTION_SITE = 'https://www.evacode.org';
+const PRODUCTION_SITE = 'https://evacode.co.kr';
 const OG_IMAGE = '/images/new_evacode/Slides/slide_1.webp';
 
 const stripSlash = (value) => String(value || '').replace(/\/$/, '');
