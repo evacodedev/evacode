@@ -217,6 +217,9 @@
 
           <section v-else class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Самовывоз</h2>
+            <p v-if="koreaPickup" class="checkout-choice__note">
+              По Корее EMS не отправляем — оформим самовывоз. Нужна доставка по Корее — напишите консультанту.
+            </p>
             <p class="checkout-choice__note">Адрес для отправки не нужен. Напишите, если удобно забрать в другое время.</p>
             <CheckoutField
               v-model="user.comment.value"
@@ -369,6 +372,7 @@ import {
   sameAccountAddress,
 } from '~/utils/account-address'
 import {
+  KOREA_CODE,
   LATIN_ONLY_MESSAGE,
   OTHER_COUNTRY_CODE,
   countryNameForLabel,
@@ -551,6 +555,7 @@ export default {
       countryCode: 'KR',
       paymentMethod: 'telegram',
       shippingMethod: 'ems',
+      koreaPickup: false,
       destinationCode: '',
       destinations: [],
       shippingKrw: null,
@@ -583,11 +588,21 @@ export default {
         this.user.apartment.errormsg = ''
       }
     },
-    shippingMethod() {
+    shippingMethod(method) {
       this.user.country.errormsg = ''
+      if (method === 'ems') {
+        this.koreaPickup = false
+        if (this.destinationCode === KOREA_CODE) {
+          this.destinationCode = ''
+        }
+      }
       this.scheduleQuote()
     },
     destinationCode(code) {
+      if (code === KOREA_CODE && this.isEms) {
+        this.koreaPickup = true
+        this.shippingMethod = 'pickup'
+      }
       this.user.country.errormsg = ''
       LATIN_FIELDS.forEach((field) => {
         if (this.user[field].errormsg === LATIN_ONLY_MESSAGE) {
