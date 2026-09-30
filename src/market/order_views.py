@@ -23,7 +23,7 @@ from .auth import OptionalJWTAuthentication
 
 from .business_ru_orders import export_paid_order
 from .checkout_request import build_manager_order_text
-from .manager_notify import notify_managers
+from .manager_notify import notify_managers, send_managers_email
 from .order_email import send_order_confirmation_email, send_order_help_email
 from .currency import krw_to_usd
 from .models import CheckoutSettings, SiteOrder, SiteOrderItem
@@ -70,7 +70,8 @@ def _frontend_url(path: str, query: dict | None = None) -> str:
     return url
 
 
-def _notify_telegram(order: SiteOrder):
+# Оплаченные PayPal-заказы — только письмом: группа Telegram для консультаций и «Заказа в Telegram».
+def _notify_paid_order(order: SiteOrder):
     title = (
         "ТЕСТ PAYPAL SANDBOX:"
         if (order.paypal_mode or "").lower() == "sandbox"
@@ -84,7 +85,7 @@ def _notify_telegram(order: SiteOrder):
         f"Телефон: {order.phone}",
         f"Email: {order.email}",
         f"Адрес: {order.postal_code} {order.country}, {order.city}, {order.address}",
-        _shipping_telegram_line(order),
+        _shipping_line(order),
     ]
     for item in order.items.all():
         lines.append(f'{item.title} — {item.quantity} шт — {item.price_krw} ₩')
@@ -94,11 +95,11 @@ def _notify_telegram(order: SiteOrder):
         lines.append(f"Business.Ru заказ: {order.business_ru_order_id}")
     elif order.business_ru_error:
         lines.append(f"Business.Ru: {order.business_ru_error}")
-    if not notify_managers("\n".join(lines), subject=f"{title.rstrip(':')} {order.public_id}", reply_to=order.email):
-        logger.error("Заказ %s не дошёл ни в Telegram, ни на почту", order.public_id)
+    if not send_managers_email(f"{title.rstrip(':')} {order.public_id}", "\n".join(lines), reply_to=order.email):
+        logger.error("Письмо об оплаченном заказе %s не отправлено", order.public_id)
 
 
-def _shipping_telegram_line(order: SiteOrder) -> str:
+def _shipping_line(order: SiteOrder) -> str:
     if order.shipping_method == METHOD_PICKUP:
         return "Доставка: самовывоз"
     if order.shipping_krw:
@@ -198,7 +199,7 @@ def _complete_paid_order(order: SiteOrder, capture_data: dict) -> bool:
         order.paypal_receipt_url = receipt_url(order.paypal_capture_id, mode=order.paypal_mode)
         order.save(update_fields=["paypal_receipt_url", "paypal_payload", "updated_at"])
 
-    # PayPal is already PAID here. BR/Telegram run in the background so the
+    # PayPal is already PAID here. BR/emails run in the background so the
     # return URL is not blocked. If documents are missing, retry from admin:
     # «Выгрузить в Business.Ru» or `export_site_order`.
     threading.Thread(
@@ -234,7 +235,7 @@ def _export_paid_side_effects(order_id: int) -> None:
                 send_order_confirmation_email(order)
             except Exception:
                 logger.exception("Письмо по заказу %s не отправлено", order.public_id)
-        _notify_telegram(order)
+        _notify_paid_order(order)
     finally:
         close_old_connections()
 

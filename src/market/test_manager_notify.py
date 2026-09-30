@@ -65,6 +65,53 @@ class NotifyManagersTests(SimpleTestCase):
         self.assertEqual(reply_to, "client@example.com")
 
 
+class PaidOrderNotifyTests(SimpleTestCase):
+    @staticmethod
+    def _order(**overrides):
+        item = SimpleNamespace(title="Крем", quantity=1, price_krw=34000)
+        fields = {
+            "public_id": "DPHG544E",
+            "paypal_mode": "live",
+            "amount_krw": 85000,
+            "amount_usd": Decimal("61.00"),
+            "first_name": "Vadim Kim",
+            "phone": "+821022795599",
+            "email": "client@example.com",
+            "postal_code": "15434",
+            "country": "Узбекистан",
+            "city": "Ansan",
+            "address": "улица, д. 3",
+            "shipping_method": "ems",
+            "shipping_destination": "UZ",
+            "shipping_krw": 51000,
+            "weight_grams": 1520,
+            "comment": "",
+            "business_ru_order_id": "2877820",
+            "business_ru_error": "",
+            "items": SimpleNamespace(all=lambda: [item]),
+        }
+        fields.update(overrides)
+        return SimpleNamespace(**fields)
+
+    @patch("market.manager_notify.send_telegram")
+    @patch("market.order_views.send_managers_email", return_value=True)
+    def test_paid_order_goes_to_email_not_telegram(self, email, telegram):
+        order_views._notify_paid_order(self._order())
+        telegram.assert_not_called()
+        subject, body = email.call_args.args
+        self.assertEqual(subject, "ОПЛАЧЕННЫЙ ЗАКАЗ С САЙТА DPHG544E")
+        self.assertIn("Крем — 1 шт — 34000 ₩", body)
+        self.assertIn("Business.Ru заказ: 2877820", body)
+        self.assertEqual(email.call_args.kwargs["reply_to"], "client@example.com")
+
+    @patch("market.manager_notify.send_telegram")
+    @patch("market.order_views.send_managers_email", return_value=True)
+    def test_sandbox_subject_is_marked(self, email, telegram):
+        order_views._notify_paid_order(self._order(paypal_mode="sandbox"))
+        telegram.assert_not_called()
+        self.assertEqual(email.call_args.args[0], "ТЕСТ PAYPAL SANDBOX DPHG544E")
+
+
 class CheckoutRequestTextTests(SimpleTestCase):
     def test_consult_text_has_name_and_phone(self):
         text = build_consult_text({"name": "Анна", "phone": "+77470483761"})

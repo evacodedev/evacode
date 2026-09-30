@@ -157,6 +157,8 @@ class OrderOpsFilter(admin.SimpleListFilter):
         return (
             ("br", "Выгрузка BR"),
             ("mail", "Письмо не ушло"),
+            ("accept", "Не подтверждён"),
+            ("track", "Нет трек-номера"),
         )
 
     def queryset(self, request, queryset):
@@ -165,6 +167,10 @@ class OrderOpsFilter(admin.SimpleListFilter):
             return paid.filter(_br_problem_q())
         if self.value() == "mail":
             return paid.filter(confirmation_email_sent_at__isnull=True)
+        if self.value() == "accept":
+            return paid.filter(accepted_email_sent_at__isnull=True)
+        if self.value() == "track":
+            return paid.filter(tracking_number="").exclude(shipping_method="pickup")
         return queryset
 
 

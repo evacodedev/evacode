@@ -365,7 +365,7 @@ class SiteOrderApiTests(TestCase):
         self.assertIn(str(order.public_id), response["Location"])
 
     @patch("django.db.close_old_connections")
-    @patch("market.order_views._notify_telegram")
+    @patch("market.order_views._notify_paid_order")
     @patch("market.order_views.send_order_confirmation_email")
     @patch("market.order_views.export_paid_order")
     def test_sandbox_paid_order_exports_business_ru(self, export_mock, email_mock, notify_mock, _close):

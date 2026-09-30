@@ -292,6 +292,17 @@ class SiteOrder(models.Model):
         null=True,
         verbose_name="Письмо клиенту отправлено",
     )
+    accepted_email_sent_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Письмо «принят в обработку»",
+    )
+    tracking_number = models.CharField(max_length=64, blank=True, verbose_name="Трек-номер EMS")
+    tracking_email_sent_at = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Письмо с трек-номером",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     paid_at = models.DateTimeField(blank=True, null=True)

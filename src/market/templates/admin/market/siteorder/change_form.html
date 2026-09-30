@@ -1,6 +1,97 @@
 {% extends "admin/change_form.html" %}
 {% block after_field_sets %}
 {{ block.super }}
+{% if client_mail %}
+<div class="module aligned" id="client-mail-module">
+  <h2>Письма клиенту</h2>
+  {% if not client_mail.is_paid %}
+  <div class="form-row"><p>Письма клиенту доступны только для оплаченного заказа.</p></div>
+  {% else %}
+  {% if client_mail.test_to %}
+  <div class="form-row">
+    <p style="margin:0;padding:8px 12px;background:#FFF4D6;border-left:3px solid #B89254;">
+      Тестовый режим: письма 2 и 3 уходят на <strong>{{ client_mail.test_to }}</strong>, клиенту — нет.
+      Письмо 1 (об оплате) — клиенту как обычно.
+    </p>
+  </div>
+  {% endif %}
+  <div class="form-row">
+    <div>
+      <label>1. Заказ оплачен</label>
+      <div class="readonly">
+        {% if original.confirmation_email_sent_at %}Отправлено автоматически {{ original.confirmation_email_sent_at|date:"d.m.Y H:i" }}{% else %}Не отправлено{% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div>
+      <label>2. Принят в обработку</label>
+      <div class="readonly">
+        {% if original.accepted_email_sent_at %}Отправлено {{ original.accepted_email_sent_at|date:"d.m.Y H:i" }}{% else %}Не отправлено{% endif %}
+        <button type="submit" class="button{% if not original.accepted_email_sent_at %} default{% endif %}" style="margin-left:12px;"
+                formaction="{{ client_mail.confirm_url }}" id="client-mail-confirm"
+                data-confirm="Отправить письмо «Заказ принят в обработку» на {{ client_mail.recipient }}?">
+          {% if original.accepted_email_sent_at %}Отправить повторно{% else %}Подтвердить получение{% endif %}
+        </button>
+      </div>
+    </div>
+  </div>
+  {% if not client_mail.is_pickup %}
+  <div class="form-row">
+    <div>
+      <label>3. Трек-номер</label>
+      <div class="readonly">
+        {% if original.tracking_email_sent_at %}{{ original.tracking_number }} · отправлено {{ original.tracking_email_sent_at|date:"d.m.Y H:i" }}{% else %}Не отправлено{% endif %}
+        <button type="button" class="button" style="margin-left:12px;" id="tracking-toggle">
+          {% if original.tracking_email_sent_at %}Изменить трек-номер{% else %}Отправить трек-номер{% endif %}
+        </button>
+      </div>
+      <div id="tracking-panel" hidden style="margin-top:12px;">
+        <input type="text" name="tracking_number" id="tracking-number" value="{{ original.tracking_number }}"
+               placeholder="EG123456789KR" autocomplete="off" maxlength="64"
+               style="width:240px;font-family:monospace;font-size:14px;text-transform:uppercase;">
+        <button type="submit" class="button default" formaction="{{ client_mail.tracking_url }}" id="tracking-send"
+                data-confirm="Отправить письмо с трек-номером на {{ client_mail.recipient }}?">Отправить</button>
+        <p class="help">Клиенту уйдёт письмо «Заказ отправлен» с номером и ссылкой для отслеживания.</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% endif %}
+</div>
+<script>
+(function () {
+  var toggle = document.getElementById("tracking-toggle");
+  var panel = document.getElementById("tracking-panel");
+  var input = document.getElementById("tracking-number");
+  var send = document.getElementById("tracking-send");
+  if (toggle && panel) {
+    toggle.addEventListener("click", function () {
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden && input) input.focus();
+    });
+  }
+  if (input && send) {
+    input.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        send.click();
+      }
+    });
+  }
+  document.querySelectorAll("#client-mail-module [data-confirm]").forEach(function (button) {
+    button.addEventListener("click", function (event) {
+      if (button.id === "tracking-send" && input && !input.value.trim()) {
+        event.preventDefault();
+        input.focus();
+        return;
+      }
+      if (!window.confirm(button.getAttribute("data-confirm"))) event.preventDefault();
+    });
+  });
+})();
+</script>
+{% endif %}
 {% if sales_inquiry_text %}
 <div class="module aligned" id="sales-inquiry-module">
   <h2>Для отдела продаж</h2>

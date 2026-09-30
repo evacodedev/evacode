@@ -20,7 +20,15 @@ from .admin_dashboard import (
 from .br_stock_inventory import execute_kz_stock_sync
 from .br_ru_stock_inventory import execute_ru_stock_sync
 from .business_ru_orders import export_paid_order
-from .order_email import send_order_confirmation_email
+from .order_email import (
+    OrderEmailError,
+    send_order_accepted_email,
+    send_order_confirmation_email,
+    send_order_tracking_email,
+    status_email_recipient,
+    status_email_test_to,
+)
+from .shipping import METHOD_PICKUP
 from .order_sales_copy import format_sales_inquiry
 from .ems_tariffs import import_ems_xlsx
 from .models import (
@@ -868,6 +876,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_order_number",
         "business_ru_payment_number",
         "business_ru_reservation_number",
+        "tracking_number",
         "created_at",
     )
     list_filter = ("status", "paypal_mode", OrderWhenFilter, OrderOpsFilter)
@@ -880,6 +889,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_order_number",
         "business_ru_payment_number",
         "business_ru_reservation_number",
+        "tracking_number",
     )
     raw_id_fields = ("user",)
     fields = (
@@ -911,13 +921,16 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "business_ru_reservation_number",
         "business_ru_error",
         "confirmation_email_sent_at",
+        "accepted_email_sent_at",
+        "tracking_number",
+        "tracking_email_sent_at",
         "created_at",
         "updated_at",
         "paid_at",
     )
     readonly_fields = fields
     inlines = [SiteOrderItemInline]
-    actions = ["export_to_business_ru"]
+    actions = ["confirm_received", "export_to_business_ru"]
     change_form_template = "admin/market/siteorder/change_form.html"
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
@@ -925,7 +938,97 @@ class SiteOrderAdmin(admin.ModelAdmin):
         order = self.get_object(request, object_id)
         if order is not None:
             extra_context["sales_inquiry_text"] = format_sales_inquiry(order)
+            extra_context["client_mail"] = {
+                "is_paid": order.status == SiteOrder.Status.PAID,
+                "is_pickup": order.shipping_method == METHOD_PICKUP,
+                "confirm_url": reverse("admin:market_siteorder_confirm_received", args=[order.pk]),
+                "tracking_url": reverse("admin:market_siteorder_send_tracking", args=[order.pk]),
+                "recipient": status_email_recipient(order),
+                "test_to": status_email_test_to(),
+            }
         return super().change_view(request, object_id, form_url, extra_context=extra_context)
+
+    def get_urls(self):
+        urls = super().get_urls()
+        extra = [
+            path(
+                "<path:object_id>/confirm-received/",
+                self.admin_site.admin_view(self.confirm_received_view),
+                name="market_siteorder_confirm_received",
+            ),
+            path(
+                "<path:object_id>/send-tracking/",
+                self.admin_site.admin_view(self.send_tracking_view),
+                name="market_siteorder_send_tracking",
+            ),
+        ]
+        return extra + urls
+
+    def _order_for_post(self, request, object_id):
+        if request.method != "POST":
+            return None
+        order = SiteOrder.objects.filter(pk=object_id).first()
+        if order is None:
+            messages.error(request, "Заказ не найден")
+        elif not self.has_change_permission(request, order):
+            messages.error(request, "Нет прав на изменение заказа")
+            order = None
+        return order
+
+    def _send_accepted(self, request, order) -> bool:
+        try:
+            to = send_order_accepted_email(order)
+        except OrderEmailError as extra:
+            self.message_user(request, f"{order.public_id}: {extra}", level=messages.WARNING)
+            return False
+        except Exception as extra:
+            self.message_user(request, f"{order.public_id}: письмо не отправлено — {extra}", level=messages.ERROR)
+            return False
+        self.message_user(
+            request,
+            f"{order.public_id}: письмо «Заказ принят в обработку» ушло на {to}{self._test_note(order)}",
+            level=messages.SUCCESS,
+        )
+        return True
+
+    @staticmethod
+    def _test_note(order) -> str:
+        return f" (тестовый режим, клиенту {order.email} не отправлялось)" if status_email_test_to() else ""
+
+    def confirm_received_view(self, request, object_id):
+        order = self._order_for_post(request, object_id)
+        if order is not None:
+            self._send_accepted(request, order)
+        return redirect(reverse("admin:market_siteorder_change", args=[object_id]))
+
+    def send_tracking_view(self, request, object_id):
+        order = self._order_for_post(request, object_id)
+        if order is not None:
+            try:
+                number = send_order_tracking_email(order, request.POST.get("tracking_number", ""))
+            except OrderEmailError as extra:
+                messages.warning(request, f"Трек-номер не отправлен: {extra}")
+            except Exception as extra:
+                messages.error(request, f"Письмо с трек-номером не отправлено — {extra}")
+            else:
+                messages.success(
+                    request,
+                    f"Трек-номер {number} отправлен на {status_email_recipient(order)}{self._test_note(order)}",
+                )
+        return redirect(reverse("admin:market_siteorder_change", args=[object_id]))
+
+    @admin.action(description="Подтвердить получение (письмо «принят в обработку»)")
+    def confirm_received(self, request, queryset):
+        for order in queryset:
+            if order.accepted_email_sent_at:
+                sent = timezone.localtime(order.accepted_email_sent_at).strftime("%d.%m %H:%M")
+                self.message_user(
+                    request,
+                    f"{order.public_id}: уже подтверждён {sent}. Повторить можно из карточки заказа.",
+                    level=messages.WARNING,
+                )
+                continue
+            self._send_accepted(request, order)
 
     @admin.action(description="Выгрузить в Business.Ru")
     def export_to_business_ru(self, request, queryset):
