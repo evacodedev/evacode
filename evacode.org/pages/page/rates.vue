@@ -99,7 +99,7 @@
 </template>
 
 <script setup>
-import { convertKrwWithCurr, roundQuotePrice } from '~/utils/currencyPrice';
+import { convertKrwWithCurr, formatQuotePrice, roundQuotePrice } from '~/utils/currencyPrice';
 
 useHead({
   title: 'Курсы валют — EvaCode',
@@ -198,20 +198,7 @@ const formatRatePerThousand = (ratePerKrw) => {
   });
 };
 
-const formatMoney = (value, currency, symbol) => {
-  const n = Number(value);
-  if (!Number.isFinite(n)) return '—';
-  const digits = currency === 'USD' || currency === 'EUR' ? 2 : 0;
-  const formatted = n.toLocaleString('ru-RU', {
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  });
-  const sym = symbol || currency;
-  if (currency === 'USD' || currency === 'EUR') {
-    return `${sym}${formatted}`;
-  }
-  return `${formatted} ${sym}`;
-};
+const formatMoney = (value, currency) => formatQuotePrice(value, currency);
 
 const rowAmount = (row) => convertKrwWithCurr(amountKrw.value, row.quote, row.curr);
 

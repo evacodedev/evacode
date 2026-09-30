@@ -1,5 +1,5 @@
 import {defineStore} from 'pinia'
-import { convertKrwWithCurr } from '~/utils/currencyPrice'
+import { convertKrwWithCurr, formatQuotePrice } from '~/utils/currencyPrice'
 
 export const useProductStore = defineStore({
     id: 'product-store',
@@ -20,10 +20,7 @@ export const useProductStore = defineStore({
         },
         getPrice(price) {
             const amount = convertKrwWithCurr(price, this.currency.value, this.currency.curr);
-            return new Intl.NumberFormat(this.currency.locale, {
-                style: "currency",
-                currency: this.currency.value,
-            }).format(amount);
+            return formatQuotePrice(amount, this.currency.value);
         },
 		setCurrency(currency) {
 			this.currency.value = currency.value;

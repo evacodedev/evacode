@@ -161,6 +161,7 @@
 
 <script setup>
 import { accountErrorMessage, useAuthStore } from '~/store/auth'
+import { formatQuotePrice } from '~/utils/currencyPrice'
 
 definePageMeta({
   middleware: 'account-auth',
@@ -222,8 +223,7 @@ function formatDateShort(value) {
 }
 
 function formatKrw(value) {
-  const amount = Number(value || 0)
-  return `₩${new Intl.NumberFormat('ru-RU').format(amount)}`
+  return formatQuotePrice(Number(value || 0), 'KRW')
 }
 
 function goodsWord(count) {

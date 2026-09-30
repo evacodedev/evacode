@@ -56,6 +56,46 @@ export function roundQuotePrice(quote, amount) {
   return Math.ceil(raw * 100) / 100;
 }
 
+const PRICE_SYMBOLS = {
+  KRW: '₩',
+  USD: '$',
+  EUR: '€',
+  RUB: '₽',
+  KZT: '₸',
+  KGS: 'сом',
+  UZS: 'сум',
+};
+
+const NBSP = '\u00A0';
+
+function groupThousands(digits) {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, NBSP);
+}
+
+/**
+ * Единый формат цены: «1 966 000 сум», «$26,99», «€121».
+ * Копейки только у USD/EUR и только если они не нулевые; у USD/EUR знак перед числом.
+ */
+export function formatQuotePrice(amount, quote) {
+  const code = String(quote || 'KRW').toUpperCase();
+  const n = Number(amount);
+  if (!Number.isFinite(n)) return '—';
+
+  const isUsdEur = code === 'USD' || code === 'EUR';
+  const cents = Math.round(Math.abs(n) * 100);
+  const showCents = isUsdEur && cents % 100 !== 0;
+  const whole = showCents ? Math.floor(cents / 100) : Math.round(Math.abs(n));
+  let text = groupThousands(String(whole));
+  if (showCents) {
+    text += `,${String(cents % 100).padStart(2, '0')}`;
+  }
+
+  const symbol = PRICE_SYMBOLS[code] || code;
+  const sign = n < 0 ? '−' : '';
+  if (isUsdEur) return `${sign}${symbol}${text}`;
+  return `${sign}${text}${NBSP}${symbol}`;
+}
+
 /** curr — коммерческий курс с API (уже с наценкой из админки). */
 export function convertKrwWithCurr(amountKrw, quote, curr) {
   const code = String(quote || 'KRW').toUpperCase();
