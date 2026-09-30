@@ -3,6 +3,7 @@ import logging
 import re
 import threading
 
+from datetime import timedelta
 from decimal import Decimal
 
 from django.conf import settings
@@ -21,6 +22,7 @@ from django.db.models import Q
 from .auth import OptionalJWTAuthentication
 
 from .business_ru_orders import export_paid_order
+from .checkout_request import build_manager_order_text
 from .manager_notify import notify_managers
 from .order_email import send_order_confirmation_email, send_order_help_email
 from .currency import krw_to_usd
@@ -47,6 +49,7 @@ from .shipping import (
 logger = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+MANAGER_ORDER_REPEAT_WINDOW = timedelta(minutes=5)
 
 
 def _digits(value: str) -> str:
@@ -236,6 +239,96 @@ def _export_paid_side_effects(order_id: int) -> None:
         close_old_connections()
 
 
+def _validate_order_request(data: dict):
+    """Возвращает (form, prepared, goods_krw, quote, errors) для формы оформления."""
+    user = data.get("user") or {}
+    cart = data.get("cart") or []
+    shipping = data.get("shipping") or {}
+    shipping_method = str(shipping.get("method") or "").strip()
+    shipping_destination = str(shipping.get("destination") or "").strip()
+
+    form = {
+        "first_name": str(user.get("firstName") or "").strip(),
+        "phone": str(user.get("phone") or "").strip(),
+        "email": str(user.get("email") or "").strip().lower(),
+        "country": str(user.get("country") or "").strip(),
+        "city": str(user.get("city") or "").strip(),
+        "address": str(user.get("address") or "").strip(),
+        "postal_code": str(user.get("postalCode") or "").strip(),
+        "comment": str(user.get("comment") or "").strip(),
+    }
+    if shipping_method == METHOD_PICKUP:
+        form["country"] = form["country"] or "Корея"
+        form["city"] = form["city"] or "Самовывоз"
+        form["address"] = form["address"] or "Самовывоз"
+
+    errors = {}
+    if len(form["first_name"]) < 2:
+        errors["firstName"] = "Обязательное поле"
+    if not form["phone"]:
+        errors["phone"] = "Обязательное поле"
+    if not form["email"] or not EMAIL_RE.match(form["email"]):
+        errors["email"] = "Укажите корректный email"
+    if not form["country"]:
+        errors["country"] = "Обязательное поле"
+    if not form["city"]:
+        errors["city"] = "Обязательное поле"
+    if not form["address"]:
+        errors["address"] = "Обязательное поле"
+    if shipping_method != METHOD_PICKUP and not form["postal_code"]:
+        errors["postalCode"] = "Обязательное поле"
+    parsed, cart_error = parse_cart_lines(cart)
+    if cart_error:
+        errors["cart"] = cart_error
+    quote = None
+    if parsed:
+        quote, shipping_error = quote_shipping(shipping_method, shipping_destination, parsed[0])
+        if shipping_error:
+            errors["shipping"] = shipping_error
+    if errors:
+        return form, None, 0, None, errors
+    prepared, goods_krw = parsed
+    return form, prepared, goods_krw, quote, {}
+
+
+def _create_order_record(request, form, prepared, goods_krw, quote, **extra) -> SiteOrder:
+    account_user = request.user if getattr(request.user, "is_authenticated", False) else None
+    order = SiteOrder.objects.create(
+        user=account_user,
+        first_name=form["first_name"][:128],
+        phone=form["phone"][:64],
+        phone_digits=_digits(form["phone"])[:32],
+        email=form["email"][:254],
+        country=form["country"][:64],
+        city=form["city"][:128],
+        address=form["address"][:255],
+        postal_code=form["postal_code"][:32],
+        comment=form["comment"][:2000],
+        shipping_method=quote["method"],
+        shipping_destination=quote["destination"],
+        shipping_krw=quote["shipping_krw"],
+        goods_krw=goods_krw,
+        weight_grams=((quote["weight_grams"] or 0) + (quote.get("packing_grams") or 0)) or None,
+        amount_krw=goods_krw + quote["shipping_krw"],
+        **extra,
+    )
+    SiteOrderItem.objects.bulk_create(
+        [
+            SiteOrderItem(
+                order=order,
+                good=good,
+                good_id_snapshot=good.id,
+                title=good.title,
+                quantity=quantity,
+                price_krw=good.retail_price,
+                line_total_krw=line_total,
+            )
+            for good, quantity, line_total in prepared
+        ]
+    )
+    return order
+
+
 class CreateSiteOrderView(APIView):
     permission_classes = [AllowAny]
     authentication_classes = [OptionalJWTAuthentication]
@@ -245,54 +338,11 @@ class CreateSiteOrderView(APIView):
             return JsonResponse({"error": "Оплата PayPal сейчас выключена"}, status=403)
 
         data = request.data if hasattr(request, "data") else {}
-        user = data.get("user") or {}
-        cart = data.get("cart") or []
-        shipping = data.get("shipping") or {}
-        shipping_method = str(shipping.get("method") or "").strip()
-        shipping_destination = str(shipping.get("destination") or "").strip()
-
-        first_name = str(user.get("firstName") or "").strip()
-        phone = str(user.get("phone") or "").strip()
-        email = str(user.get("email") or "").strip().lower()
-        country = str(user.get("country") or "").strip()
-        city = str(user.get("city") or "").strip()
-        address = str(user.get("address") or "").strip()
-        postal_code = str(user.get("postalCode") or "").strip()
-        comment = str(user.get("comment") or "").strip()
-        if shipping_method == METHOD_PICKUP:
-            country = country or "Корея"
-            city = city or "Самовывоз"
-            address = address or "Самовывоз"
-
-        errors = {}
-        if len(first_name) < 2:
-            errors["firstName"] = "Обязательное поле"
-        if not phone:
-            errors["phone"] = "Обязательное поле"
-        if not email or not EMAIL_RE.match(email):
-            errors["email"] = "Укажите корректный email"
-        if not country:
-            errors["country"] = "Обязательное поле"
-        if not city:
-            errors["city"] = "Обязательное поле"
-        if not address:
-            errors["address"] = "Обязательное поле"
-        if shipping_method != METHOD_PICKUP and not postal_code:
-            errors["postalCode"] = "Обязательное поле"
-        parsed, cart_error = parse_cart_lines(cart)
-        if cart_error:
-            errors["cart"] = cart_error
-        quote = None
-        if parsed:
-            quote, shipping_error = quote_shipping(shipping_method, shipping_destination, parsed[0])
-            if shipping_error:
-                errors["shipping"] = shipping_error
+        form, prepared, goods_krw, quote, errors = _validate_order_request(data)
         if errors:
             return JsonResponse({"errors": errors}, status=400)
 
-        prepared, goods_krw = parsed
         total_krw = goods_krw + quote["shipping_krw"]
-
         try:
             amount_usd, usd_snapshot = krw_to_usd(total_krw)
         except Exception as exc:
@@ -302,41 +352,15 @@ class CreateSiteOrderView(APIView):
             return JsonResponse({"error": "Сумма заказа слишком мала для PayPal"}, status=400)
 
         paypal_mode = resolve_paypal_mode(request.user)
-        account_user = request.user if getattr(request.user, "is_authenticated", False) else None
-        order = SiteOrder.objects.create(
-            user=account_user,
-            first_name=first_name[:128],
-            phone=phone[:64],
-            phone_digits=_digits(phone)[:32],
-            email=email[:254],
-            country=country[:64],
-            city=city[:128],
-            address=address[:255],
-            postal_code=postal_code[:32],
-            comment=comment[:2000],
-            shipping_method=quote["method"],
-            shipping_destination=quote["destination"],
-            shipping_krw=quote["shipping_krw"],
-            goods_krw=goods_krw,
-            weight_grams=((quote["weight_grams"] or 0) + (quote.get("packing_grams") or 0)) or None,
-            amount_krw=total_krw,
+        order = _create_order_record(
+            request,
+            form,
+            prepared,
+            goods_krw,
+            quote,
             amount_usd=amount_usd,
             usd_rate_snapshot=usd_snapshot,
             paypal_mode=paypal_mode,
-        )
-        SiteOrderItem.objects.bulk_create(
-            [
-                SiteOrderItem(
-                    order=order,
-                    good=good,
-                    good_id_snapshot=good.id,
-                    title=good.title,
-                    quantity=quantity,
-                    price_krw=good.retail_price,
-                    line_total_krw=line_total,
-                )
-                for good, quantity, line_total in prepared
-            ]
         )
 
         return_url = urljoin(
@@ -372,6 +396,68 @@ class CreateSiteOrderView(APIView):
                 "goods_krw": order.goods_krw,
             }
         )
+
+
+def _notify_manager_order(order_id: int) -> None:
+    from django.db import close_old_connections
+
+    close_old_connections()
+    try:
+        order = SiteOrder.objects.filter(pk=order_id).first()
+        if not order:
+            return
+        text = build_manager_order_text(order, order.items.all())
+        if not notify_managers(text, subject=f"Заказ с сайта через консультанта {order.public_id}", reply_to=order.email):
+            logger.error("Заказ %s не дошёл ни в Telegram, ни на почту", order.public_id)
+    finally:
+        close_old_connections()
+
+
+class CreateTelegramOrderView(APIView):
+    """Заказ без оплаты на сайте: сохраняется, уходит в группу консультантов, в Business.Ru не выгружается."""
+
+    permission_classes = [AllowAny]
+    authentication_classes = [OptionalJWTAuthentication]
+
+    def post(self, request):
+        if not CheckoutSettings.load().telegram_enabled:
+            return JsonResponse({"error": "Заказ через Telegram сейчас выключен"}, status=403)
+
+        data = request.data if hasattr(request, "data") else {}
+        form, prepared, goods_krw, quote, errors = _validate_order_request(data)
+        if errors:
+            return JsonResponse({"errors": errors}, status=400)
+
+        phone_digits = _digits(form["phone"])
+        if phone_digits and SiteOrder.objects.filter(
+            status=SiteOrder.Status.MANAGER,
+            phone_digits=phone_digits[:32],
+            created_at__gte=timezone.now() - MANAGER_ORDER_REPEAT_WINDOW,
+        ).exists():
+            return JsonResponse(
+                {"error": "Заказ с этого телефона уже отправлен. Если нужно что-то изменить — напишите консультанту."},
+                status=429,
+            )
+
+        total_krw = goods_krw + quote["shipping_krw"]
+        try:
+            amount_usd, usd_snapshot = krw_to_usd(total_krw)
+        except Exception:
+            logger.warning("Курс USD недоступен, заказ через консультанта сохранён без суммы в USD", exc_info=True)
+            amount_usd, usd_snapshot = Decimal("0"), None
+
+        order = _create_order_record(
+            request,
+            form,
+            prepared,
+            goods_krw,
+            quote,
+            status=SiteOrder.Status.MANAGER,
+            amount_usd=amount_usd,
+            usd_rate_snapshot=usd_snapshot,
+        )
+        threading.Thread(target=_notify_manager_order, args=(order.pk,), daemon=True).start()
+        return JsonResponse({"id": str(order.public_id)}, status=201)
 
 
 class ShippingDestinationsView(APIView):

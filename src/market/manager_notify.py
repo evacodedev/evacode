@@ -14,7 +14,8 @@ TELEGRAM_TEXT_LIMIT = 4096
 # С VPS часть запросов к Telegram зависает: держим сумму попыток заметно ниже таймаута gunicorn (60 с).
 TELEGRAM_TIMEOUT = (3, 5)
 TELEGRAM_ATTEMPTS = 3
-DONE_KEYBOARD = {"inline_keyboard": [[{"text": "Обработано✅", "callback_data": "handle"}]]}
+# callback "handle" обрабатывает tg_bot: дописывает «Обработано: @ник» и убирает кнопку.
+HANDLE_KEYBOARD = {"inline_keyboard": [[{"text": "ОБРАБОТАТЬ✅", "callback_data": "handle"}]]}
 
 
 def send_telegram(text: str) -> bool:
@@ -27,7 +28,7 @@ def send_telegram(text: str) -> bool:
     payload = {
         "chat_id": chat_id,
         "text": text[:TELEGRAM_TEXT_LIMIT],
-        "reply_markup": DONE_KEYBOARD,
+        "reply_markup": HANDLE_KEYBOARD,
     }
     for attempt in range(1, TELEGRAM_ATTEMPTS + 1):
         try:

@@ -1134,31 +1134,29 @@ export default {
         return
       }
       this.telegramLoading = true
+      this.paypalError = ''
       try {
-        const cartCheckout = []
-        this.cart.forEach((item) => {
-          const checkoutProduct = JSON.parse(JSON.stringify(item))
-          checkoutProduct.retail_price = this.getPrice(checkoutProduct.retail_price)
-          cartCheckout.push(checkoutProduct)
-        })
-        useProductStore().createOrder({
-          product: cartCheckout,
-          userDetail: this.user,
-          amt: this.getPrice(this.grandTotal),
-        })
-        await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout/`, {
+        const data = await useAuthStore().authFetch('/market/orders/telegram/', {
           method: 'POST',
           body: {
-            cart: cartCheckout,
+            cart: this.cart.map((item) => ({ id: item.id, quantity: item.quantity })),
             user: this.userValues(),
-            consult: false,
             shipping: this.shippingPayload(),
           },
         })
-        this.$router.push('/page/order-success')
+        useProductStore().createOrder({
+          product: this.cart,
+          userDetail: this.user,
+          amt: this.getPrice(this.grandTotal),
+          publicId: data.id,
+        })
+        this.$router.push({ path: '/page/order-success', query: { id: data.id } })
       } catch (error) {
         this.telegramLoading = false
-        this.paypalError = error?.data?.error || 'Не удалось отправить заказ. Попробуйте ещё раз.'
+        const fieldErrors = error?.data?.errors
+        this.paypalError = error?.data?.error
+          || (fieldErrors && Object.values(fieldErrors)[0])
+          || 'Не удалось отправить заказ. Попробуйте ещё раз.'
       }
     },
     async onPaypalSubmit() {

@@ -24,7 +24,10 @@
               <p v-if="isPaypalPaid">
                 Оплата прошла, заказ сохранён. Номер заказа: {{ paidOrder.id }}
               </p>
-              <p v-else>Ваш заказ успешно отправлен нашим консультантам. <br/> В ближайшее время с Вами свяжутся для подтверждения заказа!</p>
+              <p v-else>
+                Ваш заказ успешно отправлен нашим консультантам.<template v-if="paidOrder"> Номер заказа: {{ paidOrder.id }}</template>
+                <br/> В ближайшее время с Вами свяжутся для подтверждения заказа!
+              </p>
               <p v-if="orderEmail" class="order-email-hint">
                 Проверьте почту <strong>{{ orderEmail }}</strong> — туда отправлено письмо с подтверждением заказа.
               </p>
@@ -107,7 +110,10 @@ export default {
       return this.$route.query.paypal === '1' && this.paidOrder;
     },
     orderEmail() {
-      return (this.paidOrder?.email || '').trim();
+      if (this.paidOrder?.status !== 'paid') {
+        return '';
+      }
+      return (this.paidOrder.email || '').trim();
     },
     hasOrder() {
       return Boolean(this.paidOrder || (this.order && this.order !== ''));
@@ -120,7 +126,8 @@ export default {
     },
     displayTotal() {
       if (this.paidOrder) {
-        return `${this.paidOrder.amount_krw} ₩ / ${this.paidOrder.amount_usd} USD`;
+        const usd = Number(this.paidOrder.amount_usd) > 0 ? ` / ${this.paidOrder.amount_usd} USD` : '';
+        return `${this.paidOrder.amount_krw} ₩${usd}`;
       }
       return this.getPrice(useCartStore().cartTotalAmount);
     },
@@ -162,7 +169,7 @@ export default {
     if (orderId) {
       try {
         this.paidOrder = await $fetch(`${useRuntimeConfig().public.apiBase}/market/orders/${orderId}/`);
-        if (this.paidOrder?.status === 'paid') {
+        if (['paid', 'manager'].includes(this.paidOrder?.status)) {
           useCartStore().setInitialCart([]);
         }
       } catch (error) {

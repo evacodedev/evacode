@@ -235,6 +235,8 @@ class SiteOrder(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Ожидает оплату"
         PAID = "paid", "Оплачен"
+        # Заказ через Telegram: клиент не платил на сайте, оформляет консультант. В Business.Ru не выгружается.
+        MANAGER = "manager", "Передан консультанту"
         FAILED = "failed", "Ошибка оплаты"
         CANCELLED = "cancelled", "Отменён"
 

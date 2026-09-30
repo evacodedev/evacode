@@ -172,7 +172,7 @@ useHead({
 })
 useNoIndex()
 
-const CURRENT_STATUSES = new Set(['pending', 'paid'])
+const CURRENT_STATUSES = new Set(['pending', 'paid', 'manager'])
 const DONE_STATUSES = new Set(['failed', 'cancelled'])
 
 const auth = useAuthStore()

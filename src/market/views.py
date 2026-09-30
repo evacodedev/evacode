@@ -33,7 +33,7 @@ from .utils import (
 )
 from rest_framework import generics, status
 from rest_framework.viewsets import ModelViewSet
-from .models import CheckoutSettings, GoodsModel, GroupOfGoods, ProductBrand, ProductKind
+from .models import GoodsModel, GroupOfGoods, ProductBrand, ProductKind
 from .product_content import KIND_KEYWORDS
 from .serializers import (
     GoodsListSerializer,
@@ -47,7 +47,7 @@ from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, F, Q
 
-from .checkout_request import build_consult_text, build_telegram_order_text
+from .checkout_request import build_consult_text
 from .manager_notify import notify_managers
 
 load_dotenv()
@@ -225,7 +225,6 @@ class GroupListAPIView(generics.ListAPIView):
 CHECKOUT_REQUESTS_FILE = "orders_list.json"
 CHECKOUT_DATE_FORMAT = "%d-%m-%Y %H:%M:%S"
 CONSULT_REPEAT_WINDOW = timedelta(hours=2)
-ORDER_REPEAT_WINDOW = timedelta(minutes=5)
 
 
 def _load_checkout_requests() -> dict:
@@ -273,26 +272,16 @@ class Checkout(View):
         if not phone:
             return JsonResponse({'error': 'Укажите телефон'}, status=400)
 
-        consult = bool(data.get('consult'))
-        if not consult and not CheckoutSettings.load().telegram_enabled:
-            return JsonResponse({'error': 'Заказ в Telegram сейчас выключен'}, status=403)
+        # Заказы идут через /market/orders/telegram/ и сохраняются; здесь только заявка на консультацию.
+        if not data.get('consult'):
+            return JsonResponse({'error': 'Обновите страницу и оформите заказ ещё раз.'}, status=410)
 
         requests_log = _load_checkout_requests()
-        if consult:
-            key = phone
-            if _recently_sent(requests_log, key, CONSULT_REPEAT_WINDOW):
-                return JsonResponse({'message': 'Please wait!'}, status=200)
-            text = build_consult_text(user)
-            subject = f"Консультация с сайта — {phone}"
-        else:
-            key = f"order:{phone}"
-            if _recently_sent(requests_log, key, ORDER_REPEAT_WINDOW):
-                return JsonResponse(
-                    {'error': 'Заказ с этого телефона уже отправлен. Если нужно что-то изменить — напишите консультанту.'},
-                    status=429,
-                )
-            text = build_telegram_order_text(data)
-            subject = f"Заказ с сайта (Telegram) — {phone}"
+        key = phone
+        if _recently_sent(requests_log, key, CONSULT_REPEAT_WINDOW):
+            return JsonResponse({'message': 'Please wait!'}, status=200)
+        text = build_consult_text(user)
+        subject = f"Консультация с сайта — {phone}"
 
         if not notify_managers(text, subject=subject, reply_to=str(user.get('email') or '')):
             return JsonResponse(

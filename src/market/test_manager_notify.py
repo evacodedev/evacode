@@ -1,15 +1,18 @@
 import json
 import os
 import tempfile
+from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import requests
+from django.contrib.auth.models import AnonymousUser
 from django.test import RequestFactory, SimpleTestCase
 
-from market import views
-from market.checkout_request import build_consult_text, build_telegram_order_text
+from market import order_views, views
+from market.checkout_request import build_consult_text, build_manager_order_text
 from market.manager_notify import notify_managers, send_telegram
+from market.models import SiteOrder
 
 TELEGRAM_ENV = {"BOT_TOKEN": "123:abc", "CHAT_ID": "-100500"}
 
@@ -68,47 +71,46 @@ class CheckoutRequestTextTests(SimpleTestCase):
         self.assertIn("Имя: Анна", text)
         self.assertIn("Телефон: +77470483761", text)
 
-    @patch("market.checkout_request.quote_shipping")
-    @patch("market.checkout_request.parse_cart_lines")
-    def test_order_text_uses_catalog_prices(self, parse_cart, quote):
-        good = SimpleNamespace(title="Крем", retail_price=34000)
-        parse_cart.return_value = (([(good, 2, 68000)], 68000), None)
-        quote.return_value = ({"shipping_krw": 50000, "chargeable_weight_grams": 1000}, None)
-        text = build_telegram_order_text(
-            {
-                "cart": [{"id": 5, "quantity": 2, "title": "Крем", "retail_price": "1 ₽"}],
-                "shipping": {"method": "ems", "destination": "UZ"},
-                "user": {
-                    "firstName": "Анна Ким",
-                    "phone": "+998901234567",
-                    "email": "anna@example.com",
-                    "country": "Узбекистан",
-                    "city": "Ташкент",
-                    "address": "ул. Навои, д. 4, кв. 4",
-                    "postalCode": "100000",
-                    "comment": "Позвонить",
-                },
-            }
-        )
-        self.assertIn("• Крем — 2 шт × 34 000 ₩ = 68 000 ₩", text)
-        self.assertIn("Итого: 118 000 ₩", text)
-        self.assertIn("Адрес: 100000, Узбекистан, Ташкент, ул. Навои, д. 4, кв. 4", text)
-        self.assertIn("Email: anna@example.com", text)
-        self.assertIn("Комментарий: Позвонить", text)
-        self.assertNotIn("1 ₽", text)
+    @staticmethod
+    def _order(**overrides):
+        fields = {
+            "public_id": "A1B2C3",
+            "goods_krw": 68000,
+            "shipping_method": "ems",
+            "shipping_krw": 50000,
+            "weight_grams": 1200,
+            "amount_krw": 118000,
+            "amount_usd": Decimal("85.10"),
+            "first_name": "Анна Ким",
+            "phone": "+998901234567",
+            "email": "anna@example.com",
+            "postal_code": "100000",
+            "country": "Узбекистан",
+            "city": "Ташкент",
+            "address": "ул. Навои, д. 4, кв. 4",
+            "comment": "Позвонить",
+        }
+        fields.update(overrides)
+        return SimpleNamespace(**fields)
 
-    @patch("market.checkout_request.parse_cart_lines", return_value=(None, "Недостаточно остатка: Крем"))
-    def test_order_text_survives_catalog_error(self, _parse_cart):
-        text = build_telegram_order_text(
-            {
-                "cart": [{"id": 5, "quantity": 9, "title": "Крем"}],
-                "shipping": {"method": "pickup"},
-                "user": {"firstName": "Анна", "phone": "+82101234567"},
-            }
-        )
-        self.assertIn("• Крем — 9 шт", text)
-        self.assertIn("Проверка каталога: Недостаточно остатка: Крем", text)
+    def test_order_text_has_number_items_and_address(self):
+        item = SimpleNamespace(title="Крем", quantity=2, price_krw=34000, line_total_krw=68000)
+        text = build_manager_order_text(self._order(), [item])
+        self.assertIn("№ A1B2C3", text)
+        self.assertIn("не оплачен", text)
+        self.assertIn("• Крем — 2 шт × 34 000 ₩ = 68 000 ₩", text)
+        self.assertIn("Доставка EMS: 50 000 ₩, 1200 г", text)
+        self.assertIn("Итого: 118 000 ₩ (≈ 85.10 USD)", text)
+        self.assertIn("Адрес: 100000, Узбекистан, Ташкент, ул. Навои, д. 4, кв. 4", text)
+        self.assertIn("Комментарий: Позвонить", text)
+
+    def test_pickup_order_without_usd(self):
+        order = self._order(shipping_method="pickup", shipping_krw=0, amount_usd=Decimal("0"), comment="")
+        text = build_manager_order_text(order, [])
+        self.assertIn("Доставка: самовывоз", text)
         self.assertIn("Получение: самовывоз", text)
+        self.assertNotIn("USD", text)
+        self.assertNotIn("Комментарий", text)
 
 
 class CheckoutViewTests(SimpleTestCase):
@@ -120,11 +122,6 @@ class CheckoutViewTests(SimpleTestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
         self.addCleanup(lambda: os.path.exists(self.log_path) and os.remove(self.log_path))
-        settings_patcher = patch.object(
-            views.CheckoutSettings, "load", return_value=SimpleNamespace(telegram_enabled=True)
-        )
-        settings_patcher.start()
-        self.addCleanup(settings_patcher.stop)
 
     def _post(self, body):
         request = RequestFactory().post(
@@ -139,14 +136,11 @@ class CheckoutViewTests(SimpleTestCase):
         self.assertEqual(self._post(body).status_code, 200)
         self.assertEqual(notify.call_count, 1)
 
-    @patch("market.views.build_telegram_order_text", return_value="order")
     @patch("market.views.notify_managers", return_value=True)
-    def test_repeat_order_is_rejected_openly(self, _notify, _text):
+    def test_unsaved_order_is_not_sent(self, notify):
         body = {"consult": False, "user": {"phone": "+77470483761"}, "cart": []}
-        self.assertEqual(self._post(body).status_code, 200)
-        response = self._post(body)
-        self.assertEqual(response.status_code, 429)
-        self.assertIn("уже отправлен", json.loads(response.content)["error"])
+        self.assertEqual(self._post(body).status_code, 410)
+        notify.assert_not_called()
 
     @patch("market.views.notify_managers", return_value=False)
     def test_failure_is_reported_and_not_remembered(self, _notify):
@@ -154,3 +148,68 @@ class CheckoutViewTests(SimpleTestCase):
         response = self._post(body)
         self.assertEqual(response.status_code, 502)
         self.assertFalse(os.path.exists(self.log_path))
+
+
+class TelegramOrderViewTests(SimpleTestCase):
+    FORM = {"first_name": "Анна", "phone": "+7 747 048-37-61", "email": "anna@example.com"}
+    QUOTE = {"method": "pickup", "destination": "", "shipping_krw": 0, "weight_grams": 0}
+
+    def setUp(self):
+        self.patches = {
+            "settings": patch.object(
+                order_views.CheckoutSettings, "load", return_value=SimpleNamespace(telegram_enabled=True)
+            ),
+            "validate": patch.object(
+                order_views, "_validate_order_request", return_value=(self.FORM, [], 68000, self.QUOTE, {})
+            ),
+            "filter": patch.object(SiteOrder.objects, "filter"),
+            "usd": patch.object(order_views, "krw_to_usd", return_value=(Decimal("48.00"), Decimal("0.0007"))),
+            "create": patch.object(
+                order_views, "_create_order_record", return_value=SimpleNamespace(pk=7, public_id="A1B2C3")
+            ),
+            "thread": patch.object(order_views.threading, "Thread"),
+        }
+        self.mocks = {name: p.start() for name, p in self.patches.items()}
+        for p in self.patches.values():
+            self.addCleanup(p.stop)
+        self.mocks["filter"].return_value.exists.return_value = False
+
+    def _post(self):
+        request = RequestFactory().post("/api/market/orders/telegram/", data={}, content_type="application/json")
+        request.user = AnonymousUser()
+        return order_views.CreateTelegramOrderView.as_view()(request)
+
+    def test_order_is_saved_as_manager_and_sent_in_background(self):
+        response = self._post()
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(json.loads(response.content), {"id": "A1B2C3"})
+        kwargs = self.mocks["create"].call_args.kwargs
+        self.assertEqual(kwargs["status"], SiteOrder.Status.MANAGER)
+        self.assertNotIn("paypal_mode", kwargs)
+        thread_kwargs = self.mocks["thread"].call_args.kwargs
+        self.assertIs(thread_kwargs["target"], order_views._notify_manager_order)
+        self.assertEqual(thread_kwargs["args"], (7,))
+        self.mocks["thread"].return_value.start.assert_called_once()
+        self.assertEqual(self.mocks["filter"].call_args.kwargs["phone_digits"], "77470483761")
+
+    def test_repeat_from_same_phone_is_rejected(self):
+        self.mocks["filter"].return_value.exists.return_value = True
+        response = self._post()
+        self.assertEqual(response.status_code, 429)
+        self.mocks["create"].assert_not_called()
+
+    def test_disabled_in_admin(self):
+        self.mocks["settings"].return_value = SimpleNamespace(telegram_enabled=False)
+        self.assertEqual(self._post().status_code, 403)
+        self.mocks["create"].assert_not_called()
+
+    def test_saved_even_without_usd_rate(self):
+        self.mocks["usd"].side_effect = RuntimeError("rate down")
+        self.assertEqual(self._post().status_code, 201)
+        self.assertEqual(self.mocks["create"].call_args.kwargs["amount_usd"], Decimal("0"))
+
+    def test_form_errors_are_returned(self):
+        self.mocks["validate"].return_value = (self.FORM, None, 0, None, {"email": "Укажите корректный email"})
+        response = self._post()
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(json.loads(response.content)["errors"]["email"], "Укажите корректный email")
