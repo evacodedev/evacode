@@ -401,4 +401,4 @@ BUSINESS_RU_PAYPAL_PAYMENT_TYPE_ID = os.getenv("BUSINESS_RU_PAYPAL_PAYMENT_TYPE_
 # id в справочнике «Источники» (requestsource) → customerorders.request_source_id
 BUSINESS_RU_REQUEST_SOURCE_ID = os.getenv("BUSINESS_RU_REQUEST_SOURCE_ID", "2").strip()
 # Пока не пусто — письма «принят в обработку» и «трек-номер» уходят сюда вместо клиента (тест).
-ORDER_STATUS_EMAIL_TEST_TO = os.getenv("ORDER_STATUS_EMAIL_TEST_TO", "vadim.k@evacode.co.kr").strip()
+ORDER_STATUS_EMAIL_TEST_TO = os.getenv("ORDER_STATUS_EMAIL_TEST_TO", "").strip()

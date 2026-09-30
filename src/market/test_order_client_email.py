@@ -15,6 +15,24 @@ from market.order_email import (
     send_order_tracking_email,
 )
 
+CONTACTS = {
+    "phone": "+8210-7652-8595",
+    "email": "orders@evacode.co.kr",
+    "instagram": "https://www.instagram.com/evacodeorg",
+    "tiktok": "https://www.tiktok.com/@evacodeorg",
+    "facebook": "",
+    "address": "경기 안산시 단원구 별망로 555, 4층 №420",
+}
+_contacts_patch = patch("market.order_email._shop_contacts", return_value=CONTACTS)
+
+
+def setUpModule():
+    _contacts_patch.start()
+
+
+def tearDownModule():
+    _contacts_patch.stop()
+
 
 def _order(**overrides):
     item = SimpleNamespace(title="Крем <Лёгкий>", quantity=2, price_krw=17000, line_total_krw=34000, good=None)
@@ -59,6 +77,19 @@ class ClientEmailBodyTests(SimpleTestCase):
         self.assertIn("Крем &lt;Лёгкий&gt;", html)
         self.assertIn("Navoi St 4, Apt. 4", html)
         self.assertIn("https://evacode.co.kr/account", html)
+
+    def test_contacts_block(self):
+        _subject, text, html = build_client_email(_order(), STAGE_ACCEPTED)
+        self.assertIn("Связаться с нами", html)
+        self.assertIn('href="tel:+821076528595"', html)
+        self.assertIn("https://wa.me/77470483761", html)
+        self.assertIn("https://t.me/+77776868917", html)
+        self.assertIn("max.ru/u/", html)
+        self.assertIn("https://www.tiktok.com/@evacodeorg", html)
+        self.assertNotIn("Facebook", html)
+        self.assertIn("별망로 555", html)
+        self.assertIn("WhatsApp: +7 747 048 3761, +7 777 612 2046", text)
+        self.assertIn("Instagram: https://www.instagram.com/evacodeorg", text)
 
     def test_accepted_email_promises_tracking(self):
         subject, text, _html = build_client_email(_order(), STAGE_ACCEPTED)

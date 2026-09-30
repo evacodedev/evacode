@@ -34,6 +34,99 @@ def _pickup_address() -> str:
     return strip_tags(text).strip()
 
 
+# Те же номера, что в evacode.org/composables/useShopMessengers.js — менять вместе.
+SHOP_MESSENGERS = {
+    "WhatsApp": [
+        ("+7 747 048 3761", "https://wa.me/77470483761"),
+        ("+7 777 612 2046", "https://wa.me/77776122046"),
+    ],
+    "Telegram": [
+        ("+7 747 048 3761", "https://t.me/+77470483761"),
+        ("+7 777 686 8917", "https://t.me/+77776868917"),
+    ],
+    "Max": [
+        ("Открыть чат", "https://max.ru/u/f9LHodD0cOIQhBBIhcEfdYTRxN1PLhQ-9BSSX1tnitJ9JPdcvqLdsj67dwU"),
+    ],
+}
+
+
+def _shop_contacts() -> dict:
+    row = (
+        Contacts.objects.values("phone", "email", "instagram", "tiktok", "facebook", "address").first()
+        or {}
+    )
+    return {key: str(value or "").strip() for key, value in row.items()}
+
+
+def _contact_rows(contacts: dict) -> list[tuple[str, list[tuple[str, str]]]]:
+    rows = []
+    phone = contacts.get("phone", "")
+    if phone:
+        rows.append(("Телефон", [(phone, "tel:+" + re.sub(r"\D", "", phone))]))
+    rows.extend(SHOP_MESSENGERS.items())
+    email = contacts.get("email") or ORDER_HELP_EMAIL
+    rows.append(("Email", [(email, f"mailto:{email}")]))
+    socials = [
+        (name, contacts.get(key, ""))
+        for name, key in (("Instagram", "instagram"), ("TikTok", "tiktok"), ("Facebook", "facebook"))
+        if contacts.get(key)
+    ]
+    if socials:
+        rows.append(("Соцсети", socials))
+    return rows
+
+
+def _contacts_text(contacts: dict) -> list[str]:
+    lines = ["Связаться с нами:"]
+    for label, links in _contact_rows(contacts):
+        if label == "Max":
+            lines.append(f"Max: {links[0][1]}")
+        elif label == "Соцсети":
+            lines.extend(f"{name}: {href}" for name, href in links)
+        else:
+            lines.append(f"{label}: {', '.join(text for text, _href in links)}")
+    address = _plain_address(contacts.get("address", ""))
+    if address:
+        lines.append(f"Офис в Корее: {address}")
+    return lines
+
+
+def _plain_address(raw: str) -> str:
+    text = re.sub(r"<br\s*/?>", ", ", str(raw or ""), flags=re.I)
+    return strip_tags(text).strip()
+
+
+def _contacts_html(contacts: dict) -> str:
+    rows = []
+    for label, links in _contact_rows(contacts):
+        anchors = " &nbsp;·&nbsp; ".join(
+            f'<a href="{escape(href)}" style="color:#1A1917;text-decoration:none;border-bottom:1px solid #B89254;">'
+            f"{escape(text)}</a>"
+            for text, href in links
+        )
+        rows.append(
+            f'<tr><td width="96" style="padding:6px 0;font-size:13px;color:#8A8680;vertical-align:top;">{escape(label)}</td>'
+            f'<td style="padding:6px 0;font-size:14px;line-height:1.6;color:#1A1917;">{anchors}</td></tr>'
+        )
+    address = _plain_address(contacts.get("address", ""))
+    if address:
+        rows.append(
+            f'<tr><td width="96" style="padding:6px 0;font-size:13px;color:#8A8680;vertical-align:top;">Офис</td>'
+            f'<td style="padding:6px 0;font-size:13px;line-height:1.5;color:#1A1917;">{escape(address)}<br>'
+            f'<span style="color:#8A8680;">Ансан, провинция Кёнгидо, Южная Корея</span></td></tr>'
+        )
+    return (
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" '
+        'style="margin:28px 0 0;background:#F7F4EF;border-radius:8px;">'
+        '<tr><td style="padding:20px 22px;">'
+        '<p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1A1917;">Связаться с нами</p>'
+        '<p style="margin:0 0 12px;font-size:13px;line-height:1.5;color:#8A8680;">'
+        "Консультанты ответят на вопросы о заказе и уходе — пишите в любой удобный мессенджер.</p>"
+        '<table role="presentation" width="100%" cellspacing="0" cellpadding="0">'
+        f'{"".join(rows)}</table></td></tr></table>'
+    )
+
+
 def _address_html(text: str) -> str:
     return "<br>".join(escape(line) for line in text.splitlines() if line.strip())
 
@@ -264,6 +357,7 @@ def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[st
     items = _order_items(order)
     is_pickup = order.shipping_method == METHOD_PICKUP
     copy = _client_email_copy(order, stage, br_number, tracking_number)
+    contacts = _shop_contacts()
     site = _site_url()
     paid_at = timezone.localtime(order.paid_at).strftime("%d.%m.%Y") if getattr(order, "paid_at", None) else ""
     goods = order.goods_krw or max(int(order.amount_krw or 0) - int(order.shipping_krw or 0), 0)
@@ -299,14 +393,9 @@ def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[st
         lines += ["Доставим EMS по адресу:", order.first_name, _delivery_address(order)]
         if order.phone:
             lines.append(order.phone)
-    lines += [
-        "",
-        f"Мои заказы: {site}/account",
-        f"Вопросы: {ORDER_HELP_EMAIL} — или просто ответьте на это письмо.",
-        "",
-        "Evacode · Korean beauty from Seoul",
-        site,
-    ]
+    lines += ["", f"Мои заказы: {site}/account", ""]
+    lines += _contacts_text(contacts)
+    lines += ["Или просто ответьте на это письмо.", "", "Evacode · Korean beauty from Seoul", site]
     text = "\n".join(lines)
 
     meta = f"Заказ № {escape(number)}"
@@ -355,11 +444,12 @@ def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[st
                   </td>
                 </tr>
               </table>
+              {_contacts_html(contacts)}
             </td>
           </tr>
           <tr>
             <td align="center" style="padding:22px 16px 0;font-size:12px;line-height:1.6;color:{_MUTED};">
-              Вопросы — <a href="mailto:{ORDER_HELP_EMAIL}" style="color:{_GOLD};text-decoration:none;">{ORDER_HELP_EMAIL}</a> или просто ответьте на это письмо.<br>
+              Можно просто ответить на это письмо — оно придёт нам на {ORDER_HELP_EMAIL}.<br>
               Evacode · Korean beauty from Seoul · <a href="{escape(site)}" style="color:{_GOLD};text-decoration:none;">evacode.co.kr</a>
             </td>
           </tr>
