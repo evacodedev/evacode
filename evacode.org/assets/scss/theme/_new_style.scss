@@ -4268,6 +4268,39 @@ $checkout-muted: #8A8680;
         line-height: 1.45;
     }
 
+    &__pay-notice {
+        border-color: rgba(184, 146, 84, 0.35);
+        background: rgba(184, 146, 84, 0.06);
+    }
+
+    &__pay-notice-title {
+        margin: 0;
+        color: #1a1917;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    &__pay-switch {
+        display: block;
+        width: 100%;
+        margin-top: 12px;
+        height: 44px;
+        border: 1px solid #1a1917;
+        border-radius: 8px;
+        background: #fff;
+        color: #1a1917;
+        font-size: 14px;
+        font-weight: 600;
+        transition: border-color 0.2s var(--motion-ease, ease), color 0.2s var(--motion-ease, ease);
+
+        &:hover,
+        &:focus-visible {
+            border-color: $checkout-gold;
+            color: $checkout-gold;
+        }
+    }
+
     &__pay-help-contacts {
         margin-top: 12px;
 

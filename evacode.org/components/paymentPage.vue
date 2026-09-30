@@ -276,6 +276,33 @@
                 <span class="checkout-choice__mark" aria-hidden="true" />
               </label>
             </div>
+            <div v-if="showRussiaPaypalNotice" class="checkout-v2__pay-help checkout-v2__pay-notice" role="status">
+              <p class="checkout-v2__pay-notice-title">PayPal не работает в России</p>
+              <p class="checkout-v2__pay-help-note">
+                Российские карты и аккаунты PayPal не принимает.
+                {{ telegramEnabled
+                  ? 'Оформите заказ через консультанта — он свяжется с Вами и поможет с оплатой.'
+                  : 'Напишите консультанту — он поможет оформить заказ и оплату.' }}
+              </p>
+              <button
+                v-if="telegramEnabled"
+                type="button"
+                class="checkout-v2__pay-switch"
+                @click="paymentMethod = 'telegram'"
+              >
+                Оформить через консультанта в Telegram
+              </button>
+              <WidgetsMessengerLinks
+                v-else
+                class="checkout-v2__pay-help-contacts"
+                phone="+8210-7652-8595"
+                phone-href="tel:+821076528595"
+                email="orders@evacode.co.kr"
+              />
+              <p class="checkout-v2__pay-help-note">
+                Есть зарубежная карта или аккаунт PayPal — можно продолжить оплату через PayPal.
+              </p>
+            </div>
             <div v-if="paypalError" class="checkout-v2__pay-help" role="alert">
               <p class="checkout-v2__pay-error">{{ paypalError }}</p>
               <p class="checkout-v2__pay-help-note">
@@ -495,7 +522,10 @@ export default {
         return 'Оплата недоступна'
       }
       if (this.paymentMethod === 'paypal') {
-        return this.paypalLoading ? 'Переход к PayPal…' : 'Оплатить PayPal'
+        if (this.paypalLoading) {
+          return 'Переход к PayPal…'
+        }
+        return this.showRussiaPaypalNotice ? 'Продолжить через PayPal' : 'Оплатить PayPal'
       }
       return this.telegramLoading ? 'Отправляем…' : 'Отправить заказ'
     },
@@ -516,6 +546,12 @@ export default {
         return 'Тестовая оплата PayPal (sandbox)'
       }
       return 'Оплата картой через PayPal'
+    },
+    fromRussia() {
+      return (this.isEms && this.destinationCode === 'RU') || this.countryCode === 'RU'
+    },
+    showRussiaPaypalNotice() {
+      return this.paymentMethod === 'paypal' && this.paypalEnabled && this.fromRussia && !this.paypalError
     },
     telegramNote() {
       return this.telegramEnabled ? 'Менеджер подтвердит заказ в Telegram' : 'Сейчас недоступно'
