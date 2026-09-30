@@ -24,6 +24,25 @@
                             </tr>
                             </tfoot>
                         </table>
+                        <div class="cart-share" v-if="cart.length">
+                            <button type="button" class="cart-share__button" @click="shareCart">
+                                <i class="fa fa-link" aria-hidden="true"></i>
+                                Поделиться корзиной
+                            </button>
+                            <p class="cart-share__hint" v-if="!shareStatus">
+                                Ссылку можно отправить консультанту или открыть на другом устройстве.
+                            </p>
+                            <p class="cart-share__status" v-else role="status">{{ shareStatus }}</p>
+                            <input
+                                v-if="shareFallbackUrl"
+                                class="cart-share__url"
+                                type="text"
+                                readonly
+                                :value="shareFallbackUrl"
+                                aria-label="Ссылка на корзину"
+                                @focus="$event.target.select()"
+                            >
+                        </div>
                         <div class="col-sm-12 empty-cart-cls text-center" v-if="!cart.length">
                             <img src='/images/new_evacode/shopping-cart-1.svg' alt="empty cart"/>
                             <h3 class="mt-3">
@@ -62,6 +81,12 @@ export default {
     setup() {
         useNoIndex()
     },
+    data() {
+        return {
+            shareStatus: '',
+            shareFallbackUrl: '',
+        }
+    },
     computed: {
         cart() {
             return useCartStore().cartItems
@@ -76,7 +101,40 @@ export default {
             return useProductStore().changeCurrency
         }
     },
+    watch: {
+        cart: {
+            deep: true,
+            handler() {
+                this.shareStatus = ''
+                this.shareFallbackUrl = ''
+            },
+        },
+    },
     methods: {
+        async shareCart() {
+            const url = sharedCartUrl(window.location.origin, this.cart)
+            if (!url) {
+                return
+            }
+            this.shareFallbackUrl = ''
+            if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
+                try {
+                    await navigator.share({ title: 'Моя корзина Evacode', url })
+                    return
+                } catch (error) {
+                    if (error?.name === 'AbortError') {
+                        return
+                    }
+                }
+            }
+            try {
+                await navigator.clipboard.writeText(url)
+                this.shareStatus = 'Ссылка скопирована — вставьте её в чат с консультантом.'
+            } catch (error) {
+                this.shareStatus = 'Скопируйте ссылку:'
+                this.shareFallbackUrl = url
+            }
+        },
         removeCartItem(product) {
             useCartStore().removeCartItem(product)
         },

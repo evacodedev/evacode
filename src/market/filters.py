@@ -20,8 +20,20 @@ def _slug_list(value):
     return [part.strip() for part in str(value or "").split(",") if part.strip()]
 
 
+SHARED_CART_MAX_IDS = 50
+
+
+def _id_list(value):
+    ids = []
+    for part in _slug_list(value):
+        if part.isdigit() and int(part) not in ids:
+            ids.append(int(part))
+    return ids[:SHARED_CART_MAX_IDS]
+
+
 class GoodsFilter(FilterSet):
     id = CharFilter(lookup_expr="exact", required=False)
+    ids = CharFilter(method="filter_ids", required=False)
     category = CharFilter(field_name="category__id", lookup_expr="exact", required=False)
     brand = CharFilter(method="filter_brand", required=False)
     kind = CharFilter(method="filter_kind", required=False)
@@ -34,6 +46,7 @@ class GoodsFilter(FilterSet):
         model = GoodsModel
         fields = [
             "id",
+            "ids",
             "category",
             "brand",
             "kind",
@@ -42,6 +55,12 @@ class GoodsFilter(FilterSet):
             "min_price",
             "max_price",
         ]
+
+    def filter_ids(self, queryset, name, value):
+        ids = _id_list(value)
+        if not ids:
+            return queryset.none()
+        return queryset.filter(id__in=ids)
 
     def filter_search(self, queryset, name, value):
         query = (value or "").strip()

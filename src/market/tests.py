@@ -2,9 +2,10 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.db import connection
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 from django.test.utils import CaptureQueriesContext
 
+from market.filters import SHARED_CART_MAX_IDS, _id_list
 from market.models import (
     GoodsModel,
     GroupOfGoods,
@@ -22,6 +23,19 @@ from market.utils import (
     parse_weight_grams,
     serialize_krw_prices,
 )
+
+
+class SharedCartIdsTests(SimpleTestCase):
+    def test_keeps_order_drops_junk_and_duplicates(self):
+        self.assertEqual(_id_list("76117, 81234,abc,-5,76117,,3"), [76117, 81234, 3])
+
+    def test_empty(self):
+        self.assertEqual(_id_list(""), [])
+        self.assertEqual(_id_list("x,y"), [])
+
+    def test_limit(self):
+        value = ",".join(str(i) for i in range(1, 200))
+        self.assertEqual(len(_id_list(value)), SHARED_CART_MAX_IDS)
 
 
 class GoodsFilterApiTests(TestCase):
@@ -96,6 +110,14 @@ class GoodsFilterApiTests(TestCase):
     def test_price_range(self):
         response = self.client.get("/api/market/goods/", {"min_price": 20000, "max_price": 30000})
         self.assertEqual(self._ids(response), [2])
+
+    def test_filter_by_ids_skips_out_of_stock_and_junk(self):
+        response = self.client.get("/api/market/goods/", {"ids": "2,3,1,abc,2", "ordering": "retail_price"})
+        self.assertEqual(self._ids(response), [1, 2])
+
+    def test_filter_by_empty_ids_returns_nothing(self):
+        response = self.client.get("/api/market/goods/", {"ids": "abc"})
+        self.assertEqual(self._ids(response), [])
 
     def test_ordering_by_price(self):
         response = self.client.get("/api/market/goods/", {"ordering": "retail_price"})
