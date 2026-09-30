@@ -30,7 +30,12 @@ export function parseSharedCart(value) {
   return [...byId].map(([id, quantity]) => ({ id, quantity }))
 }
 
-export function sharedCartUrl(origin, cart) {
+export function sharedCartUrl(origin, cart, country = '') {
   const items = encodeSharedCart(cart)
-  return items ? `${origin}/page/shared-cart?items=${items}` : ''
+  if (!items) {
+    return ''
+  }
+  const code = String(country || '').trim().toUpperCase()
+  const countryPart = /^[A-Z]{2}$/.test(code) ? `&country=${code}` : ''
+  return `${origin}/page/shared-cart?items=${items}${countryPart}`
 }

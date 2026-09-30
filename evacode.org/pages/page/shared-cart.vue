@@ -58,10 +58,13 @@
                 </p>
 
                 <template v-if="rows.length">
-                    <div class="shared-cart__total">
-                        <span>Итого</span>
-                        <strong>{{ getPrice(total) }}</strong>
-                    </div>
+                    <WidgetsCartShipping
+                        class="shared-cart__shipping"
+                        :items="rows"
+                        :goods-total="total"
+                        :country="country"
+                        @update:country="country = $event"
+                    />
 
                     <div class="shared-cart__actions">
                         <template v-if="currentCart.length">
@@ -102,7 +105,10 @@ const cartStore = useCartStore()
 const productStore = useProductStore()
 const apiBase = useRuntimeConfig().public.apiBase
 
+const { country: savedCountry, load: loadSavedCountry, setCountry } = useShippingCountry()
+
 const requested = computed(() => parseSharedCart(route.query.items))
+const country = ref(normalizeCountryCode(route.query.country))
 const skeletonCount = computed(() => Math.min(Math.max(requested.value.length, 1), 4))
 
 const loading = ref(true)
@@ -181,6 +187,9 @@ async function ensureLocalCart() {
 }
 
 function apply(mode) {
+    if (country.value) {
+        setCountry(country.value)
+    }
     const items = rows.value.map(({ clamped, image, brand, ...product }) => product)
     if (mode === 'replace') {
         cartStore.setInitialCart(items)
@@ -200,6 +209,10 @@ function apply(mode) {
 }
 
 onMounted(async () => {
+    if (!country.value) {
+        loadSavedCountry()
+        country.value = savedCountry.value
+    }
     await Promise.all([load(), ensureLocalCart()])
     cartReady.value = true
 })

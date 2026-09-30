@@ -7,7 +7,10 @@
                 <div class="row">
                     <div class="col-sm-12">
                         <div class="cart-tables" v-if="cart.length">
-                            <h1 class="cart-headline">Корзина</h1>
+                            <div class="cart-headline-row">
+                                <h1 class="cart-headline">Корзина</h1>
+                                <WidgetsShareCartButton class="cart-headline-row__share" />
+                            </div>
                             <WidgetsCartProduct v-for="(product, index) in cart" :key="index" :product="product" />
                         </div>
                         <table class="table cart-table cart-table-total table-responsive-md" v-if="cart.length">
@@ -24,10 +27,12 @@
                             </tr>
                             </tfoot>
                         </table>
-                        <WidgetsShareCartButton
+                        <WidgetsCartShipping
                             v-if="cart.length"
-                            class="cart-share"
-                            hint="Ссылку можно отправить консультанту или открыть на другом устройстве."
+                            :items="cart"
+                            :goods-total="cartTotal"
+                            :country="shippingCountry"
+                            @update:country="setShippingCountry"
                         />
                         <div class="col-sm-12 empty-cart-cls text-center" v-if="!cart.length">
                             <img src='/images/new_evacode/shopping-cart-1.svg' alt="empty cart"/>
@@ -66,6 +71,9 @@ import {useCartStore} from '~~/store/cart'
 export default {
     setup() {
         useNoIndex()
+        const { country, load, setCountry } = useShippingCountry()
+        onMounted(load)
+        return { shippingCountry: country, setShippingCountry: setCountry }
     },
     computed: {
         cart() {

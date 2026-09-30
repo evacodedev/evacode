@@ -426,7 +426,8 @@ export default {
   components: { MazPhoneNumberInput },
   setup() {
     const { showHandoff, hideHandoff } = useHandoff()
-    return { showHandoff, hideHandoff }
+    const { country: savedShippingCountry, load: loadShippingCountry, setCountry: setShippingCountry } = useShippingCountry()
+    return { showHandoff, hideHandoff, savedShippingCountry, loadShippingCountry, setShippingCountry }
   },
   computed: {
     cart() {
@@ -651,6 +652,9 @@ export default {
       this.user.country.value = this.selectedDestination?.name
         || countryNameFromCode(this.destinations, code)
         || this.user.country.value
+      if (code) {
+        this.setShippingCountry(code)
+      }
       this.scheduleQuote()
     },
     selectedAddressId(id) {
@@ -718,6 +722,10 @@ export default {
     if (this.cart.length === 0) {
       this.$router.replace('/page/account/cart')
       return
+    }
+    this.loadShippingCountry()
+    if (!this.destinationCode && this.savedShippingCountry) {
+      this.destinationCode = this.savedShippingCountry
     }
     this.loadDestinations()
     this.loadSavedAddresses()

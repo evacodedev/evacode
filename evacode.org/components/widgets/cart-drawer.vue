@@ -21,14 +21,17 @@
               <h2 id="cart-drawer-title" class="cart-drawer__title">Корзина</h2>
               <span class="cart-drawer__count">{{ cartCount }}</span>
             </div>
-            <button
-              type="button"
-              class="cart-drawer__close"
-              aria-label="Закрыть корзину"
-              @click="closeDrawer"
-            >
-              ×
-            </button>
+            <div class="cart-drawer__header-actions">
+              <WidgetsShareCartButton v-if="cart.length" />
+              <button
+                type="button"
+                class="cart-drawer__close"
+                aria-label="Закрыть корзину"
+                @click="closeDrawer"
+              >
+                ×
+              </button>
+            </div>
           </header>
 
           <div class="cart-drawer__body">
@@ -115,7 +118,6 @@
             >
               Оформить
             </nuxt-link>
-            <WidgetsShareCartButton block class="cart-drawer__share" />
           </footer>
         </aside>
       </Transition>

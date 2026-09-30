@@ -4160,73 +4160,174 @@ section.beauty-about {
         }
     }
 
-    .cart-share {
-        margin: 8px 0 32px;
+    .cart-headline-row {
+        position: relative;
+        margin-bottom: 40px;
+
+        .cart-headline {
+            margin-bottom: 0;
+        }
+    }
+
+    .cart-headline-row__share {
+        position: absolute;
+        top: 50%;
+        right: 0;
+        transform: translateY(-50%);
     }
 }
 
-.share-cart {
-    text-align: center;
+.cart-shipping {
+    display: grid;
+    grid-template-columns: minmax(0, 360px) minmax(0, 1fr);
+    grid-template-areas:
+        "title title"
+        "field lines"
+        "field note";
+    gap: 12px 48px;
+    align-items: start;
+    margin: 10px 0 32px;
+    padding: 24px;
+    border: 1px solid #D8D8D8;
+    border-radius: 6px;
+    background: #fff;
+    color: #1A1917;
 
-    &__button {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        min-height: 48px;
-        padding: 0 28px;
-        border: 1px solid #e3d8c3;
-        border-radius: 8px;
-        background: #F7F4EF;
+    &__title {
+        grid-area: title;
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        text-transform: none;
         color: #1A1917;
-        font-size: 15px;
-        font-weight: 600;
-        transition: border-color 250ms var(--motion-ease), background-color 250ms var(--motion-ease);
+    }
 
-        .fa {
-            color: #B89254;
-            font-size: 16px;
+    .checkout-field {
+        grid-area: field;
+        margin: 0;
+    }
+
+    &__lines {
+        grid-area: lines;
+        margin: 0;
+    }
+
+    &__line {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 16px;
+        padding: 6px 0;
+        font-size: 15px;
+
+        dt {
+            font-weight: 400;
         }
 
-        &:hover,
-        &:focus-visible {
-            border-color: #B89254;
-            background: #fff;
+        dd {
+            margin: 0;
+            white-space: nowrap;
+        }
+
+        &--total {
+            margin-top: 6px;
+            padding-top: 12px;
+            border-top: 1px solid #ebe6dd;
+            font-size: 17px;
+            font-weight: 700;
+
+            dt {
+                font-weight: 700;
+            }
         }
     }
 
-    &__hint,
-    &__status {
-        margin: 8px 0 0;
+    &__weight {
         font-size: 13px;
-        line-height: 1.5;
         color: #8A8680;
     }
 
+    &__note {
+        grid-area: note;
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
+        color: #8A8680;
+
+        &--error {
+            color: #c0392b;
+        }
+    }
+}
+
+.shared-cart__shipping {
+    margin: 28px 0 32px;
+}
+
+.share-cart {
+    position: relative;
+    display: inline-flex;
+
+    &__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        color: #1A1917;
+        cursor: pointer;
+        transition: color 250ms var(--motion-ease), background-color 250ms var(--motion-ease);
+
+        &:hover,
+        &:focus-visible {
+            color: #B89254;
+            background: #F7F4EF;
+        }
+    }
+
+    &__popover {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 5;
+        width: 280px;
+        padding: 12px 14px;
+        border: 1px solid #ebe6dd;
+        border-radius: 8px;
+        background: #fff;
+        text-align: left;
+    }
+
     &__status {
+        margin: 0;
+        font-size: 13px;
+        line-height: 1.5;
         color: #1A1917;
     }
 
     &__url {
         display: block;
         width: 100%;
-        max-width: 520px;
-        margin: 8px auto 0;
-        padding: 10px 12px;
+        margin-top: 8px;
+        padding: 8px 10px;
         border: 1px solid #d8d4cc;
-        border-radius: 8px;
-        font-size: 13px;
+        border-radius: 6px;
+        font-size: 12px;
         color: #1A1917;
-        background: #fff;
-    }
-
-    &--block &__button {
-        width: 100%;
+        background: #F7F4EF;
     }
 }
 
-.cart-drawer__share {
-    margin-top: 12px;
+.cart-drawer__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
 }
 
 .shared-cart {

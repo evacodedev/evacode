@@ -834,6 +834,28 @@
     .cart-headline {
         display: none;
     }
+    .cart-shipping {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-areas:
+            "title"
+            "field"
+            "lines"
+            "note";
+        gap: 12px;
+        padding: 18px 16px;
+    }
+    .cart-section {
+        .cart-headline-row {
+            display: flex;
+            justify-content: flex-end;
+            margin-bottom: 4px;
+        }
+
+        .cart-headline-row__share {
+            position: static;
+            transform: none;
+        }
+    }
     .cart-buttons {
         .col-12 {
             text-align: center;
