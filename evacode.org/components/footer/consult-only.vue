@@ -44,8 +44,15 @@
                                 />
                                 <span class="validate-error">{{ phoneErrorMessage }}</span>
                             </div>
-                            <button type="submit" class="btn evacode-btn" id="mc-submit" @click.prevent="onSubmit">
-                                Отправить
+                            <button
+                                type="submit"
+                                class="btn evacode-btn"
+                                id="mc-submit"
+                                :disabled="sending"
+                                :aria-busy="sending ? 'true' : 'false'"
+                                @click.prevent="onSubmit"
+                            >
+                                {{ sending ? 'Отправляем…' : 'Отправить' }}
                             </button>
                         </form>
                     </div>
@@ -64,13 +71,23 @@ const name = ref('');
 const phoneErrorMessage = ref('');
 const phone_results = ref('');
 const countryCode1 = ref('KR');
+const sending = ref(false);
 
 const updateResults = (event) => {
     phone_results.value = event
 };
 
 const onSubmit = async () => {
-    if (phone_results.value.isValid) {
+    if (sending.value) {
+        return;
+    }
+    if (!phone_results.value.isValid) {
+        phoneErrorMessage.value = 'Обязательное поле';
+        return;
+    }
+    phoneErrorMessage.value = '';
+    sending.value = true;
+    try {
         await $fetch(`${useRuntimeConfig().public.apiBase}/market/checkout/`, {
             method: 'POST',
             body: {
@@ -81,10 +98,10 @@ const onSubmit = async () => {
                 consult: true,
             }
         })
-
         router.push('/page/consult-success')
-    } else {
-        phoneErrorMessage.value = 'Обязательное поле';
+    } catch (error) {
+        sending.value = false;
+        phoneErrorMessage.value = error?.data?.error || 'Не удалось отправить. Напишите нам в WhatsApp или на orders@evacode.co.kr.';
     }
 };
 </script>

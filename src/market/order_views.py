@@ -3,7 +3,6 @@ import logging
 import re
 import threading
 
-from asgiref.sync import async_to_sync
 from decimal import Decimal
 
 from django.conf import settings
@@ -22,6 +21,7 @@ from django.db.models import Q
 from .auth import OptionalJWTAuthentication
 
 from .business_ru_orders import export_paid_order
+from .manager_notify import notify_managers
 from .order_email import send_order_confirmation_email, send_order_help_email
 from .currency import krw_to_usd
 from .models import CheckoutSettings, SiteOrder, SiteOrderItem
@@ -68,12 +68,6 @@ def _frontend_url(path: str, query: dict | None = None) -> str:
 
 
 def _notify_telegram(order: SiteOrder):
-    try:
-        from .views import bot, chat_id, keyboard
-    except Exception:
-        return
-    if not chat_id:
-        return
     title = (
         "ТЕСТ PAYPAL SANDBOX:"
         if (order.paypal_mode or "").lower() == "sandbox"
@@ -97,10 +91,8 @@ def _notify_telegram(order: SiteOrder):
         lines.append(f"Business.Ru заказ: {order.business_ru_order_id}")
     elif order.business_ru_error:
         lines.append(f"Business.Ru: {order.business_ru_error}")
-    try:
-        async_to_sync(bot.send_message)(chat_id=chat_id, text="\n".join(lines), reply_markup=keyboard)
-    except Exception:
-        logger.exception("Не удалось отправить заказ %s в Telegram", order.public_id)
+    if not notify_managers("\n".join(lines), subject=f"{title.rstrip(':')} {order.public_id}", reply_to=order.email):
+        logger.error("Заказ %s не дошёл ни в Telegram, ни на почту", order.public_id)
 
 
 def _shipping_telegram_line(order: SiteOrder) -> str:

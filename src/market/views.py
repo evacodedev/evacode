@@ -46,21 +46,13 @@ from .serializers import (
 from django.http import HttpResponse, JsonResponse
 from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Count, F, Q
-from aiogram import Bot, Dispatcher, types
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from aiogram.utils import executor
-from aiohttp import web
+
+from .checkout_request import build_consult_text, build_telegram_order_text
+from .manager_notify import notify_managers
 
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-token = os.getenv('BOT_TOKEN')
-chat_id = os.getenv('CHAT_ID')
-
-bot = Bot(token=token)
-
-keyboard = types.InlineKeyboardMarkup().add(InlineKeyboardButton(text='Обработано✅', callback_data='handle'))
 
 
 class GoodsAPIView(ModelViewSet):
@@ -230,51 +222,85 @@ class GroupListAPIView(generics.ListAPIView):
     pagination_class = AllObjectPagination
 
 
+CHECKOUT_REQUESTS_FILE = "orders_list.json"
+CHECKOUT_DATE_FORMAT = "%d-%m-%Y %H:%M:%S"
+CONSULT_REPEAT_WINDOW = timedelta(hours=2)
+ORDER_REPEAT_WINDOW = timedelta(minutes=5)
+
+
+def _load_checkout_requests() -> dict:
+    try:
+        with open(CHECKOUT_REQUESTS_FILE, "r") as f:
+            data = json.load(f)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _recently_sent(requests_log: dict, key: str, window: timedelta) -> bool:
+    raw = requests_log.get(key)
+    if not raw:
+        return False
+    try:
+        sent_at = datetime.strptime(raw, CHECKOUT_DATE_FORMAT)
+    except (TypeError, ValueError):
+        return False
+    return datetime.now() - sent_at < window
+
+
+def _remember_checkout_request(requests_log: dict, key: str) -> None:
+    requests_log[key] = datetime.now().strftime(CHECKOUT_DATE_FORMAT)
+    try:
+        with open(CHECKOUT_REQUESTS_FILE, "w") as f:
+            json.dump(requests_log, f)
+    except OSError:
+        logger.warning("Не удалось записать %s", CHECKOUT_REQUESTS_FILE)
+
+
 @method_decorator(csrf_exempt, name='dispatch')
 class Checkout(View):
     def post(self, request):
-        if request.content_type == 'application/json':
-            try:
-                date_format = "%d-%m-%Y %H:%M:%S"
-                data = json.loads(request.body)
-
-                with open("orders_list.json", "r") as f:
-                    orders_data = json.load(f)
-
-                if data['user']['phone'] in orders_data:
-                    last_order_time = datetime.strptime(orders_data[data['user']['phone']], date_format)
-                    diff = datetime.now() - last_order_time
-                    if diff.seconds / 3600 < 2:
-                        print(f"Message not send! {diff.seconds / 3600}")
-                        return JsonResponse({'message': 'Please wait!'}, status=200)
-
-                consult = bool(data.get('consult'))
-                if not consult and not CheckoutSettings.load().telegram_enabled:
-                    return JsonResponse({'error': 'Заказ в Telegram сейчас выключен'}, status=403)
-
-                orders_data[data['user']['phone']] = datetime.now().strftime(date_format)
-
-                message_text = 'ЗАКАЗ С САЙТА:\n'
-                if consult:
-                    message_text += f"Консультация - {data['user']['phone']}"
-                    n = async_to_sync(bot.send_message)(chat_id=chat_id, text=message_text, reply_markup=keyboard)
-                else:
-                    for good in data['cart']:
-                        message_text += f'{good["title"]} - {good["quantity"]}шт - {good["retail_price"]}\n'
-                    message_text += f'ФИО: {data["user"]["firstName"]}\n' \
-                                    f'Номер: {data["user"]["phone"]}\n' \
-                                    f'Индекс: {data["user"].get("postalCode") or ""}\n'
-
-                    n = async_to_sync(bot.send_message)(chat_id=chat_id, text=message_text, reply_markup=keyboard)
-                print("Message send!")
-                with open('orders_list.json', 'w') as f:
-                    json.dump(orders_data, f)
-
-                return JsonResponse({'message': 'DONE!'}, status=200)
-            except json.JSONDecodeError:
-                return JsonResponse({'error': 'Некорректный формат JSON'}, status=400)
-        else:
+        if request.content_type != 'application/json':
             return JsonResponse({'error': 'Запрос должен содержать данные JSON'}, status=400)
+        try:
+            data = json.loads(request.body)
+        except json.JSONDecodeError:
+            return JsonResponse({'error': 'Некорректный формат JSON'}, status=400)
+        user = data.get('user') if isinstance(data, dict) else None
+        if not isinstance(user, dict):
+            return JsonResponse({'error': 'Нет данных покупателя'}, status=400)
+        phone = str(user.get('phone') or '').strip()
+        if not phone:
+            return JsonResponse({'error': 'Укажите телефон'}, status=400)
+
+        consult = bool(data.get('consult'))
+        if not consult and not CheckoutSettings.load().telegram_enabled:
+            return JsonResponse({'error': 'Заказ в Telegram сейчас выключен'}, status=403)
+
+        requests_log = _load_checkout_requests()
+        if consult:
+            key = phone
+            if _recently_sent(requests_log, key, CONSULT_REPEAT_WINDOW):
+                return JsonResponse({'message': 'Please wait!'}, status=200)
+            text = build_consult_text(user)
+            subject = f"Консультация с сайта — {phone}"
+        else:
+            key = f"order:{phone}"
+            if _recently_sent(requests_log, key, ORDER_REPEAT_WINDOW):
+                return JsonResponse(
+                    {'error': 'Заказ с этого телефона уже отправлен. Если нужно что-то изменить — напишите консультанту.'},
+                    status=429,
+                )
+            text = build_telegram_order_text(data)
+            subject = f"Заказ с сайта (Telegram) — {phone}"
+
+        if not notify_managers(text, subject=subject, reply_to=str(user.get('email') or '')):
+            return JsonResponse(
+                {'error': 'Не удалось отправить заявку. Напишите нам в WhatsApp или на orders@evacode.co.kr.'},
+                status=502,
+            )
+        _remember_checkout_request(requests_log, key)
+        return JsonResponse({'message': 'DONE!'}, status=200)
 
 
 class UpdateDataView(APIView):

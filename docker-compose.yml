@@ -21,6 +21,9 @@ services:
       dockerfile: dockerfiles/Dockerfile
     command: sh -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py createsuperuser --noinput & python manage.py create_currency & gunicorn evacode_backend.wsgi:application --bind 0.0.0.0:8000 --workers 2 --threads 2 --timeout 60"
     restart: always
+    # DNS на VPS отдаёт заблокированный адрес api.telegram.org; этот отвечает (изредка с потерями)
+    extra_hosts:
+      - "api.telegram.org:${TELEGRAM_API_IP:-149.154.167.220}"
     depends_on:
       - db
     env_file:
