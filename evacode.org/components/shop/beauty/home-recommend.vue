@@ -20,4 +20,3 @@
 const { payload, pending } = useHomePageSection()
 const products = computed(() => payload.value?.recommend || [])
 </script>
-

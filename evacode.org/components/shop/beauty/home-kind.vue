@@ -46,4 +46,3 @@ const moreTo = computed(() => ({
 }));
 const moreLabel = computed(() => `Все: ${sectionTitle.value}`);
 </script>
-
