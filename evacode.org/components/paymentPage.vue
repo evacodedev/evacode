@@ -218,7 +218,7 @@
           <section v-else class="checkout-v2__section">
             <h2 class="checkout-v2__heading">Самовывоз</h2>
             <p v-if="koreaPickup" class="checkout-choice__note">
-              По Корее EMS не отправляем — оформим самовывоз. Нужна доставка по Корее — напишите консультанту.
+              По Корее EMS не отправляем — оформим самовывоз. Нужна доставка по Корее — напишите нам в WhatsApp или Telegram, контакты внизу страницы.
             </p>
             <p class="checkout-choice__note">Адрес для отправки не нужен. Напишите, если удобно забрать в другое время.</p>
             <CheckoutField
@@ -279,7 +279,9 @@
             <div v-if="paypalError" class="checkout-v2__pay-help" role="alert">
               <p class="checkout-v2__pay-error">{{ paypalError }}</p>
               <p class="checkout-v2__pay-help-note">
-                Напишите консультантам — поможем оформить заказ без PayPal.
+                {{ payErrorSource === 'telegram'
+                  ? 'Напишите консультантам — поможем с заказом.'
+                  : 'Напишите консультантам — поможем оформить заказ без PayPal.' }}
               </p>
               <WidgetsMessengerLinks
                 class="checkout-v2__pay-help-contacts"
@@ -287,7 +289,7 @@
                 phone-href="tel:+821076528595"
                 email="orders@evacode.co.kr"
               />
-              <p v-if="telegramEnabled" class="checkout-v2__pay-help-note">
+              <p v-if="telegramEnabled && payErrorSource !== 'telegram'" class="checkout-v2__pay-help-note">
                 Или выберите «Заказ в Telegram» выше и отправьте заказ с сайта.
               </p>
             </div>
@@ -568,6 +570,7 @@ export default {
       paypalLoading: false,
       telegramLoading: false,
       paypalError: '',
+      payErrorSource: 'paypal',
       submitted: false,
       phoneTouched: false,
       privateHouse: false,
@@ -1153,6 +1156,7 @@ export default {
         this.$router.push({ path: '/page/order-success', query: { id: data.id } })
       } catch (error) {
         this.telegramLoading = false
+        this.payErrorSource = 'telegram'
         const fieldErrors = error?.data?.errors
         this.paypalError = error?.data?.error
           || (fieldErrors && Object.values(fieldErrors)[0])
@@ -1200,6 +1204,7 @@ export default {
     },
     setPaypalConsultError(message) {
       this.paypalError = message
+      this.payErrorSource = 'paypal'
       if (this.telegramEnabled) {
         this.paymentMethod = 'telegram'
       }

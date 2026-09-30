@@ -5863,6 +5863,25 @@ html.cart-drawer-open body {
     }
 }
 
+.success-text .order-success-help {
+    max-width: 420px;
+    margin: 28px auto 0;
+    text-align: left;
+
+    .order-success-help__note {
+        margin: 0 0 12px;
+        color: #8a8680;
+        font-size: 14px;
+        line-height: 1.5;
+        text-align: center;
+    }
+
+    .fa {
+        font-size: 13px;
+        color: #b89254;
+    }
+}
+
 .shop-messengers.is-consult {
     .shop-messengers__table {
         th {

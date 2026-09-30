@@ -31,6 +31,16 @@
               <p v-if="orderEmail" class="order-email-hint">
                 Проверьте почту <strong>{{ orderEmail }}</strong> — туда отправлено письмо с подтверждением заказа.
               </p>
+              <div class="order-success-help">
+                <p class="order-success-help__note">
+                  Хотите что-то уточнить — напишите нам<template v-if="paidOrder"> и назовите номер заказа {{ paidOrder.id }}</template>.
+                </p>
+                <WidgetsMessengerLinks
+                  phone="+8210-7652-8595"
+                  phone-href="tel:+821076528595"
+                  email="orders@evacode.co.kr"
+                />
+              </div>
             </div>
           </div>
         </div>

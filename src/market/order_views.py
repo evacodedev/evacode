@@ -435,7 +435,7 @@ class CreateTelegramOrderView(APIView):
             created_at__gte=timezone.now() - MANAGER_ORDER_REPEAT_WINDOW,
         ).exists():
             return JsonResponse(
-                {"error": "Заказ с этого телефона уже отправлен. Если нужно что-то изменить — напишите консультанту."},
+                {"error": "Заказ с этого телефона уже отправлен. Если нужно что-то изменить — напишите нам в WhatsApp или Telegram, контакты ниже."},
                 status=429,
             )
 
