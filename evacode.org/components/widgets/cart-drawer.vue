@@ -115,6 +115,7 @@
             >
               Оформить
             </nuxt-link>
+            <WidgetsShareCartButton block class="cart-drawer__share" />
           </footer>
         </aside>
       </Transition>

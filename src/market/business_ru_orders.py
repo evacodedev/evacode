@@ -283,6 +283,37 @@ def _ensure_order_goods_krw(client: BusinessRuOrderClient, order) -> None:
         )
 
 
+def _order_payment_type_id(order) -> str:
+    if not (order.paypal_capture_id or order.paypal_order_id):
+        return ""
+    return str(getattr(settings, "BUSINESS_RU_PAYPAL_PAYMENT_TYPE_ID", "") or "").strip()
+
+
+def _order_reference_fields(order) -> dict:
+    fields = {}
+    source_id = str(getattr(settings, "BUSINESS_RU_REQUEST_SOURCE_ID", "") or "").strip()
+    if source_id:
+        fields["request_source_id"] = source_id
+    payment_type_id = _order_payment_type_id(order)
+    if payment_type_id:
+        fields["payment_type_id"] = payment_type_id
+    return fields
+
+
+def _ensure_order_reference_fields(client: BusinessRuOrderClient, order) -> None:
+    wanted = _order_reference_fields(order)
+    if not wanted or not order.business_ru_order_id:
+        return
+    record = _get_by_id(client, "customerorders", order.business_ru_order_id) or {}
+    changes = {key: value for key, value in wanted.items() if str(record.get(key) or "") != value}
+    if not changes:
+        return
+    try:
+        client.request("put", "customerorders", {"id": order.business_ru_order_id, **changes})
+    except BusinessRuOrderError as exc:
+        logger.warning("Источник/способ оплаты заказа %s не записаны: %s", order.business_ru_order_id, exc)
+
+
 def _format_rate(order) -> str:
     rate = order.usd_rate_snapshot
     if not rate:
@@ -821,6 +852,7 @@ def export_paid_order(order) -> None:
             "comment": _document_note(order),
             "delivery_address": _delivery_text(order)[:500],
         }
+        order_params.update(_order_reference_fields(order))
         created_order = client.request("post", "customerorders", order_params)
         business_order_id = _result_id(created_order)
         if not business_order_id:
@@ -856,6 +888,7 @@ def export_paid_order(order) -> None:
         )
     else:
         _ensure_order_goods_krw(client, order)
+        _ensure_order_reference_fields(client, order)
 
     try:
         _export_reservation(client, order, partner_id, org_id, employee_id)

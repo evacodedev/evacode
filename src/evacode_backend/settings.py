@@ -396,3 +396,7 @@ BUSINESS_RU_EMPLOYEE_ID = os.getenv("BUSINESS_RU_EMPLOYEE_ID", "").strip()
 BUSINESS_RU_CURRENT_ACCOUNT_ID = os.getenv("BUSINESS_RU_CURRENT_ACCOUNT_ID", "").strip()
 BUSINESS_RU_PAYMENT_OPERATION_ID = os.getenv("BUSINESS_RU_PAYMENT_OPERATION_ID", "").strip()
 BUSINESS_RU_PAYMENT_OPERATION_NAME = os.getenv("BUSINESS_RU_PAYMENT_OPERATION_NAME", "Оплата от покупателя").strip()
+# id в справочнике «Способы оплаты» (paymenttypes) → customerorders.payment_type_id
+BUSINESS_RU_PAYPAL_PAYMENT_TYPE_ID = os.getenv("BUSINESS_RU_PAYPAL_PAYMENT_TYPE_ID", "353536").strip()
+# id в справочнике «Источники» (requestsource) → customerorders.request_source_id
+BUSINESS_RU_REQUEST_SOURCE_ID = os.getenv("BUSINESS_RU_REQUEST_SOURCE_ID", "2").strip()
