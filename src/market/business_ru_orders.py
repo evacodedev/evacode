@@ -469,12 +469,13 @@ _NOTE_LIMIT = 240
 
 
 def _document_note(order) -> str:
-    delivery = _delivery_text(order)
-    parts = [f"Сайт {order.public_id}"]
-    if delivery:
-        parts.append(delivery)
-    if order.comment:
-        parts.append(order.comment.strip())
+    parts = [
+        f"Сайт {order.public_id}",
+        (order.first_name or "").strip(),
+        (order.email or "").strip(),
+        (order.phone or "").strip(),
+        _delivery_text(order),
+    ]
     return " · ".join(part for part in parts if part)[:_NOTE_LIMIT]
 
 

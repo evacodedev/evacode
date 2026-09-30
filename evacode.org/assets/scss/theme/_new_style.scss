@@ -4249,6 +4249,10 @@ $checkout-muted: #8A8680;
         line-height: 1.45;
     }
 
+    &__latin-hint {
+        margin: -4px 0 16px;
+    }
+
     &__pay-help {
         margin: 12px 0 0;
         padding: 12px 14px;

@@ -129,6 +129,19 @@
               :submitted="submitted"
               @blur="validateField('country')"
             />
+            <CheckoutField
+              v-if="needsOtherCountry"
+              v-model="user.countryOther.value"
+              name="countryOther"
+              label="Страна (латиницей)"
+              autocomplete="country-name"
+              :error="user.countryOther.errormsg"
+              :submitted="submitted"
+              @blur="validateField('countryOther')"
+            />
+            <p v-if="latinAddress" class="checkout-choice__note checkout-v2__latin-hint">
+              Имя и адрес — латиницей, как пишут на посылках в вашей стране. Посылку оформим точно по этим данным.
+            </p>
             <div class="checkout-v2__row">
               <CheckoutField
                 v-model="user.region.value"
@@ -137,6 +150,7 @@
                 autocomplete="address-level1"
                 :error="user.region.errormsg"
                 :submitted="submitted"
+                @blur="validateField('region')"
               />
               <CheckoutField
                 v-model="user.city.value"
@@ -354,6 +368,26 @@ import {
   formatAccountAddress,
   sameAccountAddress,
 } from '~/utils/account-address'
+import {
+  LATIN_ONLY_MESSAGE,
+  OTHER_COUNTRY_CODE,
+  countryNameForLabel,
+  formatAddressLine,
+  hasNonLatinLetters,
+  usesLatinAddress,
+} from '~/utils/shipping-address'
+
+const LATIN_FIELDS = [
+  'firstName',
+  'lastName',
+  'countryOther',
+  'region',
+  'city',
+  'address',
+  'house',
+  'apartment',
+  'postalCode',
+]
 
 export default {
   components: { MazPhoneNumberInput },
@@ -370,6 +404,12 @@ export default {
     },
     isEms() {
       return this.shippingMethod === 'ems'
+    },
+    latinAddress() {
+      return this.isEms && usesLatinAddress(this.destinationCode)
+    },
+    needsOtherCountry() {
+      return this.isEms && this.destinationCode === OTHER_COUNTRY_CODE
     },
     isLoggedIn() {
       return useAuthStore().isLoggedIn
@@ -499,6 +539,7 @@ export default {
         phone: { value: '', errormsg: '' },
         email: { value: '', errormsg: '' },
         country: { value: '', errormsg: '' },
+        countryOther: { value: '', errormsg: '' },
         region: { value: '', errormsg: '' },
         city: { value: '', errormsg: '' },
         address: { value: '', errormsg: '' },
@@ -548,6 +589,11 @@ export default {
     },
     destinationCode(code) {
       this.user.country.errormsg = ''
+      LATIN_FIELDS.forEach((field) => {
+        if (this.user[field].errormsg === LATIN_ONLY_MESSAGE) {
+          this.validateField(field)
+        }
+      })
       this.user.country.value = this.selectedDestination?.name
         || countryNameFromCode(this.destinations, code)
         || this.user.country.value
@@ -681,6 +727,10 @@ export default {
     applySavedAddress(item) {
       this.applyDestination(item)
       this.user.country.value = item.country || ''
+      const savedCountry = String(item.country || '').trim()
+      this.user.countryOther.value = item.country_code === OTHER_COUNTRY_CODE && !hasNonLatinLetters(savedCountry)
+        ? savedCountry
+        : ''
       this.user.city.value = item.city || ''
       this.user.address.value = item.street || ''
       this.user.house.value = item.house || ''
@@ -692,6 +742,7 @@ export default {
     clearAddressFields() {
       this.destinationCode = ''
       this.user.country.value = ''
+      this.user.countryOther.value = ''
       this.user.region.value = ''
       this.user.city.value = ''
       this.user.address.value = ''
@@ -727,9 +778,16 @@ export default {
         || countryNameFromCode(this.destinations, this.destinationCode)
         || String(this.user.country.value || '').trim()
     },
+    labelCountryName() {
+      if (this.needsOtherCountry) {
+        return this.user.countryOther.value.trim()
+      }
+      const name = this.selectedDestination?.name || this.user.country.value
+      return countryNameForLabel(this.destinationCode, name)
+    },
     currentAddressPayload() {
       return accountAddressPayload({
-        country: this.resolvedCountryName(),
+        country: this.needsOtherCountry ? this.labelCountryName() : this.resolvedCountryName(),
         country_code: this.destinationCode,
         city: this.user.city.value,
         street: this.user.address.value,
@@ -806,20 +864,19 @@ export default {
         .map((part) => part.trim())
         .filter(Boolean)
         .join(' ')
-      const address = [
-        this.user.region.value,
-        this.user.address.value,
-        this.user.house.value ? `д. ${this.user.house.value.trim()}` : '',
-        this.privateHouse ? 'частный дом' : (this.user.apartment.value ? `кв. ${this.user.apartment.value.trim()}` : ''),
-      ]
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .join(', ')
+      const address = formatAddressLine({
+        code: this.destinationCode,
+        region: this.user.region.value,
+        street: this.user.address.value,
+        house: this.user.house.value,
+        apartment: this.user.apartment.value,
+        privateHouse: this.privateHouse,
+      })
       return {
         firstName,
         phone: this.user.phone.value,
         email: this.user.email.value,
-        country: this.selectedDestination?.name || this.user.country.value,
+        country: this.labelCountryName(),
         city: this.user.city.value,
         address,
         postalCode: this.user.postalCode.value,
@@ -838,6 +895,9 @@ export default {
     },
     validateField(field) {
       const value = (this.user[field]?.value || '').trim()
+      if (this.latinAddress && LATIN_FIELDS.includes(field) && hasNonLatinLetters(value)) {
+        return this.setError(field, LATIN_ONLY_MESSAGE)
+      }
       if (field === 'firstName') {
         if (value.length <= 1) return this.setError(field, 'Укажите имя')
         if (value.length > 100) return this.setError(field, 'Слишком длинное имя')
@@ -861,6 +921,13 @@ export default {
         if (!this.isEms) return this.setError(field, '')
         return this.setError(field, this.destinationCode ? '' : 'Укажите страну')
       }
+      if (field === 'countryOther') {
+        if (!this.needsOtherCountry) return this.setError(field, '')
+        return this.setError(field, value ? '' : 'Укажите страну')
+      }
+      if (field === 'region') {
+        return this.setError(field, '')
+      }
       if (field === 'city') {
         return this.setError(field, value ? '' : 'Укажите город')
       }
@@ -883,7 +950,10 @@ export default {
     validateForm() {
       const fields = ['firstName', 'lastName', 'email', 'phone']
       if (this.isEms) {
-        fields.push('country', 'city', 'address', 'house', 'postalCode')
+        fields.push('country', 'region', 'city', 'address', 'house', 'postalCode')
+        if (this.needsOtherCountry) {
+          fields.push('countryOther')
+        }
         if (!this.privateHouse) {
           fields.push('apartment')
         }
