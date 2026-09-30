@@ -17,6 +17,7 @@ from .views import (
     CatalogSitemapAPIView,
     YandexFeedView,
 )
+from .tbank_views import TBankOperationWebhookView
 from .order_views import (
     CheckoutSettingsView,
     CreateSiteOrderView,
@@ -49,6 +50,7 @@ urlpatterns = [
     path('orders/', CreateSiteOrderView.as_view()),
     path('orders/mine/', MySiteOrdersView.as_view()),
     path('orders/telegram/', CreateTelegramOrderView.as_view()),
+    path('tbank/operations/', TBankOperationWebhookView.as_view()),
     path('orders/<str:public_id>/help/', SiteOrderHelpView.as_view()),
     path('orders/paypal/return/', PayPalReturnView.as_view(), name='site_order_paypal_return'),
     path('orders/<str:public_id>/', SiteOrderDetailView.as_view()),

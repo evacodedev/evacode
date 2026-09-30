@@ -395,6 +395,73 @@ class CheckoutSettings(models.Model):
         return obj
 
 
+class TBankOperation(models.Model):
+    """Входящая операция по счёту Т-Банка: вебхук или выписка."""
+
+    class Match(models.TextChoices):
+        MATCHED = "matched", "Найден"
+        AMOUNT_DIFFERS = "amount_differs", "Сумма не сходится"
+        NAME_DIFFERS = "name_differs", "Имя плательщика другое"
+        BY_PAYER = "by_payer", "По сумме и имени"
+        AMOUNT_UNKNOWN = "amount_unknown", "Сумма не посчитана"
+        UNMATCHED = "unmatched", "Не найден"
+
+    operation_id = models.CharField(max_length=80, unique=True, verbose_name="ID операции")
+    statement_operation_id = models.CharField(
+        max_length=80,
+        blank=True,
+        verbose_name="ID в выписке",
+        help_text="У вебхука и у выписки ID одной операции могут различаться.",
+    )
+    fingerprint = models.CharField(max_length=320, unique=True, null=True, blank=True)
+    account_number = models.CharField(max_length=22, blank=True, db_index=True, verbose_name="Счёт")
+    operation_date = models.DateTimeField(blank=True, null=True, verbose_name="Дата операции")
+    operation_status = models.CharField(max_length=32, blank=True, verbose_name="Статус операции")
+    type_of_operation = models.CharField(max_length=16, blank=True, verbose_name="Тип")
+    document_number = models.CharField(max_length=32, blank=True, verbose_name="Номер документа")
+    amount = models.DecimalField(max_digits=14, decimal_places=2, default=0, verbose_name="Сумма")
+    ruble_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, blank=True, null=True, verbose_name="Сумма, ₽"
+    )
+    currency_code = models.CharField(max_length=3, blank=True, verbose_name="Валюта")
+    pay_purpose = models.TextField(blank=True, verbose_name="Назначение платежа")
+    description = models.TextField(blank=True, verbose_name="Описание")
+    payer_name = models.CharField(max_length=255, blank=True, verbose_name="Плательщик")
+    payer_inn = models.CharField(max_length=12, blank=True, verbose_name="ИНН плательщика")
+    payer_account = models.CharField(max_length=22, blank=True, verbose_name="Счёт плательщика")
+    receiver_name = models.CharField(max_length=255, blank=True, verbose_name="Получатель")
+    receiver_inn = models.CharField(max_length=12, blank=True, verbose_name="ИНН получателя")
+    receiver_account = models.CharField(max_length=22, blank=True, verbose_name="Счёт получателя")
+    order = models.ForeignKey(
+        SiteOrder,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="tbank_operations",
+        verbose_name="Заказ",
+    )
+    match_status = models.CharField(
+        max_length=32,
+        choices=Match.choices,
+        blank=True,
+        default="",
+        verbose_name="Сверка",
+    )
+    match_note = models.CharField(max_length=255, blank=True, verbose_name="Комментарий сверки")
+    source = models.CharField(max_length=16, blank=True, verbose_name="Источник")
+    raw = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Операция Т-Банка"
+        verbose_name_plural = "Операции Т-Банка"
+        ordering = ["-operation_date", "-id"]
+
+    def __str__(self):
+        return f"{self.operation_id} {self.amount}"
+
+
 class ApiKzSync(models.Model):
     WAREHOUSE_KZ = "KZ"
     WAREHOUSE_RU = "RU"

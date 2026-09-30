@@ -30,6 +30,7 @@ from .order_email import (
 )
 from .shipping import METHOD_PICKUP
 from .order_sales_copy import format_sales_inquiry
+from .tbank import TBankError, confirm_order_payment, order_payment_panel, pull_recent_statement
 from .ems_tariffs import import_ems_xlsx
 from .models import (
     CONTENT_BLOCK_KINDS,
@@ -54,6 +55,7 @@ from .models import (
     SiteOrder,
     SiteOrderItem,
     CheckoutSettings,
+    TBankOperation,
 )
 from .product_content import apply_product_content
 from .product_content_agent import (
@@ -854,6 +856,54 @@ class EmsDestinationAdmin(admin.ModelAdmin):
         return render(request, "admin/market/emsdestination/import_xlsx.html", context)
 
 
+@admin.register(TBankOperation)
+class TBankOperationAdmin(admin.ModelAdmin):
+    list_display = (
+        "operation_date",
+        "type_of_operation",
+        "amount",
+        "payer_name",
+        "pay_purpose",
+        "order",
+        "match_status",
+        "source",
+    )
+    list_filter = ("match_status", "type_of_operation", "source")
+    search_fields = ("operation_id", "pay_purpose", "payer_name", "document_number", "order__public_id")
+    raw_id_fields = ("order",)
+    readonly_fields = (
+        "operation_id",
+        "statement_operation_id",
+        "account_number",
+        "operation_date",
+        "operation_status",
+        "type_of_operation",
+        "document_number",
+        "amount",
+        "ruble_amount",
+        "currency_code",
+        "pay_purpose",
+        "description",
+        "payer_name",
+        "payer_inn",
+        "payer_account",
+        "receiver_name",
+        "receiver_inn",
+        "receiver_account",
+        "order",
+        "match_status",
+        "match_note",
+        "source",
+        "fingerprint",
+        "raw",
+        "created_at",
+        "updated_at",
+    )
+
+    def has_add_permission(self, request):
+        return False
+
+
 class SiteOrderItemInline(admin.TabularInline):
     model = SiteOrderItem
     extra = 0
@@ -938,6 +988,13 @@ class SiteOrderAdmin(admin.ModelAdmin):
         order = self.get_object(request, object_id)
         if order is not None:
             extra_context["sales_inquiry_text"] = format_sales_inquiry(order)
+            extra_context["tbank_payment"] = order_payment_panel(order)
+            extra_context["tbank_payment"]["mark_url"] = reverse(
+                "admin:market_siteorder_mark_bank_paid", args=[order.pk]
+            )
+            extra_context["tbank_payment"]["refresh_url"] = reverse(
+                "admin:market_siteorder_refresh_tbank", args=[order.pk]
+            )
             extra_context["client_mail"] = {
                 "is_paid": order.status == SiteOrder.Status.PAID,
                 "is_pickup": order.shipping_method == METHOD_PICKUP,
@@ -960,6 +1017,16 @@ class SiteOrderAdmin(admin.ModelAdmin):
                 "<path:object_id>/send-tracking/",
                 self.admin_site.admin_view(self.send_tracking_view),
                 name="market_siteorder_send_tracking",
+            ),
+            path(
+                "<path:object_id>/mark-bank-paid/",
+                self.admin_site.admin_view(self.mark_bank_paid_view),
+                name="market_siteorder_mark_bank_paid",
+            ),
+            path(
+                "<path:object_id>/refresh-tbank/",
+                self.admin_site.admin_view(self.refresh_tbank_view),
+                name="market_siteorder_refresh_tbank",
             ),
         ]
         return extra + urls
@@ -1017,6 +1084,25 @@ class SiteOrderAdmin(admin.ModelAdmin):
                 )
         return redirect(reverse("admin:market_siteorder_change", args=[object_id]))
 
+    def mark_bank_paid_view(self, request, object_id):
+        order = self._order_for_post(request, object_id)
+        if order is not None:
+            text = confirm_order_payment(order)
+            level = messages.SUCCESS if text.startswith("Оплата отмечена") else messages.WARNING
+            self.message_user(request, text, level=level)
+        return redirect(reverse("admin:market_siteorder_change", args=[object_id]))
+
+    def refresh_tbank_view(self, request, object_id):
+        order = self._order_for_post(request, object_id)
+        if order is not None:
+            try:
+                saved = pull_recent_statement(days=7)
+            except TBankError as exc:
+                self.message_user(request, str(exc), level=messages.ERROR)
+            else:
+                self.message_user(request, f"Выписка Т-Банка обновлена, операций: {saved}")
+        return redirect(reverse("admin:market_siteorder_change", args=[object_id]))
+
     @admin.action(description="Подтвердить получение (письмо «принят в обработку»)")
     def confirm_received(self, request, queryset):
         for order in queryset:
@@ -1058,7 +1144,7 @@ _EMS_MODELS = {"emsratecolumn", "emsrate", "emsdestination"}
 _SETTINGS_MODELS = {"partnerapikey"}
 _API_KZ_MODELS = {"apikzsync", "apikzsyncsettings"}
 _API_RU_MODELS = {"apirusync", "apirusyncsettings"}
-_PAYMENTS_MODELS = ("siteorder", "checkoutsettings")
+_PAYMENTS_MODELS = ("siteorder", "checkoutsettings", "tbankoperation")
 
 _original_get_app_list = admin.site.get_app_list
 

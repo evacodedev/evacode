@@ -92,6 +92,85 @@
 })();
 </script>
 {% endif %}
+{% if tbank_payment %}
+<div class="module aligned" id="tbank-payment-module">
+  <h2>Оплата по счёту Т-Банка</h2>
+  <div class="form-row">
+    <div>
+      <label>Реквизиты клиенту</label>
+      <textarea id="tbank-instructions" rows="12" readonly style="width:100%;font-family:monospace;font-size:13px;line-height:1.4;">{{ tbank_payment.instructions }}</textarea>
+      <p style="margin-top:8px;">
+        <button type="button" class="button" id="tbank-copy">Скопировать реквизиты</button>
+        <span id="tbank-copy-status" style="margin-left:10px;color:#666;"></span>
+      </p>
+    </div>
+  </div>
+  <div class="form-row">
+    <div>
+      <label>В выписке</label>
+      <div class="readonly">
+        {% if tbank_payment.operations %}
+          {% for op in tbank_payment.operations %}
+            <div style="margin-bottom:8px;">
+              {{ op.when }} · {{ op.amount }} · {{ op.payer }}
+              · {{ op.status_label }}{% if op.note %} · {{ op.note }}{% endif %}
+              {% if op.purpose %}<div style="color:#666;">{{ op.purpose }}</div>{% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          Подходящий платёж пока не найден.
+          {% if tbank_payment.expected_rub %}Ожидаемая сумма {{ tbank_payment.expected_rub }}.{% endif %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="form-row">
+    <div>
+      <button type="submit" class="button" formaction="{{ tbank_payment.refresh_url }}" id="tbank-refresh">
+        Обновить выписку
+      </button>
+      {% if tbank_payment.can_mark %}
+      <button type="submit" class="button default" style="margin-left:8px;"
+              formaction="{{ tbank_payment.mark_url }}" id="tbank-mark"
+              data-confirm="Отметить заказ оплаченным?">
+        Отметить оплаченным
+      </button>
+      {% endif %}
+      {% if not tbank_payment.configured %}
+      <p class="help">Чтобы забрать выписку, задайте TBANK_TOKEN и TBANK_ACCOUNT_NUMBER.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var btn = document.getElementById("tbank-copy");
+  var area = document.getElementById("tbank-instructions");
+  var status = document.getElementById("tbank-copy-status");
+  if (btn && area) {
+    btn.addEventListener("click", function () {
+      var text = area.value;
+      function ok() {
+        status.textContent = "Скопировано";
+        setTimeout(function () { status.textContent = ""; }, 2000);
+      }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(ok).catch(function () {
+          area.focus();
+          area.select();
+        });
+      }
+    });
+  }
+  var mark = document.getElementById("tbank-mark");
+  if (mark) {
+    mark.addEventListener("click", function (event) {
+      if (!window.confirm(mark.getAttribute("data-confirm"))) event.preventDefault();
+    });
+  }
+})();
+</script>
+{% endif %}
 {% if sales_inquiry_text %}
 <div class="module aligned" id="sales-inquiry-module">
   <h2>Для отдела продаж</h2>
