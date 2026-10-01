@@ -65,6 +65,7 @@
                 <tr>
                   <th scope="col">Валюта</th>
                   <th scope="col">Курс (за 1000 ₩)</th>
+                  <th scope="col">Обратный курс</th>
                   <th scope="col">Сумма</th>
                 </tr>
               </thead>
@@ -79,6 +80,7 @@
                     <span class="rates-lux__name">{{ row.name }}</span>
                   </td>
                   <td>{{ formatRatePerThousand(row.ratePerKrw) }}</td>
+                  <td>{{ formatInverseRate(row.ratePerKrw, row.symbol) }}</td>
                   <td class="rates-lux__amount">
                     {{ formatMoney(rowAmount(row), row.quote, row.symbol) }}
                   </td>
@@ -196,6 +198,18 @@ const formatRatePerThousand = (ratePerKrw) => {
     minimumFractionDigits: 2,
     maximumFractionDigits: 4,
   });
+};
+
+/** Сколько вон за 1 единицу валюты: 1 / курс за 1 ₩. */
+const formatInverseRate = (ratePerKrw, symbol) => {
+  const rate = Number(ratePerKrw);
+  if (!Number.isFinite(rate) || rate <= 0) return '—';
+  const krw = 1 / rate;
+  const value = krw.toLocaleString('ru-RU', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: krw >= 100 ? 2 : 4,
+  });
+  return `1\u00A0${symbol} = ${value}\u00A0₩`;
 };
 
 const formatMoney = (value, currency) => formatQuotePrice(value, currency);
