@@ -140,7 +140,7 @@
               @blur="validateField('countryOther')"
             />
             <p v-if="latinAddress" class="checkout-choice__note checkout-v2__latin-hint">
-              Имя и адрес — латиницей (английскими буквами): так их напечатают на этикетке EMS. Например: Abay Ave 12, Apt. 5, Almaty.
+              Имя и адрес печатают на этикетке EMS латиницей. Можно писать по-русски — переведём в латиницу сами, проверьте результат. Например: Abay Ave 12, Apt. 5, Almaty.
             </p>
             <div class="checkout-v2__row">
               <CheckoutField
@@ -407,6 +407,7 @@ import {
   countryNameForLabel,
   formatAddressLine,
   hasNonLatinLetters,
+  transliterateCyrillic,
   usesLatinAddress,
 } from '~/utils/shipping-address'
 
@@ -645,6 +646,7 @@ export default {
       }
       this.user.country.errormsg = ''
       LATIN_FIELDS.forEach((field) => {
+        this.latinizeField(field)
         if (this.user[field].errormsg === LATIN_ONLY_MESSAGE) {
           this.validateField(field)
         }
@@ -955,7 +957,13 @@ export default {
       this.user[field].errormsg = message
       return !message
     },
+    latinizeField(field) {
+      if (this.latinAddress && LATIN_FIELDS.includes(field) && this.user[field].value) {
+        this.user[field].value = transliterateCyrillic(this.user[field].value)
+      }
+    },
     validateField(field) {
+      this.latinizeField(field)
       const value = (this.user[field]?.value || '').trim()
       if (this.latinAddress && LATIN_FIELDS.includes(field) && hasNonLatinLetters(value)) {
         return this.setError(field, LATIN_ONLY_MESSAGE)

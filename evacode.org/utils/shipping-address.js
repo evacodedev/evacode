@@ -25,6 +25,44 @@ export function hasNonLatinLetters(text) {
   return NON_LATIN_LETTER.test(String(text || ''))
 }
 
+// Русский, украинский, белорусский, казахский → ASCII-латиница для этикетки EMS.
+const CYRILLIC_TO_LATIN = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'e', ж: 'zh', з: 'z', и: 'i',
+  й: 'y', к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't',
+  у: 'u', ф: 'f', х: 'kh', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'shch', ъ: '', ы: 'y', ь: '',
+  э: 'e', ю: 'yu', я: 'ya',
+  є: 'ye', і: 'i', ї: 'yi', ґ: 'g', ў: 'u',
+  ә: 'a', ғ: 'g', қ: 'k', ң: 'n', ө: 'o', ұ: 'u', ү: 'u', һ: 'h',
+}
+const CYRILLIC_LETTER = /\p{Script=Cyrillic}/u
+
+function isUpper(char) {
+  return Boolean(char) && char !== char.toLowerCase()
+}
+
+export function transliterateCyrillic(text) {
+  const source = String(text || '')
+  if (!CYRILLIC_LETTER.test(source)) {
+    return source
+  }
+  let result = ''
+  for (let i = 0; i < source.length; i += 1) {
+    const char = source[i]
+    const latin = CYRILLIC_TO_LATIN[char.toLowerCase()]
+    if (latin === undefined) {
+      result += char
+    } else if (!isUpper(char) || !latin) {
+      result += latin
+    } else {
+      // «ЩУКА» → SHCHUKA, «Щука» → Shchuka
+      const next = source[i + 1] || ''
+      const allCaps = isUpper(next) || (!/\p{L}/u.test(next) && isUpper(source[i - 1]))
+      result += allCaps ? latin.toUpperCase() : latin[0].toUpperCase() + latin.slice(1)
+    }
+  }
+  return result
+}
+
 export function countryNameForLabel(code, fallback = '') {
   const value = normalizeCode(code)
   if (!usesLatinAddress(value) || value === OTHER_COUNTRY_CODE) {

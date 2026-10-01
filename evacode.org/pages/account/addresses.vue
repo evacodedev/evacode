@@ -86,7 +86,7 @@
               :submitted="submitted"
             />
             <p v-if="latinAddress" class="checkout-choice__note account-lux__span-2">
-              Адрес — латиницей (английскими буквами): так его напечатают на этикетке EMS. Например: Abay Ave 12, Apt. 5.
+              Адрес печатают на этикетке EMS латиницей. Можно писать по-русски — переведём в латиницу сами, проверьте результат. Например: Abay Ave 12, Apt. 5.
             </p>
             <CheckoutField
               v-model="form.city"
@@ -96,6 +96,7 @@
               autocomplete="address-level2"
               :error="fieldError.city"
               :submitted="submitted"
+              @blur="latinizeForm(['city'])"
             />
             <CheckoutField
               v-model="form.street"
@@ -105,6 +106,7 @@
               autocomplete="address-line1"
               :error="fieldError.street"
               :submitted="submitted"
+              @blur="latinizeForm(['street'])"
             />
             <CheckoutField
               v-model="form.house"
@@ -114,6 +116,7 @@
               autocomplete="address-line2"
               :error="fieldError.house"
               :submitted="submitted"
+              @blur="latinizeForm(['house'])"
             />
             <CheckoutField
               v-if="!privateHouse"
@@ -122,6 +125,7 @@
               name="address_apartment"
               :error="fieldError.apartment"
               :submitted="submitted"
+              @blur="latinizeForm(['apartment'])"
             />
             <label class="checkout-check account-lux__span-2">
               <input v-model="privateHouse" type="checkbox">
@@ -135,6 +139,7 @@
               autocomplete="postal-code"
               :error="fieldError.postal_code"
               :submitted="submitted"
+              @blur="latinizeForm(['postal_code'])"
             />
             <CheckoutField
               v-model="form.comment"
@@ -208,7 +213,12 @@ import {
   formatAccountAddress,
   normalizeAddressList,
 } from '~/utils/account-address'
-import { LATIN_ONLY_MESSAGE, hasNonLatinLetters, usesLatinAddress } from '~/utils/shipping-address'
+import {
+  LATIN_ONLY_MESSAGE,
+  hasNonLatinLetters,
+  transliterateCyrillic,
+  usesLatinAddress,
+} from '~/utils/shipping-address'
 
 const LATIN_FIELDS = ['city', 'street', 'house', 'apartment', 'postal_code']
 
@@ -247,6 +257,17 @@ const fieldError = reactive({
 const countryOptions = computed(() => addressCountryOptions(destinations.value))
 const latinAddress = computed(() => usesLatinAddress(form.country_code))
 
+function latinizeForm(fields = LATIN_FIELDS) {
+  if (!latinAddress.value) {
+    return
+  }
+  fields.forEach((field) => {
+    if (form[field]) {
+      form[field] = transliterateCyrillic(form[field])
+    }
+  })
+}
+
 function needsLatinFix(item) {
   return usesLatinAddress(resolveCountryCode(item))
     && LATIN_FIELDS.some((field) => hasNonLatinLetters(item?.[field]))
@@ -266,6 +287,7 @@ watch(
     if (name) {
       form.country = name
     }
+    latinizeForm()
   },
 )
 
@@ -279,6 +301,7 @@ function resetFieldErrors() {
 }
 
 function validate() {
+  latinizeForm()
   resetFieldErrors()
   if (!form.country_code.trim()) {
     fieldError.country = 'Укажите страну'
@@ -353,6 +376,7 @@ function openForm(item) {
     comment: item.comment || '',
   } : emptyAccountAddress())
   privateHouse.value = Boolean(item) && !String(item.apartment || '').trim()
+  latinizeForm()
   editingId.value = item?.id || null
   submitted.value = false
   pending.value = false

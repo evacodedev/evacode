@@ -37,11 +37,9 @@ def _pickup_address() -> str:
 # Те же номера, что в evacode.org/composables/useShopMessengers.js — менять вместе.
 SHOP_MESSENGERS = {
     "WhatsApp": [
-        ("+7 747 048 3761", "https://wa.me/77470483761"),
         ("+7 777 612 2046", "https://wa.me/77776122046"),
     ],
     "Telegram": [
-        ("+7 747 048 3761", "https://t.me/+77470483761"),
         ("+7 777 686 8917", "https://t.me/+77776868917"),
     ],
     "Max": [

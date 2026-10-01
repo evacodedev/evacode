@@ -82,13 +82,15 @@ class ClientEmailBodyTests(SimpleTestCase):
         _subject, text, html = build_client_email(_order(), STAGE_ACCEPTED)
         self.assertIn("Связаться с нами", html)
         self.assertIn('href="tel:+821076528595"', html)
-        self.assertIn("https://wa.me/77470483761", html)
+        self.assertIn("https://wa.me/77776122046", html)
         self.assertIn("https://t.me/+77776868917", html)
+        self.assertNotIn("7470483761", html)
         self.assertIn("max.ru/u/", html)
         self.assertIn("https://www.tiktok.com/@evacodeorg", html)
         self.assertNotIn("Facebook", html)
         self.assertIn("별망로 555", html)
-        self.assertIn("WhatsApp: +7 747 048 3761, +7 777 612 2046", text)
+        self.assertIn("WhatsApp: +7 777 612 2046", text)
+        self.assertNotIn("747 048 3761", text)
         self.assertIn("Instagram: https://www.instagram.com/evacodeorg", text)
 
     def test_accepted_email_promises_tracking(self):
