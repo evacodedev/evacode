@@ -19,7 +19,12 @@
               <circle cx="12" cy="9.7" r="2.2" stroke="currentColor" stroke-width="1.4"/>
             </svg>
           </span>
-          <p class="account-lux__address-text">{{ formatAccountAddress(item) }}</p>
+          <p class="account-lux__address-text">
+            {{ formatAccountAddress(item) }}
+            <span v-if="needsLatinFix(item)" class="account-lux__address-warn">
+              Перепишите латиницей — так адрес печатают на этикетке EMS
+            </span>
+          </p>
           <div class="account-lux__address-actions">
             <button
               class="account-lux__icon-btn"
@@ -80,6 +85,9 @@
               :error="fieldError.country"
               :submitted="submitted"
             />
+            <p v-if="latinAddress" class="checkout-choice__note account-lux__span-2">
+              Адрес — латиницей (английскими буквами): так его напечатают на этикетке EMS. Например: Abay Ave 12, Apt. 5.
+            </p>
             <CheckoutField
               v-model="form.city"
               class="account-lux__span-2"
@@ -200,6 +208,9 @@ import {
   formatAccountAddress,
   normalizeAddressList,
 } from '~/utils/account-address'
+import { LATIN_ONLY_MESSAGE, hasNonLatinLetters, usesLatinAddress } from '~/utils/shipping-address'
+
+const LATIN_FIELDS = ['city', 'street', 'house', 'apartment', 'postal_code']
 
 definePageMeta({
   middleware: 'account-auth',
@@ -234,6 +245,12 @@ const fieldError = reactive({
   postal_code: '',
 })
 const countryOptions = computed(() => addressCountryOptions(destinations.value))
+const latinAddress = computed(() => usesLatinAddress(form.country_code))
+
+function needsLatinFix(item) {
+  return usesLatinAddress(resolveCountryCode(item))
+    && LATIN_FIELDS.some((field) => hasNonLatinLetters(item?.[field]))
+}
 
 watch(privateHouse, (checked) => {
   if (checked) {
@@ -280,6 +297,13 @@ function validate() {
   }
   if (!form.postal_code.trim()) {
     fieldError.postal_code = 'Укажите индекс'
+  }
+  if (latinAddress.value) {
+    LATIN_FIELDS.forEach((field) => {
+      if (!fieldError[field] && hasNonLatinLetters(form[field])) {
+        fieldError[field] = LATIN_ONLY_MESSAGE
+      }
+    })
   }
   return !fieldError.country && !fieldError.city && !fieldError.street && !fieldError.house && !fieldError.apartment && !fieldError.postal_code
 }

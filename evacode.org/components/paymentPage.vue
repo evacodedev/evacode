@@ -140,7 +140,7 @@
               @blur="validateField('countryOther')"
             />
             <p v-if="latinAddress" class="checkout-choice__note checkout-v2__latin-hint">
-              Имя и адрес — латиницей, как пишут на посылках в вашей стране. Посылку оформим точно по этим данным.
+              Имя и адрес — латиницей (английскими буквами): так их напечатают на этикетке EMS. Например: Abay Ave 12, Apt. 5, Almaty.
             </p>
             <div class="checkout-v2__row">
               <CheckoutField
