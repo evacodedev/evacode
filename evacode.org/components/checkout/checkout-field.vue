@@ -9,6 +9,7 @@
       'is-password': isPassword,
       'is-textarea': isTextarea,
       'is-disabled': disabled,
+      'is-clearable': clearable,
     }"
   >
     <select
@@ -58,6 +59,20 @@
     >
     <label :for="inputId">{{ label }}</label>
     <button
+      v-if="clearable && filled && !disabled && !isPassword"
+      class="checkout-field__reveal"
+      type="button"
+      aria-label="Очистить"
+      title="Очистить"
+      @mousedown.prevent
+      @click="onClear"
+    >
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M6 6l12 12" />
+        <path d="M18 6L6 18" />
+      </svg>
+    </button>
+    <button
       v-if="isPassword"
       class="checkout-field__reveal"
       type="button"
@@ -98,8 +113,9 @@ export default {
     disabled: { type: Boolean, default: false },
     mask: { type: String, default: '' },
     rows: { type: Number, default: 3 },
+    clearable: { type: Boolean, default: false },
   },
-  emits: ['update:modelValue', 'blur'],
+  emits: ['update:modelValue', 'blur', 'clear'],
   data() {
     return {
       focused: false,
@@ -156,6 +172,11 @@ export default {
     },
     onInput(event) {
       this.$emit('update:modelValue', this.maskedValue(event.target.value))
+    },
+    onClear() {
+      this.$emit('update:modelValue', '')
+      this.$emit('clear')
+      this.$el.querySelector('input')?.focus()
     },
     onBlur() {
       this.focused = false

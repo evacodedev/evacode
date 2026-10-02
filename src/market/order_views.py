@@ -26,6 +26,7 @@ from .checkout_request import build_manager_order_text
 from .manager_notify import notify_managers, send_managers_email
 from .order_email import send_order_confirmation_email, send_order_help_email
 from .currency import krw_to_usd
+from .latin import LATIN_ONLY_MESSAGE, has_non_latin_letters, transliterate_cyrillic
 from .models import CheckoutSettings, SiteOrder, SiteOrderItem
 from .paypal import (
     PayPalError,
@@ -50,6 +51,13 @@ logger = logging.getLogger(__name__)
 
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 MANAGER_ORDER_REPEAT_WINDOW = timedelta(minutes=5)
+ORDER_LATIN_FIELDS = {
+    "first_name": "firstName",
+    "country": "country",
+    "city": "city",
+    "address": "address",
+    "postal_code": "postalCode",
+}
 
 
 def _digits(value: str) -> str:
@@ -258,26 +266,31 @@ def _validate_order_request(data: dict):
         "postal_code": str(user.get("postalCode") or "").strip(),
         "comment": str(user.get("comment") or "").strip(),
     }
+    errors = {}
+    latin_fields = ORDER_LATIN_FIELDS if shipping_method != METHOD_PICKUP else {"first_name": "firstName"}
+    for field, key in latin_fields.items():
+        form[field] = transliterate_cyrillic(form[field])
+        if has_non_latin_letters(form[field]):
+            errors[key] = LATIN_ONLY_MESSAGE
     if shipping_method == METHOD_PICKUP:
         form["country"] = form["country"] or "Корея"
         form["city"] = form["city"] or "Самовывоз"
         form["address"] = form["address"] or "Самовывоз"
 
-    errors = {}
     if len(form["first_name"]) < 2:
-        errors["firstName"] = "Обязательное поле"
+        errors.setdefault("firstName", "Обязательное поле")
     if not form["phone"]:
         errors["phone"] = "Обязательное поле"
     if not form["email"] or not EMAIL_RE.match(form["email"]):
         errors["email"] = "Укажите корректный email"
     if not form["country"]:
-        errors["country"] = "Обязательное поле"
+        errors.setdefault("country", "Обязательное поле")
     if not form["city"]:
-        errors["city"] = "Обязательное поле"
+        errors.setdefault("city", "Обязательное поле")
     if not form["address"]:
-        errors["address"] = "Обязательное поле"
+        errors.setdefault("address", "Обязательное поле")
     if shipping_method != METHOD_PICKUP and not form["postal_code"]:
-        errors["postalCode"] = "Обязательное поле"
+        errors.setdefault("postalCode", "Обязательное поле")
     parsed, cart_error = parse_cart_lines(cart)
     if cart_error:
         errors["cart"] = cart_error
@@ -512,6 +525,7 @@ class MySiteOrdersView(APIView):
             SiteOrder.objects.filter(user__isnull=True, email__iexact=email).update(user=request.user)
         queryset = (
             SiteOrder.objects.filter(Q(user=request.user) | Q(email__iexact=email))
+            .exclude(status=SiteOrder.Status.CONSULTANT_DRAFT)
             .prefetch_related("items", "items__good__images")
             .order_by("-created_at")
         )

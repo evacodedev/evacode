@@ -164,7 +164,7 @@ import { accountErrorMessage, useAuthStore } from '~/store/auth'
 import { formatQuotePrice } from '~/utils/currencyPrice'
 
 definePageMeta({
-  middleware: 'account-auth',
+  middleware: ['account-auth', 'account-customer'],
 })
 
 useHead({

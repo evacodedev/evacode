@@ -1,5 +1,6 @@
 export const SHOP_MESSENGERS = {
     whatsapp: [
+        { label: '+7 747 048 3761', href: 'https://wa.me/77470483761' },
         { label: '+7 777 612 2046', href: 'https://wa.me/77776122046' },
     ],
     telegram: [

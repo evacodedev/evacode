@@ -103,7 +103,9 @@
               <span>Сумма</span>
               <strong>{{ getPrice(cartTotal) }}</strong>
             </div>
-            <p class="cart-drawer__note">Доставка рассчитывается при оформлении.</p>
+            <p class="cart-drawer__note">
+              {{ isConsultant ? 'Товары перейдут в новый заказ клиента.' : 'Доставка рассчитывается при оформлении.' }}
+            </p>
             <nuxt-link
               to="/page/account/cart"
               class="evacode-btn cart-drawer__btn"
@@ -112,11 +114,11 @@
               В корзину
             </nuxt-link>
             <nuxt-link
-              to="/page/account/checkout"
+              :to="checkoutTo"
               class="evacode-btn fill-btn cart-drawer__btn"
               @click="closeDrawer"
             >
-              Оформить
+              {{ isConsultant ? 'Оформить для клиента' : 'Оформить' }}
             </nuxt-link>
           </footer>
         </aside>
@@ -131,6 +133,9 @@ import { useCartStore } from '~/store/cart'
 import { mapState } from 'pinia'
 
 export default {
+  setup() {
+    return useCheckoutLink()
+  },
   computed: {
     ...mapState(useCartStore, {
       cartTotal: (store) => store.cartTotalAmount,

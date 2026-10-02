@@ -19,7 +19,7 @@
               <CheckoutField
                 v-model="user.firstName.value"
                 name="firstName"
-                label="Имя"
+                label="Имя (латиницей)"
                 autocomplete="given-name"
                 :error="user.firstName.errormsg"
                 :submitted="submitted"
@@ -28,7 +28,7 @@
               <CheckoutField
                 v-model="user.lastName.value"
                 name="lastName"
-                label="Фамилия"
+                label="Фамилия (латиницей)"
                 autocomplete="family-name"
                 :error="user.lastName.errormsg"
                 :submitted="submitted"
@@ -139,7 +139,7 @@
               :submitted="submitted"
               @blur="validateField('countryOther')"
             />
-            <p v-if="latinAddress" class="checkout-choice__note checkout-v2__latin-hint">
+            <p class="checkout-choice__note checkout-v2__latin-hint">
               Имя и адрес печатают на этикетке EMS латиницей. Можно писать по-русски — переведём в латиницу сами, проверьте результат. Например: Abay Ave 12, Apt. 5, Almaty.
             </p>
             <div class="checkout-v2__row">
@@ -408,7 +408,6 @@ import {
   formatAddressLine,
   hasNonLatinLetters,
   transliterateCyrillic,
-  usesLatinAddress,
 } from '~/utils/shipping-address'
 
 const LATIN_FIELDS = [
@@ -439,9 +438,6 @@ export default {
     },
     isEms() {
       return this.shippingMethod === 'ems'
-    },
-    latinAddress() {
-      return this.isEms && usesLatinAddress(this.destinationCode)
     },
     needsOtherCountry() {
       return this.isEms && this.destinationCode === OTHER_COUNTRY_CODE
@@ -756,8 +752,8 @@ export default {
         return
       }
       this.user.email.value = account.email || this.user.email.value
-      this.user.firstName.value = account.first_name || this.user.firstName.value
-      this.user.lastName.value = account.last_name || this.user.lastName.value
+      this.user.firstName.value = transliterateCyrillic(account.first_name) || this.user.firstName.value
+      this.user.lastName.value = transliterateCyrillic(account.last_name) || this.user.lastName.value
       if (account.phone) {
         const intl = toIntlPhone(account.phone)
         this.user.phone.value = intl || account.phone
@@ -958,14 +954,14 @@ export default {
       return !message
     },
     latinizeField(field) {
-      if (this.latinAddress && LATIN_FIELDS.includes(field) && this.user[field].value) {
+      if (LATIN_FIELDS.includes(field) && this.user[field].value) {
         this.user[field].value = transliterateCyrillic(this.user[field].value)
       }
     },
     validateField(field) {
       this.latinizeField(field)
       const value = (this.user[field]?.value || '').trim()
-      if (this.latinAddress && LATIN_FIELDS.includes(field) && hasNonLatinLetters(value)) {
+      if (LATIN_FIELDS.includes(field) && hasNonLatinLetters(value)) {
         return this.setError(field, LATIN_ONLY_MESSAGE)
       }
       if (field === 'firstName') {

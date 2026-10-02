@@ -22,7 +22,7 @@
           <p class="account-lux__address-text">
             {{ formatAccountAddress(item) }}
             <span v-if="needsLatinFix(item)" class="account-lux__address-warn">
-              Перепишите латиницей — так адрес печатают на этикетке EMS
+              Перепишите латиницей — так адрес печатают на этикетке
             </span>
           </p>
           <div class="account-lux__address-actions">
@@ -85,8 +85,8 @@
               :error="fieldError.country"
               :submitted="submitted"
             />
-            <p v-if="latinAddress" class="checkout-choice__note account-lux__span-2">
-              Адрес печатают на этикетке EMS латиницей. Можно писать по-русски — переведём в латиницу сами, проверьте результат. Например: Abay Ave 12, Apt. 5.
+            <p class="checkout-choice__note account-lux__span-2">
+              Адрес пишем только латиницей — так его печатают на этикетке. Можно писать по-русски — переведём в латиницу сами, проверьте результат. Например: Abay Ave 12, Apt. 5.
             </p>
             <CheckoutField
               v-model="form.city"
@@ -217,13 +217,12 @@ import {
   LATIN_ONLY_MESSAGE,
   hasNonLatinLetters,
   transliterateCyrillic,
-  usesLatinAddress,
 } from '~/utils/shipping-address'
 
 const LATIN_FIELDS = ['city', 'street', 'house', 'apartment', 'postal_code']
 
 definePageMeta({
-  middleware: 'account-auth',
+  middleware: ['account-auth', 'account-customer'],
 })
 
 useHead({
@@ -255,12 +254,7 @@ const fieldError = reactive({
   postal_code: '',
 })
 const countryOptions = computed(() => addressCountryOptions(destinations.value))
-const latinAddress = computed(() => usesLatinAddress(form.country_code))
-
 function latinizeForm(fields = LATIN_FIELDS) {
-  if (!latinAddress.value) {
-    return
-  }
   fields.forEach((field) => {
     if (form[field]) {
       form[field] = transliterateCyrillic(form[field])
@@ -269,8 +263,7 @@ function latinizeForm(fields = LATIN_FIELDS) {
 }
 
 function needsLatinFix(item) {
-  return usesLatinAddress(resolveCountryCode(item))
-    && LATIN_FIELDS.some((field) => hasNonLatinLetters(item?.[field]))
+  return LATIN_FIELDS.some((field) => hasNonLatinLetters(item?.[field]))
 }
 
 watch(privateHouse, (checked) => {
@@ -321,13 +314,11 @@ function validate() {
   if (!form.postal_code.trim()) {
     fieldError.postal_code = 'Укажите индекс'
   }
-  if (latinAddress.value) {
-    LATIN_FIELDS.forEach((field) => {
-      if (!fieldError[field] && hasNonLatinLetters(form[field])) {
-        fieldError[field] = LATIN_ONLY_MESSAGE
-      }
-    })
-  }
+  LATIN_FIELDS.forEach((field) => {
+    if (!fieldError[field] && hasNonLatinLetters(form[field])) {
+      fieldError[field] = LATIN_ONLY_MESSAGE
+    }
+  })
   return !fieldError.country && !fieldError.city && !fieldError.street && !fieldError.house && !fieldError.apartment && !fieldError.postal_code
 }
 

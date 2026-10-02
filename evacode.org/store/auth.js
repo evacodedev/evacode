@@ -68,6 +68,7 @@ export const useAuthStore = defineStore({
       return name || state.user?.email || ''
     },
     defaultAddress: (state) => state.addresses[0] || null,
+    isConsultant: (state) => Boolean(state.user?.is_consultant),
   },
   actions: {
     accessCookie() {

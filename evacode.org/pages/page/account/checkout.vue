@@ -6,6 +6,10 @@
   <Footer />
 </template>
 <script setup>
+definePageMeta({
+  middleware: 'checkout-consultant',
+})
+
 useHead({
   titleTemplate: `%s - Оформить заказ`,
   meta: [

@@ -1,5 +1,5 @@
 // Строка адреса уходит без правок в Business.Ru, письмо клиенту и на EMS-этикетку.
-// Для всех направлений EMS (включая СНГ) — латиница, страна по-английски.
+// Имя и адрес в формах — только латиница при любой доставке; страна по-английски.
 const HOUSE_FIRST_DESTINATIONS = new Set(['US', 'GB', 'FR'])
 const NON_LATIN_LETTER = /[^\P{L}\p{Script=Latin}]/u
 
@@ -72,6 +72,30 @@ export function countryNameForLabel(code, fallback = '') {
     return new Intl.DisplayNames(['en'], { type: 'region' }).of(value) || fallback
   } catch {
     return fallback
+  }
+}
+
+/**
+ * Сайт пишет адрес в заказ Business.Ru как «индекс, страна, город, улица…» (`_delivery_text`).
+ * Разбираем только такую строку и только если страна — одно из направлений EMS; иначе null.
+ */
+export function parseSiteDeliveryText(text, destinations) {
+  const parts = clean(text).split(',').map((part) => part.trim()).filter(Boolean)
+  if (parts.length < 4) return null
+  const [postalCode, country, city, ...rest] = parts
+  if (!/\d/.test(postalCode) || postalCode.length > 12) return null
+  const wanted = country.toLowerCase()
+  const match = (destinations || []).find((item) => {
+    const code = normalizeCode(item.code)
+    if (!code || code === KOREA_CODE || code === OTHER_COUNTRY_CODE) return false
+    return [item.name, countryNameForLabel(code)].some((name) => clean(name).toLowerCase() === wanted)
+  })
+  if (!match) return null
+  return {
+    destination: normalizeCode(match.code),
+    city,
+    address: rest.join(', '),
+    postalCode,
   }
 }
 

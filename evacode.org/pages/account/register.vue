@@ -10,11 +10,12 @@
           <form class="account-lux__form" @submit.prevent="onSubmit">
             <CheckoutField
               v-model="firstName"
-              label="Имя"
+              label="Имя (латиницей)"
               name="first_name"
               autocomplete="given-name"
               :error="fieldError.firstName"
               :submitted="submitted"
+              @blur="firstName = transliterateCyrillic(firstName)"
             />
             <CheckoutField
               v-model="email"
@@ -70,6 +71,7 @@
 
 <script setup>
 import { accountErrorMessage, safeAccountNext, useAuthStore } from '~/store/auth'
+import { LATIN_ONLY_MESSAGE, hasNonLatinLetters, transliterateCyrillic } from '~/utils/shipping-address'
 
 definePageMeta({
   middleware: 'account-guest',
@@ -109,10 +111,12 @@ const loginTo = computed(() => {
 const onSubmit = async () => {
   submitted.value = true
   formError.value = ''
+  firstName.value = transliterateCyrillic(firstName.value)
+  fieldError.firstName = hasNonLatinLetters(firstName.value) ? LATIN_ONLY_MESSAGE : ''
   fieldError.email = email.value.trim() ? '' : 'Укажите email'
   fieldError.password = password.value ? '' : 'Придумайте пароль'
   fieldError.password2 = password.value === password2.value ? '' : 'Пароли не совпадают'
-  if (fieldError.email || fieldError.password || fieldError.password2 || !agreed.value) {
+  if (fieldError.firstName || fieldError.email || fieldError.password || fieldError.password2 || !agreed.value) {
     return
   }
   pending.value = true

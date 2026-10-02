@@ -27,6 +27,10 @@ services:
       - .:/evacode
     env_file:
       - .env
+    environment: &local-db
+      # Локально только своя база: при старте здесь migrate, а в .env может стоять адрес VPS.
+      - DB_HOST=db
+      - DB_PORT=5432
   update_database:
 #    network_mode: "host"
     build:
@@ -40,6 +44,7 @@ services:
       - .:/evacode
     env_file:
       - .env
+    environment: *local-db
 #    depends_on:
 #      - db
 #    volumes:
@@ -57,6 +62,7 @@ services:
       - .:/evacode
     env_file:
       - .env
+    environment: *local-db
     depends_on:
       - db
       - server
@@ -71,6 +77,7 @@ services:
       - .:/evacode
     env_file:
       - .env
+    environment: *local-db
     depends_on:
       - db
       - server

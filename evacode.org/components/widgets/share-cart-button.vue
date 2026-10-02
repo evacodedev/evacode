@@ -2,17 +2,18 @@
   <div ref="root" class="share-cart">
     <button
       type="button"
-      class="share-cart__icon"
+      class="share-cart__btn"
       aria-label="Поделиться корзиной"
       title="Поделиться корзиной"
       @click="share"
     >
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="18" cy="5" r="2.6" />
         <circle cx="6" cy="12" r="2.6" />
         <circle cx="18" cy="19" r="2.6" />
         <path d="M8.3 13.3l7.4 4.4M15.7 6.3l-7.4 4.4" />
       </svg>
+      <span class="share-cart__label">Поделиться</span>
     </button>
     <div v-if="status" class="share-cart__popover" role="status">
       <p class="share-cart__status">{{ status }}</p>

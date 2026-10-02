@@ -66,6 +66,43 @@ class BusinessRuOrderClient(BusinessRuAPIClient):
             return data
         raise last_error or BusinessRuOrderError(f"{model} {method}: Invalid app_psw")
 
+    def upload_file(self, model_name: str, document_id, filename: str, content: bytes, content_type: str) -> str:
+        """Модель files: POST multipart, файл привязывается к документу model_name/document_id."""
+        params = {"app_id": self.app_id, "model_name": model_name, "document_id": str(document_id)}
+        url = f"{self.base_url}/files.json"
+        last_error = None
+        for _attempt in range(2):
+            hashed = self.get_hash(params=params, token=self.token)
+            response = requests.post(
+                url,
+                data={**params, "app_psw": hashed},
+                files={"file": (filename or "payment.jpg", content, content_type or "application/octet-stream")},
+                timeout=60,
+            )
+            text = response.text or ""
+            if response.status_code == 401 or "Invalid app_psw" in text:
+                last_error = BusinessRuOrderError(f"files post: ({response.status_code}) {text[:500]}")
+                self.set_token()
+                continue
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise BusinessRuOrderError(f"files post: не JSON ({response.status_code}) {text[:500]}") from exc
+            if not response.ok or (isinstance(data, dict) and data.get("status") == "error"):
+                detail = data.get("error_text") or data.get("error_code") if isinstance(data, dict) else data
+                raise BusinessRuOrderError(f"files post: {detail or data}")
+            result = data.get("result") if isinstance(data, dict) else None
+            if isinstance(result, dict):
+                file_id = result.get("id") or (result.get("ids") or [None])[0]
+            elif isinstance(result, list) and result:
+                file_id = result[0].get("id") if isinstance(result[0], dict) else result[0]
+            else:
+                file_id = result
+            if not file_id:
+                raise BusinessRuOrderError(f"files post: нет id в ответе {data}")
+            return str(file_id)
+        raise last_error or BusinessRuOrderError("files post: Invalid app_psw")
+
     def find_by_name(self, model: str, name: str, name_field: str = "name"):
         wanted = (name or "").strip().lower()
         if not wanted:
@@ -547,10 +584,12 @@ def _find_site_feed_comment(
     return None
 
 
-def _put_feed_comment(client: BusinessRuOrderClient, model: str, record_id, text: str, public_id: str) -> None:
+def _put_feed_comment(
+    client: BusinessRuOrderClient, model: str, record_id, text: str, public_id: str, employee_id: str = ""
+) -> None:
     if not record_id or not text:
         return
-    employee_id = str(getattr(settings, "BUSINESS_RU_EMPLOYEE_ID", "") or "").strip()
+    employee_id = employee_id or str(getattr(settings, "BUSINESS_RU_EMPLOYEE_ID", "") or "").strip()
     if not employee_id:
         logger.warning(
             "Комментарий %s %s не записан: не задан BUSINESS_RU_EMPLOYEE_ID",
@@ -629,11 +668,12 @@ def _set_payment_sum(client: BusinessRuOrderClient, payment_id, amount: Decimal)
     client.request("put", "paymentin", {"id": payment_id, "sum": _money_str(wanted)})
 
 
-def _link_payment_to_order(client: BusinessRuOrderClient, payment_id, order) -> None:
+def _link_payment_to_order(client: BusinessRuOrderClient, payment_id, order, amount: Decimal | None = None) -> None:
     order_id = order.business_ru_order_id
     if _payment_is_linked(client, payment_id, order_id):
         return
-    amount = _payment_sum_krw(order)
+    if amount is None:
+        amount = _payment_sum_krw(order)
     last_error = None
     tried = set()
     for _ in range(3):
@@ -786,7 +826,106 @@ def _export_reservation(client: BusinessRuOrderClient, order, partner_id, org_id
     order.save(update_fields=["business_ru_reservation_id", "business_ru_reservation_number", "updated_at"])
 
 
+def _ensure_partner(client: BusinessRuOrderClient, order, responsible_employee_id: str = ""):
+    partner = _find_partner(client, order.email, order.phone_digits)
+    if partner:
+        return partner.get("id")
+    params = {
+        "name": order.first_name,
+        "customer": 1,
+        "note": f"Сайт evacode.org, {order.email}, {order.phone}",
+    }
+    if responsible_employee_id:
+        params["responsible_employee_id"] = responsible_employee_id
+    created = client.request("post", "partners", params)
+    partner_id = _result_id(created)
+    if not partner_id:
+        raise BusinessRuOrderError(f"Не удалось создать контрагента: {created}")
+    email_type = _contact_type_id(client, "mail") or _contact_type_id(client, "email")
+    phone_type = _contact_type_id(client, "телефон") or _contact_type_id(client, "phone")
+    if email_type and order.email:
+        client.request(
+            "post",
+            "partnercontactinfo",
+            {
+                "partner_id": partner_id,
+                "contact_info_type_id": email_type,
+                "contact_info": order.email,
+            },
+        )
+    if phone_type:
+        client.request(
+            "post",
+            "partnercontactinfo",
+            {
+                "partner_id": partner_id,
+                "contact_info_type_id": phone_type,
+                "contact_info": order.phone,
+                "phone": order.phone_digits,
+            },
+        )
+    return partner_id
+
+
+def _create_customer_order(
+    client: BusinessRuOrderClient,
+    order,
+    partner_id,
+    org_id: str,
+    employee_id: str,
+    status_id: str,
+    store_id: str,
+    reference_fields: dict,
+) -> None:
+    order_params = {
+        "partner_id": partner_id,
+        "organization_id": org_id,
+        "author_employee_id": employee_id,
+        "responsible_employee_id": employee_id,
+        "status_id": status_id,
+        "comment": _document_note(order),
+        "delivery_address": _delivery_text(order)[:500],
+    }
+    order_params.update(reference_fields)
+    created_order = client.request("post", "customerorders", order_params)
+    business_order_id = _result_id(created_order)
+    if not business_order_id:
+        raise BusinessRuOrderError(f"Не удалось создать заказ покупателя: {created_order}")
+
+    for item in order.items.all():
+        client.request(
+            "post",
+            "customerordergoods",
+            {
+                "customer_order_id": business_order_id,
+                "good_id": item.good_id_snapshot,
+                "amount": item.quantity,
+                "price": item.price_krw,
+                "store_id": store_id,
+            },
+        )
+
+    order.business_ru_partner_id = str(partner_id)
+    order.business_ru_order_id = str(business_order_id)
+    order.business_ru_order_number = _document_number(
+        client, "customerorders", business_order_id, created_order
+    )[:32]
+    order.business_ru_error = ""
+    order.save(
+        update_fields=[
+            "business_ru_partner_id",
+            "business_ru_order_id",
+            "business_ru_order_number",
+            "business_ru_error",
+            "updated_at",
+        ]
+    )
+
+
 def export_paid_order(order) -> None:
+    if getattr(order, "consultant_id", None):
+        export_consultant_order(order)
+        return
     org_id = str(settings.BUSINESS_RU_ORGANIZATION_ID or "").strip()
     employee_id = str(settings.BUSINESS_RU_EMPLOYEE_ID or "").strip()
     if not org_id or not employee_id:
@@ -802,89 +941,18 @@ def export_paid_order(order) -> None:
         if not status_id:
             raise BusinessRuOrderError("Не задан BUSINESS_RU_STATUS_ID")
 
-    partner = _find_partner(client, order.email, order.phone_digits)
-    if partner:
-        partner_id = partner.get("id")
-    else:
-        created = client.request(
-            "post",
-            "partners",
-            {
-                "name": order.first_name,
-                "customer": 1,
-                "note": f"Сайт evacode.org, {order.email}, {order.phone}",
-            },
-        )
-        partner_id = _result_id(created)
-        if not partner_id:
-            raise BusinessRuOrderError(f"Не удалось создать контрагента: {created}")
-        email_type = _contact_type_id(client, "mail") or _contact_type_id(client, "email")
-        phone_type = _contact_type_id(client, "телефон") or _contact_type_id(client, "phone")
-        if email_type:
-            client.request(
-                "post",
-                "partnercontactinfo",
-                {
-                    "partner_id": partner_id,
-                    "contact_info_type_id": email_type,
-                    "contact_info": order.email,
-                },
-            )
-        if phone_type:
-            client.request(
-                "post",
-                "partnercontactinfo",
-                {
-                    "partner_id": partner_id,
-                    "contact_info_type_id": phone_type,
-                    "contact_info": order.phone,
-                    "phone": order.phone_digits,
-                },
-            )
+    partner_id = _ensure_partner(client, order)
 
     if not order.business_ru_order_id:
-        order_params = {
-            "partner_id": partner_id,
-            "organization_id": org_id,
-            "author_employee_id": employee_id,
-            "responsible_employee_id": employee_id,
-            "status_id": status_id,
-            "comment": _document_note(order),
-            "delivery_address": _delivery_text(order)[:500],
-        }
-        order_params.update(_order_reference_fields(order))
-        created_order = client.request("post", "customerorders", order_params)
-        business_order_id = _result_id(created_order)
-        if not business_order_id:
-            raise BusinessRuOrderError(f"Не удалось создать заказ покупателя: {created_order}")
-
-        for item in order.items.all():
-            client.request(
-                "post",
-                "customerordergoods",
-                {
-                    "customer_order_id": business_order_id,
-                    "good_id": item.good_id_snapshot,
-                    "amount": item.quantity,
-                    "price": item.price_krw,
-                    "store_id": store_id,
-                },
-            )
-
-        order.business_ru_partner_id = str(partner_id)
-        order.business_ru_order_id = str(business_order_id)
-        order.business_ru_order_number = _document_number(
-            client, "customerorders", business_order_id, created_order
-        )[:32]
-        order.business_ru_error = ""
-        order.save(
-            update_fields=[
-                "business_ru_partner_id",
-                "business_ru_order_id",
-                "business_ru_order_number",
-                "business_ru_error",
-                "updated_at",
-            ]
+        _create_customer_order(
+            client,
+            order,
+            partner_id,
+            org_id,
+            employee_id,
+            status_id,
+            store_id,
+            _order_reference_fields(order),
         )
     else:
         _ensure_order_goods_krw(client, order)
@@ -913,3 +981,278 @@ def export_paid_order(order) -> None:
         raise BusinessRuOrderError(order.business_ru_error)
 
     _sync_document_comments(client, order)
+
+
+# --- Заказ через консультанта: всё в KRW, владелец — консультант, оплат может быть несколько ---
+
+
+def _krw_per_unit_text(currency: str, rate) -> str:
+    """rate — валюта за 1 ₩ → «1 USD = 1 380,52 ₩»."""
+    code = (currency or "").upper()
+    if not code or code == "KRW" or not rate:
+        return ""
+    per_unit = (Decimal("1") / Decimal(str(rate))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    return f"1 {code} = {per_unit} ₩"
+
+
+def _local_time_text(value) -> str:
+    if not value:
+        return ""
+    from django.utils import timezone
+
+    return timezone.localtime(value).strftime("%d.%m.%Y %H:%M")
+
+
+def _consultant_document_comment(order) -> str:
+    from .consultant import order_paid_krw
+
+    consultant = order.consultant
+    user = consultant.user if consultant else None
+    who = ""
+    if user is not None:
+        who = _inline(user.get_full_name(), f"({user.email})" if user.email else "")
+
+    site = [f"Заказ с сайта evacode.org {order.public_id}", f"Через консультанта: {who}" if who else ""]
+
+    business = ["Business.Ru"]
+    if order.business_ru_order_number:
+        business.append(f"заказ: {order.business_ru_order_number}")
+    if order.business_ru_reservation_number:
+        business.append(f"резерв: {order.business_ru_reservation_number}")
+
+    money = [
+        _inline(
+            f"Сумма заказа: {order.amount_krw} ₩",
+            f"(товары {order.goods_krw} ₩, доставка {order.shipping_krw} ₩)",
+        )
+    ]
+    if order.display_currency and order.display_currency != "KRW" and order.display_amount is not None:
+        money.append(
+            _inline(
+                f"Показано клиенту: {order.display_amount} {order.display_currency}",
+                f"по курсу {_krw_per_unit_text(order.display_currency, order.display_rate)}",
+            )
+        )
+    payments = list(order.payments.all())
+    if payments:
+        money.append("Оплаты:")
+    for payment in payments:
+        rate_text = _krw_per_unit_text(payment.currency, payment.rate)
+        money.append(
+            _inline(
+                f"— {payment.amount} {payment.currency}",
+                f"по курсу {rate_text}" if rate_text else "",
+                f"→ {payment.amount_krw} ₩",
+                f"({_local_time_text(payment.created_at)})",
+                f"оплата Business.Ru № {payment.business_ru_payment_number}" if payment.business_ru_payment_number else "",
+                "фото не загружено в Business.Ru, оно в админке сайта" if payment.business_ru_file_error else "",
+            )
+        )
+    paid_krw = order_paid_krw(order)
+    money.append(f"Получено всего: {paid_krw} ₩")
+    if order.underpaid_krw:
+        money.append(f"Не доплачено: {order.underpaid_krw} ₩ (оформлено без доплаты)")
+        if order.underpaid_reason:
+            money.append(f"Причина: {order.underpaid_reason}")
+    elif paid_krw > order.amount_krw:
+        money.append(f"Переплата: {paid_krw - order.amount_krw} ₩")
+
+    delivery = _delivery_text(order)
+    buyer = [
+        _inline(
+            f"Покупатель: {order.first_name}" if order.first_name else "",
+            f"Email: {order.email}" if order.email else "",
+            f"Телефон: {order.phone}" if order.phone else "",
+            f"Адрес: {delivery}" if delivery else "",
+        )
+    ]
+    if order.comment:
+        buyer.append(f"Комментарий: {order.comment}")
+
+    blocks = [
+        "\n".join(line for line in site if line),
+        "\n".join(line for line in business if line),
+        "\n".join(line for line in money if line),
+        "\n".join(line for line in buyer if line),
+    ]
+    return "\n\n".join(block for block in blocks if block).strip()[:4000]
+
+
+def _consultant_reference_fields() -> dict:
+    fields = {}
+    source_id = str(getattr(settings, "BUSINESS_RU_REQUEST_SOURCE_ID", "") or "").strip()
+    if source_id:
+        fields["request_source_id"] = source_id
+    payment_type_id = str(getattr(settings, "BUSINESS_RU_CONSULTANT_PAYMENT_TYPE_ID", "") or "").strip()
+    if payment_type_id:
+        fields["payment_type_id"] = payment_type_id
+    return fields
+
+
+def _attach_payment_proof(client: BusinessRuOrderClient, payment, employee_id: str) -> str:
+    """Фото в BR видно только во вложениях комментария: комментарий к оплате, файл — к комментарию."""
+    note = f"Фото оплаты: {payment.amount} {payment.currency} = {payment.amount_krw} ₩"
+    created = client.request(
+        "post",
+        "comments",
+        {
+            "model_name": "paymentin",
+            "document_id": payment.business_ru_payment_id,
+            "employee_id": employee_id,
+            "note": note,
+        },
+    )
+    comment_id = str(_result_id(created) or "")
+    if not comment_id:
+        raise BusinessRuOrderError(f"Комментарий к оплате не создан: {created}")
+    try:
+        return client.upload_file(
+            "comment",
+            comment_id,
+            payment.proof_name,
+            bytes(payment.proof_data),
+            payment.proof_content_type,
+        )
+    except Exception:
+        try:
+            client.request("delete", "comments", {"id": comment_id})
+        except BusinessRuOrderError:
+            logger.warning("Пустой комментарий %s к оплате не удалён", comment_id)
+        raise
+
+
+def _export_consultant_payment(
+    client: BusinessRuOrderClient, order, payment, partner_id, org_id: str, employee_id: str, account_id: str
+) -> None:
+    if not payment.business_ru_payment_id:
+        operation_id = _payment_operation_id(client)
+        if not operation_id:
+            raise BusinessRuOrderError(
+                "Не найден вид операции входящего платежа. Укажите BUSINESS_RU_PAYMENT_OPERATION_ID"
+            )
+        params = {
+            "partner_id": partner_id,
+            "organization_id": org_id,
+            "author_employee_id": employee_id,
+            "responsible_employee_id": employee_id,
+            "operation_id": operation_id,
+            "sum": _money_str(payment.amount_krw),
+            "held": 1,
+            "comment": _document_note(order),
+            **_payment_account_params(client, account_id),
+        }
+        account = _account_record(client, account_id)
+        if account.get("currency_id"):
+            params["currency_id"] = account["currency_id"]
+        created = client.request("post", "paymentin", params)
+        payment_id = str(_result_id(created) or "")
+        if not payment_id:
+            raise BusinessRuOrderError(f"Не удалось создать входящий платёж: {created}")
+        payment.business_ru_payment_id = payment_id
+        payment.business_ru_payment_number = _document_number(client, "paymentin", payment_id, created)[:32]
+        payment.save(update_fields=["business_ru_payment_id", "business_ru_payment_number"])
+        _ensure_payment_account(client, payment_id, account_id)
+    _link_payment_to_order(client, payment.business_ru_payment_id, order, amount=Decimal(payment.amount_krw))
+
+    if bytes(payment.proof_data or b"") and not payment.business_ru_file_id:
+        try:
+            file_id = _attach_payment_proof(client, payment, employee_id)
+        except Exception as exc:
+            logger.warning("Фото оплаты %s не загружено в Business.Ru: %s", payment.pk, exc)
+            payment.business_ru_file_error = str(exc)[:2000]
+            payment.save(update_fields=["business_ru_file_error"])
+        else:
+            payment.business_ru_file_id = file_id
+            payment.business_ru_file_error = ""
+            payment.save(update_fields=["business_ru_file_id", "business_ru_file_error"])
+
+
+def _consultant_partner(client: BusinessRuOrderClient, order, employee_id: str) -> str:
+    """Контрагент, выбранный консультантом, годится, только если у него есть телефон или email клиента."""
+    from .business_ru_clients import find_partner_matches, partner_has_contact
+
+    chosen = str(order.business_ru_partner_id or "").strip()
+    if order.business_ru_order_id and chosen:
+        return chosen
+    if chosen and partner_has_contact(client, chosen, order.email, order.phone_digits):
+        return chosen
+    matches, _total = find_partner_matches(client, order.email, order.phone_digits)
+    if matches:
+        return matches[0]["id"]
+    return str(_ensure_partner(client, order, responsible_employee_id=employee_id))
+
+
+def export_consultant_order(order) -> None:
+    consultant = order.consultant
+    if consultant is None:
+        raise BusinessRuOrderError("У заказа нет консультанта")
+    employee_id = str(consultant.business_ru_employee_id or "").strip()
+    org_id = str(settings.BUSINESS_RU_ORGANIZATION_ID or "").strip()
+    account_id = str(
+        getattr(settings, "BUSINESS_RU_CONSULTANT_CURRENT_ACCOUNT_ID", "")
+        or getattr(settings, "BUSINESS_RU_CURRENT_ACCOUNT_ID", "")
+        or ""
+    ).strip()
+    if not employee_id:
+        raise BusinessRuOrderError("У консультанта не задан ID сотрудника в системе заказов EvaCode")
+    if not org_id:
+        raise BusinessRuOrderError("Не задан BUSINESS_RU_ORGANIZATION_ID")
+    if not account_id:
+        raise BusinessRuOrderError(
+            "Не задан расчётный счёт: BUSINESS_RU_CURRENT_ACCOUNT_ID (или BUSINESS_RU_CONSULTANT_CURRENT_ACCOUNT_ID)"
+        )
+    payments = list(order.payments.all())
+    if not payments:
+        raise BusinessRuOrderError("В заказе нет оплат")
+
+    client = BusinessRuOrderClient()
+    partner_id = _consultant_partner(client, order, employee_id)
+    if not order.business_ru_order_id:
+        status_id = str(getattr(settings, "BUSINESS_RU_CONSULTANT_STATUS_ID", "") or "").strip()
+        if not status_id:
+            raise BusinessRuOrderError("Не задан BUSINESS_RU_CONSULTANT_STATUS_ID")
+        _create_customer_order(
+            client,
+            order,
+            partner_id,
+            org_id,
+            employee_id,
+            status_id,
+            _korea_store_id(client),
+            _consultant_reference_fields(),
+        )
+
+    try:
+        _export_reservation(client, order, partner_id, org_id, employee_id)
+    except Exception as exc:
+        order.business_ru_error = f"Заказ создан, резерв не выгружен: {exc}"[:4000]
+        order.save(update_fields=["business_ru_error", "updated_at"])
+        raise BusinessRuOrderError(order.business_ru_error)
+
+    try:
+        for payment in payments:
+            _export_consultant_payment(client, order, payment, partner_id, org_id, employee_id, account_id)
+    except Exception as exc:
+        order.business_ru_error = f"Заказ создан, оплата не выгружена: {exc}"[:4000]
+        order.save(update_fields=["business_ru_error", "updated_at"])
+        raise BusinessRuOrderError(order.business_ru_error)
+
+    first = payments[0]
+    order.business_ru_payment_id = first.business_ru_payment_id
+    order.business_ru_payment_number = first.business_ru_payment_number
+    order.business_ru_error = ""
+    order.save(
+        update_fields=["business_ru_payment_id", "business_ru_payment_number", "business_ru_error", "updated_at"]
+    )
+
+    note = _document_note(order)
+    details = _consultant_document_comment(order)
+    public_id = str(order.public_id)
+    documents = [
+        ("customerorders", order.business_ru_order_id),
+        ("reservations", order.business_ru_reservation_id),
+        *[("paymentin", payment.business_ru_payment_id) for payment in payments],
+    ]
+    for model, record_id in documents:
+        _put_note(client, model, record_id, note)
+        _put_feed_comment(client, model, record_id, details, public_id, employee_id=employee_id)

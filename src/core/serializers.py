@@ -95,6 +95,9 @@ class AccountUserSerializer(serializers.ModelSerializer):
         data["birth_date"] = profile.birth_date.isoformat() if profile and profile.birth_date else None
         data["whatsapp"] = profile.whatsapp if profile else ""
         data["telegram"] = profile.telegram if profile else ""
+        from market.consultant import active_consultant
+
+        data["is_consultant"] = active_consultant(instance) is not None
         data.pop("password", None)
         data.pop("password2", None)
         data.pop("current_password", None)

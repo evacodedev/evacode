@@ -6,7 +6,7 @@
           <p class="account-lux__eyebrow">Аккаунт</p>
           <h1 class="account-lux__title">Личный кабинет</h1>
           <p class="account-lux__hello">Здравствуйте, {{ displayName }}!</p>
-          <p class="account-lux__status-line">Статус: Розничный клиент</p>
+          <p class="account-lux__status-line">Статус: {{ auth.isConsultant ? 'Консультант' : 'Розничный клиент' }}</p>
           <nav class="account-lux__nav" aria-label="Разделы кабинета">
             <nuxt-link
               v-for="item in items"
@@ -51,9 +51,13 @@ const displayName = computed(() => auth.displayName || 'гость')
 const logoutPending = ref(false)
 
 const items = computed(() => [
-  { to: '/account/', label: 'Заказы', active: props.current === 'orders' },
-  { to: '/account/profile/', label: 'Личные данные', active: props.current === 'profile' },
-  { to: '/account/addresses/', label: 'Адреса доставки', active: props.current === 'addresses' },
+  ...(auth.isConsultant
+    ? [{ to: '/account/consultant/', label: 'Заказы клиентов', active: props.current === 'consultant' }]
+    : [
+        { to: '/account/', label: 'Заказы', active: props.current === 'orders' },
+        { to: '/account/profile/', label: 'Личные данные', active: props.current === 'profile' },
+        { to: '/account/addresses/', label: 'Адреса доставки', active: props.current === 'addresses' },
+      ]),
   { to: '/account/wishlist/', label: 'Избранное', active: props.current === 'wishlist' },
 ])
 

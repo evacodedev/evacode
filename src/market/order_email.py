@@ -37,6 +37,7 @@ def _pickup_address() -> str:
 # Те же номера, что в evacode.org/composables/useShopMessengers.js — менять вместе.
 SHOP_MESSENGERS = {
     "WhatsApp": [
+        ("+7 747 048 3761", "https://wa.me/77470483761"),
         ("+7 777 612 2046", "https://wa.me/77776122046"),
     ],
     "Telegram": [
@@ -286,10 +287,10 @@ def _totals_html(order, is_pickup: bool) -> str:
             f'<td align="right" style="padding:6px 0;font-size:{size};font-weight:{weight};color:{_INK};">{value}</td></tr>'
         )
 
-    total = (
-        f"{escape(_format_krw(order.amount_krw))}"
-        f'<div style="font-size:12px;font-weight:400;color:{_MUTED};">≈ {escape(str(order.amount_usd))} USD</div>'
-    )
+    approx = _approx_total(order)
+    total = escape(_format_krw(order.amount_krw))
+    if approx:
+        total += f'<div style="font-size:12px;font-weight:400;color:{_MUTED};">≈ {escape(approx)}</div>'
     return (
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="margin:8px 0 28px;">'
         + row("Товары", escape(_format_krw(goods)))
@@ -348,6 +349,21 @@ def _tracking_html(tracking_number: str) -> str:
     )
 
 
+def _payment_method(order) -> str:
+    return "через консультанта" if getattr(order, "consultant_id", None) else "PayPal"
+
+
+def _approx_total(order) -> str:
+    """Сумма во второй валюте: у PayPal — USD, у консультанта — валюта, показанная клиенту."""
+    if getattr(order, "consultant_id", None):
+        currency = (getattr(order, "display_currency", "") or "").upper()
+        amount = getattr(order, "display_amount", None)
+        if currency and currency != "KRW" and amount is not None:
+            return f"{amount} {currency}"
+        return ""
+    return f"{order.amount_usd} USD"
+
+
 def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[str, str, str]:
     """(subject, text, html) письма клиенту о статусе заказа."""
     br_number = _br_order_number(order)
@@ -365,7 +381,7 @@ def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[st
         lines += [f"Трек-номер EMS: {tracking_number}", f"Отследить: {tracking_url(tracking_number)}", ""]
     lines += [
         f"Номер заказа: {number}",
-        "Оплата: прошла (PayPal)",
+        f"Оплата: прошла ({_payment_method(order)})",
         "",
         "Состав заказа:",
     ]
@@ -377,7 +393,7 @@ def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[st
         "",
         f"Товары: {_format_krw(goods)}",
         "Получение: самовывоз" if is_pickup else f"Доставка EMS: {_format_krw(order.shipping_krw or 0)}",
-        f"Итого: {_format_krw(order.amount_krw)} (≈ {order.amount_usd} USD)",
+        f"Итого: {_format_krw(order.amount_krw)}" + (f" (≈ {_approx_total(order)})" if _approx_total(order) else ""),
         "",
     ]
     if is_pickup:
@@ -425,7 +441,7 @@ def build_client_email(order, stage: int, tracking_number: str = "") -> tuple[st
               <p style="margin:0 0 6px;font-size:15px;line-height:1.55;">Здравствуйте, {escape(order.first_name)}!</p>
               <p style="margin:0 0 20px;font-size:15px;line-height:1.55;color:#4A4743;">{escape(copy["lead"])}</p>
               <p style="margin:0 0 28px;">
-                <span style="display:inline-block;padding:7px 14px;border-radius:999px;background:#EAF3EC;color:#2F6B3A;font-size:13px;font-weight:600;">✓ Оплата прошла · PayPal</span>
+                <span style="display:inline-block;padding:7px 14px;border-radius:999px;background:#EAF3EC;color:#2F6B3A;font-size:13px;font-weight:600;">✓ Оплата прошла · {escape(_payment_method(order))}</span>
               </p>
               {_stages_html(stage, is_pickup)}
               {tracking_block}

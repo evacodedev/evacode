@@ -191,6 +191,56 @@ class SiteOrderApiTests(TestCase):
         self.assertEqual(order.weight_grams, 1300)
         self.assertEqual(create_order_mock.call_args.kwargs["amount_usd"], Decimal("48.13"))
 
+    @patch("market.order_views.create_order")
+    @patch("market.order_views.krw_to_usd", return_value=(Decimal("48.13"), Decimal("1600")))
+    def test_create_order_transliterates_cyrillic(self, _rate, create_order_mock):
+        from io import BytesIO
+
+        from market.ems_tariffs import import_ems_xlsx
+        from market.test_ems_tariffs import make_ems_xlsx
+
+        import_ems_xlsx(BytesIO(make_ems_xlsx()))
+        create_order_mock.return_value = ({"id": "PAYPAL-5"}, "https://paypal.test/approve")
+        payload = self._payload(shipping={"method": "ems", "destination": "RU"})
+        payload["user"].update({
+            "firstName": "Юлия Щукина",
+            "country": "Russia",
+            "city": "Москва",
+            "address": "Тверская 1, Apt. 5",
+        })
+        response = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        order = SiteOrder.objects.get(public_id=response.json()["id"])
+        self.assertEqual(order.first_name, "Yuliya Shchukina")
+        self.assertEqual(order.city, "Moskva")
+        self.assertEqual(order.address, "Tverskaya 1, Apt. 5")
+
+    def test_create_order_rejects_non_latin_address(self):
+        payload = self._payload(shipping={"method": "ems", "destination": "RU"})
+        payload["user"]["address"] = "서울 강남구 1"
+        response = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertEqual(response.json()["errors"]["address"], "Только латиницей (английскими буквами)")
+
+    def test_create_order_pickup_name_is_latin(self):
+        payload = self._payload()
+        payload["user"]["firstName"] = "김민지"
+        response = self.client.post(
+            "/api/market/orders/",
+            data=json.dumps(payload),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("firstName", response.json()["errors"])
+
     def test_create_order_ems_requires_postal_code(self):
         from io import BytesIO
 

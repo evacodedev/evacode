@@ -8,19 +8,26 @@
         <CheckoutField
           v-model="firstName"
           class="account-lux__span-2"
-          label="Имя"
+          label="Имя (латиницей)"
           name="profile_first_name"
           autocomplete="given-name"
           :error="fieldError.firstName"
           :submitted="submitted"
+          @blur="firstName = transliterateCyrillic(firstName)"
         />
         <CheckoutField
           v-model="lastName"
           class="account-lux__span-2"
-          label="Фамилия"
+          label="Фамилия (латиницей)"
           name="profile_last_name"
           autocomplete="family-name"
+          :error="fieldError.lastName"
+          :submitted="submitted"
+          @blur="lastName = transliterateCyrillic(lastName)"
         />
+        <p class="checkout-choice__note account-lux__span-2">
+          Имя и фамилию пишем латиницей — так их печатают на этикетке посылки. Можно по-русски — переведём сами, проверьте результат.
+        </p>
         <AccountPhoneField
           v-model="phone"
           class="account-lux__span-2"
@@ -115,9 +122,10 @@
 <script setup>
 import { accountErrorMessage, useAuthStore } from '~/store/auth'
 import { maskTelegram, toIntlPhone } from '~/utils/input-mask'
+import { LATIN_ONLY_MESSAGE, hasNonLatinLetters, transliterateCyrillic } from '~/utils/shipping-address'
 
 definePageMeta({
-  middleware: 'account-auth',
+  middleware: ['account-auth', 'account-customer'],
 })
 
 useHead({
@@ -138,6 +146,7 @@ const saved = ref(false)
 const formError = ref('')
 const fieldError = reactive({
   firstName: '',
+  lastName: '',
 })
 
 const showPasswordForm = ref(false)
@@ -160,8 +169,8 @@ function applyUser(user) {
   if (!user) {
     return
   }
-  firstName.value = user.first_name || ''
-  lastName.value = user.last_name || ''
+  firstName.value = transliterateCyrillic(user.first_name || '')
+  lastName.value = transliterateCyrillic(user.last_name || '')
   phone.value = toIntlPhone(user.phone || '')
   whatsapp.value = toIntlPhone(user.whatsapp || '')
   telegram.value = maskTelegram(user.telegram || '')
@@ -174,8 +183,13 @@ const onSubmit = async () => {
   submitted.value = true
   saved.value = false
   formError.value = ''
-  fieldError.firstName = firstName.value.trim() ? '' : 'Укажите имя'
-  if (fieldError.firstName) {
+  firstName.value = transliterateCyrillic(firstName.value)
+  lastName.value = transliterateCyrillic(lastName.value)
+  fieldError.firstName = !firstName.value.trim()
+    ? 'Укажите имя'
+    : hasNonLatinLetters(firstName.value) ? LATIN_ONLY_MESSAGE : ''
+  fieldError.lastName = hasNonLatinLetters(lastName.value) ? LATIN_ONLY_MESSAGE : ''
+  if (fieldError.firstName || fieldError.lastName) {
     return
   }
   pending.value = true

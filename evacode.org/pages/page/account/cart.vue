@@ -55,7 +55,8 @@
                         </nuxt-link>
                     </div>
                     <div class="col-lg-6 col-12 make-order-btn">
-                        <nuxt-link :to="{ path: '/page/account/checkout' }" :class="'evacode-btn fill-btn'">заказать
+                        <nuxt-link :to="checkoutTo" :class="'evacode-btn fill-btn'">
+                            {{ isConsultant ? 'оформить для клиента' : 'заказать' }}
                         </nuxt-link>
                     </div>
                 </div>
@@ -73,7 +74,8 @@ export default {
         useNoIndex()
         const { country, load, setCountry } = useShippingCountry()
         onMounted(load)
-        return { shippingCountry: country, setShippingCountry: setCountry }
+        const { isConsultant, checkoutTo } = useCheckoutLink()
+        return { shippingCountry: country, setShippingCountry: setCountry, isConsultant, checkoutTo }
     },
     computed: {
         cart() {

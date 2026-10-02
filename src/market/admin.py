@@ -52,8 +52,11 @@ from .models import (
     ProductContentBlockI18n,
     ProductKind,
     ProductKindI18n,
+    Consultant,
+    ConsultantClientLookup,
     SiteOrder,
     SiteOrderItem,
+    SiteOrderPayment,
     CheckoutSettings,
     TBankOperation,
 )
@@ -904,6 +907,94 @@ class TBankOperationAdmin(admin.ModelAdmin):
         return False
 
 
+class StaffOnlyAdminMixin:
+    """Пока без отдельных прав: видят и правят все, у кого есть вход в админку."""
+
+    def has_module_permission(self, request):
+        return request.user.is_active and request.user.is_staff
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+    def has_add_permission(self, request):
+        return request.user.is_active and request.user.is_staff
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_active and request.user.is_staff
+
+
+@admin.register(Consultant)
+class ConsultantAdmin(StaffOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("user", "user_email", "business_ru_employee_id", "is_active", "orders_count", "created_at")
+    list_filter = ("is_active",)
+    search_fields = ("user__email", "user__first_name", "user__last_name", "business_ru_employee_id")
+    raw_id_fields = ("user",)
+    fields = ("user", "business_ru_employee_id", "is_active", "note", "created_at", "updated_at")
+    readonly_fields = ("created_at", "updated_at")
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related("user").annotate(_orders=Count("orders"))
+
+    @admin.display(description="Email", ordering="user__email")
+    def user_email(self, obj):
+        return obj.user.email
+
+    @admin.display(description="Заказов", ordering="_orders")
+    def orders_count(self, obj):
+        return obj._orders
+
+    def has_delete_permission(self, request, obj=None):
+        if obj is not None and obj.orders.exists():
+            return False
+        return super().has_delete_permission(request, obj)
+
+
+@admin.register(ConsultantClientLookup)
+class ConsultantClientLookupAdmin(StaffOnlyAdminMixin, admin.ModelAdmin):
+    list_display = ("created_at", "consultant", "query", "found")
+    list_filter = ("found", "consultant")
+    search_fields = ("query", "consultant__user__email")
+    readonly_fields = ("consultant", "query", "found", "created_at")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
+class SiteOrderPaymentInline(admin.TabularInline):
+    model = SiteOrderPayment
+    extra = 0
+    can_delete = False
+    fields = (
+        "created_at",
+        "amount",
+        "currency",
+        "rate",
+        "amount_krw",
+        "proof_link",
+        "created_by",
+        "business_ru_payment_number",
+        "business_ru_file_id",
+        "business_ru_file_error",
+    )
+    readonly_fields = fields
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    @admin.display(description="Фото оплаты")
+    def proof_link(self, obj):
+        if not obj.pk or not obj.proof_name:
+            return "—"
+        url = reverse("consultant_payment_proof", args=[obj.order.public_id, obj.pk])
+        return format_html('<a href="{}" target="_blank" rel="noopener">Открыть</a>', url)
+
+
 class SiteOrderItemInline(admin.TabularInline):
     model = SiteOrderItem
     extra = 0
@@ -917,6 +1008,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "status",
         "paypal_mode",
         "user",
+        "consultant",
         "first_name",
         "email",
         "phone",
@@ -929,7 +1021,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "tracking_number",
         "created_at",
     )
-    list_filter = ("status", "paypal_mode", OrderWhenFilter, OrderOpsFilter)
+    list_filter = ("status", "paypal_mode", "consultant", OrderWhenFilter, OrderOpsFilter)
     search_fields = (
         "public_id",
         "email",
@@ -946,6 +1038,13 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "public_id",
         "status",
         "user",
+        "consultant",
+        "display_currency",
+        "display_amount",
+        "display_rate",
+        "underpaid_krw",
+        "underpaid_reason",
+        "sent_to_client_at",
         "first_name",
         "phone",
         "email",
@@ -979,7 +1078,7 @@ class SiteOrderAdmin(admin.ModelAdmin):
         "paid_at",
     )
     readonly_fields = fields
-    inlines = [SiteOrderItemInline]
+    inlines = [SiteOrderItemInline, SiteOrderPaymentInline]
     actions = ["confirm_received", "export_to_business_ru"]
     change_form_template = "admin/market/siteorder/change_form.html"
 
@@ -1145,6 +1244,7 @@ _SETTINGS_MODELS = {"partnerapikey"}
 _API_KZ_MODELS = {"apikzsync", "apikzsyncsettings"}
 _API_RU_MODELS = {"apirusync", "apirusyncsettings"}
 _PAYMENTS_MODELS = ("siteorder", "checkoutsettings", "tbankoperation")
+_CONSULTANT_MODELS = {"consultant", "consultantclientlookup"}
 
 _original_get_app_list = admin.site.get_app_list
 
@@ -1167,6 +1267,7 @@ def get_app_list(request, app_label=None):
     settings_models = []
     api_kz_models = []
     api_ru_models = []
+    consultant_models = []
     payments_by_name = {}
     for app in app_list:
         if app.get("app_label") != "market":
@@ -1184,6 +1285,8 @@ def get_app_list(request, app_label=None):
                 api_ru_models.append(model)
             elif object_name in _PAYMENTS_MODELS:
                 payments_by_name[object_name] = model
+            elif object_name in _CONSULTANT_MODELS:
+                consultant_models.append(model)
             else:
                 remaining.append(model)
         app["models"] = remaining
@@ -1198,6 +1301,7 @@ def get_app_list(request, app_label=None):
             _app_group("API RU", "api_ru", api_ru_models),
             _app_group("EMS", "ems", ems_models),
             _app_group("Оплаты", "payments", payments_models),
+            _app_group("Консультанты", "consultants", consultant_models),
             _app_group("SETTINGS", "settings", settings_models),
         )
         if group
@@ -1215,7 +1319,7 @@ def get_app_list(request, app_label=None):
     if not inserted:
         result.extend(extras)
 
-    if app_label in {"ems", "settings", "api_kz", "payments"}:
+    if app_label in {"ems", "settings", "api_kz", "payments", "consultants"}:
         return [app for app in result if app.get("app_label") == app_label]
     return result
 

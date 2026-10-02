@@ -231,12 +231,67 @@ class EmsDestination(models.Model):
         return self.rate_column_id is not None
 
 
+class Consultant(models.Model):
+    """Консультант (sale manager). Роль и id сотрудника Business.Ru задаются только вручную в админке."""
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="consultant_profile",
+        verbose_name="Пользователь сайта",
+    )
+    business_ru_employee_id = models.CharField(
+        max_length=32,
+        verbose_name="ID сотрудника Business.Ru",
+        help_text="Владелец заказа, резерва и оплаты в Business.Ru.",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        verbose_name="Включён",
+        help_text="Выключенный консультант сразу теряет доступ к кабинету консультанта.",
+    )
+    note = models.CharField(max_length=255, blank=True, verbose_name="Заметка")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Консультант"
+        verbose_name_plural = "Консультанты"
+        ordering = ["user__email"]
+
+    def __str__(self):
+        name = self.user.get_full_name() if self.user_id else ""
+        email = self.user.email if self.user_id else ""
+        return f"{name} ({email})".strip() if name else email
+
+
+class ConsultantClientLookup(models.Model):
+    """Журнал точного поиска клиента консультантом: кто, что искал, нашлось ли."""
+
+    consultant = models.ForeignKey(
+        Consultant, on_delete=models.CASCADE, related_name="lookups", verbose_name="Консультант"
+    )
+    query = models.CharField(max_length=254, verbose_name="Запрос")
+    found = models.BooleanField(default=False, verbose_name="Найден")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True, verbose_name="Когда")
+
+    class Meta:
+        verbose_name = "Поиск клиента"
+        verbose_name_plural = "Поиск клиентов (журнал)"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.consultant}: {self.query}"
+
+
 class SiteOrder(models.Model):
     class Status(models.TextChoices):
         PENDING = "pending", "Ожидает оплату"
         PAID = "paid", "Оплачен"
         # Заказ через Telegram: клиент не платил на сайте, оформляет консультант. В Business.Ru не выгружается.
         MANAGER = "manager", "Передан консультанту"
+        # Черновик консультанта: в Business.Ru не уходит, пока консультант не подтвердит оплату.
+        CONSULTANT_DRAFT = "consultant_draft", "Ожидает оплату (консультант)"
         FAILED = "failed", "Ошибка оплаты"
         CANCELLED = "cancelled", "Отменён"
 
@@ -303,6 +358,30 @@ class SiteOrder(models.Model):
         null=True,
         verbose_name="Письмо с трек-номером",
     )
+    consultant = models.ForeignKey(
+        Consultant,
+        on_delete=models.PROTECT,
+        blank=True,
+        null=True,
+        related_name="orders",
+        verbose_name="Консультант",
+    )
+    display_currency = models.CharField(max_length=3, blank=True, verbose_name="Валюта показа клиенту")
+    display_rate = models.DecimalField(
+        max_digits=18,
+        decimal_places=10,
+        blank=True,
+        null=True,
+        verbose_name="Курс показа (валюта за 1 ₩)",
+    )
+    display_amount = models.DecimalField(
+        max_digits=14, decimal_places=2, blank=True, null=True, verbose_name="Показано клиенту"
+    )
+    underpaid_krw = models.PositiveIntegerField(default=0, verbose_name="Не доплачено, ₩")
+    underpaid_reason = models.TextField(blank=True, verbose_name="Почему оформлено без доплаты")
+    sent_to_client_at = models.DateTimeField(
+        blank=True, null=True, verbose_name="Консультант отправил клиенту на оплату"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     paid_at = models.DateTimeField(blank=True, null=True)
@@ -333,6 +412,42 @@ class SiteOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.title} × {self.quantity}"
+
+
+class SiteOrderPayment(models.Model):
+    """Оплата клиента по заказу консультанта. Фото хранится в базе, не в публичном /media/."""
+
+    order = models.ForeignKey(SiteOrder, on_delete=models.CASCADE, related_name="payments")
+    amount = models.DecimalField(max_digits=14, decimal_places=2, verbose_name="Сумма")
+    currency = models.CharField(max_length=3, verbose_name="Валюта")
+    rate = models.DecimalField(
+        max_digits=18, decimal_places=10, verbose_name="Курс (валюта за 1 ₩) на момент записи"
+    )
+    amount_krw = models.PositiveIntegerField(verbose_name="Получено, ₩")
+    proof_name = models.CharField(max_length=255, blank=True, verbose_name="Файл")
+    proof_content_type = models.CharField(max_length=100, blank=True)
+    proof_data = models.BinaryField(blank=True, default=b"", editable=False)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="+",
+        verbose_name="Кто записал",
+    )
+    business_ru_payment_id = models.CharField(max_length=32, blank=True, verbose_name="ID оплаты Business.Ru")
+    business_ru_payment_number = models.CharField(max_length=32, blank=True, verbose_name="№ входящей оплаты")
+    business_ru_file_id = models.CharField(max_length=32, blank=True, verbose_name="ID файла Business.Ru")
+    business_ru_file_error = models.TextField(blank=True, verbose_name="Фото в Business.Ru не загружено")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Оплата клиента"
+        verbose_name_plural = "Оплаты клиента"
+        ordering = ["created_at", "id"]
+
+    def __str__(self):
+        return f"{self.amount} {self.currency} ≈ {self.amount_krw} ₩"
 
 
 class PartnerApiKey(models.Model):

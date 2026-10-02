@@ -18,6 +18,17 @@ from .views import (
     YandexFeedView,
 )
 from .tbank_views import TBankOperationWebhookView
+from .consultant_views import (
+    ConsultantClientLookupView,
+    ConsultantMeView,
+    ConsultantOrderDetailView,
+    ConsultantOrderSentView,
+    ConsultantOrdersView,
+    ConsultantPaymentDetailView,
+    ConsultantPaymentProofView,
+    ConsultantPaymentsView,
+    ConsultantSubmitView,
+)
 from .order_views import (
     CheckoutSettingsView,
     CreateSiteOrderView,
@@ -56,4 +67,17 @@ urlpatterns = [
     path('orders/<str:public_id>/', SiteOrderDetailView.as_view()),
     path('shipping/destinations/', ShippingDestinationsView.as_view()),
     path('shipping/quote/', ShippingQuoteView.as_view()),
+    path('consultant/me/', ConsultantMeView.as_view()),
+    path('consultant/clients/lookup/', ConsultantClientLookupView.as_view()),
+    path('consultant/orders/', ConsultantOrdersView.as_view()),
+    path('consultant/orders/<str:public_id>/', ConsultantOrderDetailView.as_view()),
+    path('consultant/orders/<str:public_id>/submit/', ConsultantSubmitView.as_view()),
+    path('consultant/orders/<str:public_id>/sent/', ConsultantOrderSentView.as_view()),
+    path('consultant/orders/<str:public_id>/payments/', ConsultantPaymentsView.as_view()),
+    path('consultant/orders/<str:public_id>/payments/<int:payment_id>/', ConsultantPaymentDetailView.as_view()),
+    path(
+        'consultant/orders/<str:public_id>/payments/<int:payment_id>/proof/',
+        ConsultantPaymentProofView.as_view(),
+        name='consultant_payment_proof',
+    ),
 ]

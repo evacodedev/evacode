@@ -9,6 +9,8 @@
     <WidgetsCartFab />
     <ClientOnly>
       <AppHandoff />
+      <AppNotice />
+      <AppConfirm />
     </ClientOnly>
 </NuxtLayout>
 </template>

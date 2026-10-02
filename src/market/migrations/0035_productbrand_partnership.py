@@ -2,9 +2,8 @@ from django.db import migrations, models
 
 
 def refresh_jogabi(apps, schema_editor):
-    from market.brand_pages import ensure_jogabi_brand
-
-    ensure_jogabi_brand(link_goods=True)
+    # Живая модель ProductBrand уже с video_url (0036); заполнение повторяет 0036.
+    return None
 
 
 def noop(apps, schema_editor):

@@ -409,6 +409,11 @@ BUSINESS_RU_PAYMENT_OPERATION_ID = os.getenv("BUSINESS_RU_PAYMENT_OPERATION_ID",
 BUSINESS_RU_PAYMENT_OPERATION_NAME = os.getenv("BUSINESS_RU_PAYMENT_OPERATION_NAME", "Оплата от покупателя").strip()
 # id в справочнике «Способы оплаты» (paymenttypes) → customerorders.payment_type_id
 BUSINESS_RU_PAYPAL_PAYMENT_TYPE_ID = os.getenv("BUSINESS_RU_PAYPAL_PAYMENT_TYPE_ID", "353536").strip()
+# Заказы через консультантов: счёт для входящих оплат (не счёт PayPal) и способ оплаты в заказе (необязательно).
+BUSINESS_RU_CONSULTANT_CURRENT_ACCOUNT_ID = os.getenv("BUSINESS_RU_CONSULTANT_CURRENT_ACCOUNT_ID", "").strip()
+BUSINESS_RU_CONSULTANT_PAYMENT_TYPE_ID = os.getenv("BUSINESS_RU_CONSULTANT_PAYMENT_TYPE_ID", "").strip()
+# id в справочнике customerorderstatus: 241 — «НОВЫЙ РОЗНИЦА»
+BUSINESS_RU_CONSULTANT_STATUS_ID = os.getenv("BUSINESS_RU_CONSULTANT_STATUS_ID", "241").strip()
 # id в справочнике «Источники» (requestsource) → customerorders.request_source_id
 BUSINESS_RU_REQUEST_SOURCE_ID = os.getenv("BUSINESS_RU_REQUEST_SOURCE_ID", "2").strip()
 # Пока не пусто — письма «принят в обработку» и «трек-номер» уходят сюда вместо клиента (тест).
