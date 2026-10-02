@@ -124,7 +124,8 @@ cp .env.template .env2
 | Переменная | Используется для |
 | --- | --- |
 | `APP_ID`, `API_SECRET` | импорт категорий и товаров из Business.Ru |
-| `BOT_TOKEN`, `CHAT_ID` | уведомления о заказах в Telegram |
+| `BOT_TOKEN`, `CHAT_ID` | уведомления о заказах в Telegram (группа консультантов) |
+| `TELEGRAM_EXTRA_CHAT_ID` | копия тех же заявок в личный чат @evacode. Пусто — только группа. Не подставлять @Evacode_83 |
 | `TOSS_SECRET_KEY` | подтверждение и отмена платежей Toss Payments |
 | `YOOKASSA_SHOP_ID`, `YOOKASSA_API_TOKEN` | YooKassa |
 | `BACKEND_PUBLIC_URL` | публичный адрес backend для платежных callback URL |

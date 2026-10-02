@@ -18,25 +18,35 @@ TELEGRAM_ATTEMPTS = 3
 HANDLE_KEYBOARD = {"inline_keyboard": [[{"text": "ОБРАБОТАТЬ✅", "callback_data": "handle"}]]}
 
 
-def send_telegram(text: str) -> bool:
-    token = (os.getenv("BOT_TOKEN") or "").strip()
-    chat_id = (os.getenv("CHAT_ID") or "").strip()
-    if not token or not chat_id:
-        logger.warning("Telegram не настроен: нет BOT_TOKEN или CHAT_ID")
-        return False
+def _telegram_chat_ids() -> list[str]:
+    """Группа из CHAT_ID — основная. TELEGRAM_EXTRA_CHAT_ID — копия в @evacode, через запятую."""
+    primary = (os.getenv("CHAT_ID") or "").strip()
+    ids: list[str] = []
+    if primary:
+        ids.append(primary)
+    extra = os.getenv("TELEGRAM_EXTRA_CHAT_ID") or ""
+    for part in extra.split(","):
+        chat_id = part.strip()
+        if chat_id and chat_id not in ids:
+            ids.append(chat_id)
+    return ids
+
+
+def _post_telegram(token: str, chat_id: str, text: str, *, attempts: int) -> bool:
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     payload = {
         "chat_id": chat_id,
         "text": text[:TELEGRAM_TEXT_LIMIT],
         "reply_markup": HANDLE_KEYBOARD,
     }
-    for attempt in range(1, TELEGRAM_ATTEMPTS + 1):
+    for attempt in range(1, attempts + 1):
         try:
             response = requests.post(url, json=payload, timeout=TELEGRAM_TIMEOUT)
             if response.ok and response.json().get("ok"):
                 return True
             logger.warning(
-                "Telegram ответил %s на попытке %s: %s",
+                "Telegram чат %s ответил %s на попытке %s: %s",
+                chat_id,
                 response.status_code,
                 attempt,
                 response.text[:300],
@@ -44,10 +54,24 @@ def send_telegram(text: str) -> bool:
             if 400 <= response.status_code < 500 and response.status_code != 429:
                 return False
         except (requests.RequestException, ValueError) as exc:
-            logger.warning("Telegram недоступен на попытке %s: %s", attempt, exc)
-        if attempt < TELEGRAM_ATTEMPTS:
+            logger.warning("Telegram чат %s недоступен на попытке %s: %s", chat_id, attempt, exc)
+        if attempt < attempts:
             time.sleep(0.5 * attempt)
     return False
+
+
+def send_telegram(text: str) -> bool:
+    token = (os.getenv("BOT_TOKEN") or "").strip()
+    chat_ids = _telegram_chat_ids()
+    if not token or not chat_ids:
+        logger.warning("Telegram не настроен: нет BOT_TOKEN или CHAT_ID")
+        return False
+    # Успех заявки решает группа. Дополнительные чаты — копия, их сбой не гасит основную отправку.
+    primary_ok = _post_telegram(token, chat_ids[0], text, attempts=TELEGRAM_ATTEMPTS)
+    for chat_id in chat_ids[1:]:
+        if not _post_telegram(token, chat_id, text, attempts=1):
+            logger.warning("Telegram копия не ушла в дополнительный чат %s", chat_id)
+    return primary_ok
 
 
 def send_managers_email(subject: str, text: str, reply_to: str = "") -> bool:

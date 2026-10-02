@@ -47,6 +47,32 @@ class SendTelegramTests(SimpleTestCase):
         self.assertFalse(send_telegram("Заказ"))
         self.assertEqual(post.call_count, 1)
 
+    @patch.dict(os.environ, {**TELEGRAM_ENV, "TELEGRAM_EXTRA_CHAT_ID": "9001, -100500"})
+    @patch("market.manager_notify.requests.post")
+    def test_extra_chat_gets_a_copy_group_stays_primary(self, post, _sleep):
+        post.return_value = _ok_response()
+        self.assertTrue(send_telegram("Заказ"))
+        chat_ids = [call.kwargs["json"]["chat_id"] for call in post.call_args_list]
+        self.assertEqual(chat_ids, ["-100500", "9001"])
+
+    @patch.dict(os.environ, {**TELEGRAM_ENV, "TELEGRAM_EXTRA_CHAT_ID": "9001"})
+    @patch("market.manager_notify.requests.post")
+    def test_extra_failure_does_not_drop_the_group(self, post, _sleep):
+        ok = _ok_response()
+        failed = MagicMock(ok=False, status_code=400, text="chat not found")
+        post.side_effect = [ok, failed]
+        self.assertTrue(send_telegram("Заказ"))
+        self.assertEqual(post.call_count, 2)
+
+    @patch.dict(os.environ, {**TELEGRAM_ENV, "TELEGRAM_EXTRA_CHAT_ID": "9001"})
+    @patch("market.manager_notify.requests.post")
+    def test_group_failure_still_fails_even_if_copy_is_sent(self, post, _sleep):
+        failed = MagicMock(ok=False, status_code=400, text="chat not found")
+        post.side_effect = [failed, _ok_response()]
+        self.assertFalse(send_telegram("Заказ"))
+        chat_ids = [call.kwargs["json"]["chat_id"] for call in post.call_args_list]
+        self.assertEqual(chat_ids, ["-100500", "9001"])
+
 
 class NotifyManagersTests(SimpleTestCase):
     @patch("market.manager_notify.send_managers_email")
