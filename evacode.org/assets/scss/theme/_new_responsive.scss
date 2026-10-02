@@ -1656,6 +1656,37 @@
             letter-spacing: 0.08em;
             text-transform: uppercase;
         }
+
+        button.product-pdp__sticky-save {
+            display: grid;
+            place-items: center;
+            flex: 0 0 44px;
+            width: 44px;
+            min-width: 44px;
+            padding: 0;
+            border: 1px solid #d8d3cb;
+            background: #fff;
+            color: #1a1917;
+            letter-spacing: 0;
+            text-transform: none;
+
+            svg {
+                width: 18px;
+                height: 18px;
+                fill: none;
+                stroke: currentColor;
+                stroke-width: 1.4;
+            }
+
+            &.is-saved {
+                color: #b89254;
+                border-color: #b89254;
+
+                svg {
+                    fill: currentColor;
+                }
+            }
+        }
     }
 }
 

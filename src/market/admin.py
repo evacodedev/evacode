@@ -57,6 +57,7 @@ from .models import (
     SiteOrder,
     SiteOrderItem,
     SiteOrderPayment,
+    WishlistItem,
     CheckoutSettings,
     TBankOperation,
 )
@@ -1259,6 +1260,14 @@ def _app_group(name, app_label, models):
         "has_module_perms": True,
         "models": models,
     }
+
+
+@admin.register(WishlistItem)
+class WishlistItemAdmin(admin.ModelAdmin):
+    list_display = ("user", "goods", "created_at")
+    search_fields = ("user__email", "user__username", "goods__title")
+    raw_id_fields = ("user", "goods")
+    ordering = ("-created_at",)
 
 
 def get_app_list(request, app_label=None):

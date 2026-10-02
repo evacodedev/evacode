@@ -861,3 +861,33 @@ class ImageModel(models.Model):
     name = models.CharField(verbose_name="Название", max_length=128)
     sort = models.IntegerField(null=True, blank=True, verbose_name='Sort')
     url = models.TextField(verbose_name='URL')
+
+
+class WishlistItem(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="wishlist_items",
+        verbose_name="Пользователь",
+    )
+    goods = models.ForeignKey(
+        GoodsModel,
+        on_delete=models.CASCADE,
+        related_name="wishlist_items",
+        verbose_name="Товар",
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Добавлено")
+
+    class Meta:
+        verbose_name = "Избранное"
+        verbose_name_plural = "Избранное"
+        ordering = ("-created_at", "-id")
+        constraints = [
+            models.UniqueConstraint(
+                fields=("user", "goods"),
+                name="market_wishlist_user_goods_uniq",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id}:{self.goods_id}"

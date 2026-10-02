@@ -29,6 +29,7 @@ from .consultant_views import (
     ConsultantPaymentsView,
     ConsultantSubmitView,
 )
+from .wishlist_views import WishlistItemView, WishlistView
 from .order_views import (
     CheckoutSettingsView,
     CreateSiteOrderView,
@@ -65,6 +66,8 @@ urlpatterns = [
     path('orders/<str:public_id>/help/', SiteOrderHelpView.as_view()),
     path('orders/paypal/return/', PayPalReturnView.as_view(), name='site_order_paypal_return'),
     path('orders/<str:public_id>/', SiteOrderDetailView.as_view()),
+    path('wishlist/', WishlistView.as_view()),
+    path('wishlist/<int:goods_id>/', WishlistItemView.as_view()),
     path('shipping/destinations/', ShippingDestinationsView.as_view()),
     path('shipping/quote/', ShippingQuoteView.as_view()),
     path('consultant/me/', ConsultantMeView.as_view()),

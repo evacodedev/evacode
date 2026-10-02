@@ -135,6 +135,7 @@
                 >
                     Добавить в корзину
                 </button>
+                <WishlistHeart :product="product" button-class="product-pdp__save" show-label />
                 <p class="product-pdp__avail">{{ outOfStock ? 'Нет в наличии' : 'В наличии' }}</p>
                 <p
                     class="product-pdp__notice"
@@ -240,6 +241,7 @@
         <div v-if="product" class="product-pdp__sticky">
             <div class="container product-pdp__sticky-bar">
                 <span>{{ getPrice(product.retail_price) }}</span>
+                <WishlistHeart :product="product" button-class="product-pdp__sticky-save" />
                 <button
                     type="button"
                     :disabled="outOfStock || product.stock == null || counter > product.stock"

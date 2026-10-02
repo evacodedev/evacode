@@ -5,6 +5,7 @@
         <span class="lable3" v-if="product.new">Новый</span>
         <span class="lable4" v-if="product.sale">sale</span>
       </div>
+      <WishlistHeart :product="product" button-class="product-card__save" />
       <nuxt-link class="product-detail-link" :to="{ path: '/product/' + product.id }" @click="rememberProduct">
         <img
             v-if="cardImageUrl"
