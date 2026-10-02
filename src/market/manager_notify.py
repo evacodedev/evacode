@@ -19,7 +19,7 @@ HANDLE_KEYBOARD = {"inline_keyboard": [[{"text": "ОБРАБОТАТЬ✅", "cal
 
 
 def _telegram_chat_ids() -> list[str]:
-    """Группа из CHAT_ID — основная. TELEGRAM_EXTRA_CHAT_ID — копия в @evacode, через запятую."""
+    """Группа из CHAT_ID — основная. TELEGRAM_EXTRA_CHAT_ID — копия в @Evacode_83, через запятую."""
     primary = (os.getenv("CHAT_ID") or "").strip()
     ids: list[str] = []
     if primary:
